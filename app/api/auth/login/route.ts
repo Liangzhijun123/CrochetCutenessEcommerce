@@ -9,10 +9,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
     }
 
+    // Log the login attempt for debugging
+    console.log(`Login attempt: ${email}`)
+
     const user = db.getUserByEmail(email)
 
-    if (!user || user.password !== password) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 })
+    if (!user) {
+      return NextResponse.json({ error: `No user found with email: ${email}` }, { status: 401 })
+    }
+
+    if (user.password !== password) {
+      return NextResponse.json({ error: "Invalid password" }, { status: 401 })
     }
 
     // In a real app, you would use a proper authentication system

@@ -7,13 +7,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/auth-context"
-import { Clock, AlertCircle, CheckCircle, XCircle } from "lucide-react"
+import { Clock, AlertCircle, CheckCircle, XCircle, RefreshCw, LogOut } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function SellerDashboard() {
-  const { user, isAuthenticated } = useAuth()
+  const { user, isAuthenticated, logout, updateUser, refreshUserData } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("products")
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -29,6 +32,69 @@ export default function SellerDashboard() {
 
     setIsLoading(false)
   }, [isAuthenticated, user, router])
+
+  // Function to refresh user data from localStorage
+  const handleRefreshUserData = async () => {
+    setIsRefreshing(true)
+
+    try {
+      // Check if refreshUserData is available
+      if (typeof refreshUserData === "function") {
+        const success = await refreshUserData()
+
+        if (success) {
+          toast({
+            title: "User data refreshed",
+            description: "Your profile has been updated with the latest information.",
+          })
+
+          // If the user is now a seller, reload the page to show the seller dashboard
+          if (user?.role === "seller") {
+            window.location.reload()
+          }
+        } else {
+          toast({
+            title: "Refresh failed",
+            description: "Unable to refresh user data. Please try logging out and back in.",
+            variant: "destructive",
+          })
+        }
+      } else {
+        // Fallback if refreshUserData is not available
+        // Try to update the user role directly
+        if (user && user.sellerApplication?.status === "approved") {
+          const success = await updateUser({ ...user, role: "seller" })
+          if (success) {
+            toast({
+              title: "Role updated",
+              description: "Your role has been updated to seller.",
+            })
+            window.location.reload()
+          } else {
+            toast({
+              title: "Update failed",
+              description: "Unable to update your role. Please try logging out and back in.",
+              variant: "destructive",
+            })
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing user data:", error)
+      toast({
+        title: "Error",
+        description: "An error occurred while refreshing your data.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  const handleLogout = () => {
+    logout()
+    router.push("/")
+  }
 
   if (isLoading) {
     return (
@@ -87,7 +153,7 @@ export default function SellerDashboard() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button variant="outline" className="w-full" asChild>
                 <Link href="/">Return to Homepage</Link>
               </Button>
@@ -95,6 +161,15 @@ export default function SellerDashboard() {
                 <Link href="/profile">View Profile</Link>
               </Button>
             </div>
+            <Button
+              variant="outline"
+              className="w-full flex items-center justify-center gap-2"
+              onClick={handleRefreshUserData}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              Refresh Status
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -127,7 +202,7 @@ export default function SellerDashboard() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button variant="outline" className="w-full" asChild>
                 <Link href="/">Return to Homepage</Link>
               </Button>
@@ -135,6 +210,15 @@ export default function SellerDashboard() {
                 <Link href="/profile">View Profile</Link>
               </Button>
             </div>
+            <Button
+              variant="outline"
+              className="w-full flex items-center justify-center gap-2"
+              onClick={handleRefreshUserData}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              Refresh Status
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -166,10 +250,26 @@ export default function SellerDashboard() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button className="w-full bg-rose-500 hover:bg-rose-600" asChild>
-                <Link href="/seller-dashboard">Go to Seller Dashboard</Link>
+            <div className="flex flex-col gap-2">
+              <Button
+                className="w-full bg-rose-500 hover:bg-rose-600 flex items-center justify-center gap-2"
+                onClick={handleRefreshUserData}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                Update My Role & Continue
               </Button>
+              <Button
+                variant="outline"
+                className="w-full flex items-center justify-center gap-2"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4" />
+                Log Out & Log Back In
+              </Button>
+            </div>
+            <div className="text-center text-sm text-muted-foreground">
+              <p>If the buttons above don't work, try clearing your browser cache and logging in again.</p>
             </div>
           </CardContent>
         </Card>
@@ -180,13 +280,19 @@ export default function SellerDashboard() {
   // Regular seller dashboard for approved sellers
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Seller Dashboard</h1>
-        <p className="text-muted-foreground">Manage your products, orders, and seller profile.</p>
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Seller Dashboard</h1>
+          <p className="text-muted-foreground">Manage your products, orders, and seller profile.</p>
+        </div>
+        <Button variant="destructive" size="sm" className="self-start md:self-auto" onClick={handleLogout}>
+          <LogOut className="h-4 w-4 mr-2" />
+          Sign Out
+        </Button>
       </div>
 
       <Tabs defaultValue="products" onValueChange={setActiveTab} value={activeTab}>
-        <TabsList className="mb-8">
+        <TabsList className="mb-8 flex flex-wrap">
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="orders">Orders</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -194,9 +300,9 @@ export default function SellerDashboard() {
         </TabsList>
 
         <TabsContent value="products" className="space-y-6">
-          <div className="flex justify-between">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h2 className="text-2xl font-bold">Your Products</h2>
-            <div className="space-x-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" asChild>
                 <Link href="/seller-dashboard/products/new-pattern">Add Pattern</Link>
               </Button>
@@ -318,7 +424,7 @@ export default function SellerDashboard() {
         <TabsContent value="analytics" className="space-y-6">
           <h2 className="text-2xl font-bold">Analytics</h2>
 
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <Card>
               <CardHeader>
                 <CardTitle>Total Sales</CardTitle>

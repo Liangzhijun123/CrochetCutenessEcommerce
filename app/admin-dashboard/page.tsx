@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { RefreshCw, CheckCircle, XCircle, Clock, Home } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 // Types
 type SellerApplication = {
@@ -38,7 +39,7 @@ function uuidv4() {
 }
 
 // Helper functions for localStorage
-function getItem<T>(key: string, defaultValue: T): T {
+function getItem<ItemType>(key: string, defaultValue: ItemType): ItemType {
   if (typeof window === "undefined") {
     return defaultValue
   }
@@ -52,7 +53,7 @@ function getItem<T>(key: string, defaultValue: T): T {
   }
 }
 
-function setItem<T>(key: string, value: T): void {
+function setItem<ItemType>(key: string, value: ItemType): void {
   if (typeof window === "undefined") {
     return
   }
@@ -82,71 +83,51 @@ function updateSellerApplication(id: string, updates: Partial<SellerApplication>
   }
 
   applications[applicationIndex] = updatedApplication
-  setItem("crochet_seller_applications", applications)
-
-  // If the application is approved, update the user's role
-  if (updates.status === "approved") {
-    const users = getItem("crochet_users", [])
-    const userIndex = users.findIndex((u: any) => u.id === updatedApplication.userId)
-
-    if (userIndex !== -1) {
-      users[userIndex] = {
-        ...users[userIndex],
-        role: "seller",
-        sellerProfile: {
-          approved: true,
-          bio: updatedApplication.bio,
-          socialMedia: updatedApplication.socialMedia,
-          salesCount: 0,
-          rating: 0,
-          joinedDate: new Date().toISOString(),
-        },
-        sellerApplication: updatedApplication,
-      }
-      setItem("crochet_users", users)
-
-      // If this is the current user, update them too
-      const currentUser = getItem("crochet_user", null)
-      if (currentUser && currentUser.id === updatedApplication.userId) {
-        setItem("crochet_user", {
-          ...currentUser,
-          role: "seller",
-          sellerProfile: {
-            approved: true,
-            bio: updatedApplication.bio,
-            socialMedia: updatedApplication.socialMedia,
-            salesCount: 0,
-            rating: 0,
-            joinedDate: new Date().toISOString(),
-          },
-          sellerApplication: updatedApplication,
-        })
-      }
-    }
-  } else if (updates.status === "rejected") {
-    // Update the user's application status
-    const users = getItem("crochet_users", [])
-    const userIndex = users.findIndex((u: any) => u.id === updatedApplication.userId)
-
-    if (userIndex !== -1) {
-      users[userIndex] = {
-        ...users[userIndex],
-        sellerApplication: updatedApplication,
-      }
-      setItem("crochet_users", users)
-
-      // If this is the current user, update them too
-      const currentUser = getItem("crochet_user", null)
-      if (currentUser && currentUser.id === updatedApplication.userId) {
-        setItem("crochet_user", {
-          ...currentUser,
-          sellerApplication: updatedApplication,
-        })
-      }
-    }
-  }
+  setItem<SellerApplication[]>("crochet_seller_applications", applications)
 
   return updatedApplication
+}
+
+// Function to update a user's role directly in localStorage
+function updateUserRole(userId: string, role: string, sellerApplication: SellerApplication): boolean {
+  try {
+    // Update in users array
+    const users = getItem("crochet_users", [])
+    const userIndex = users.findIndex((u: any) => u.id === userId)
+
+    if (userIndex !== -1) {
+      // Create a deep copy of the user object
+      const updatedUser = JSON.parse(JSON.stringify(users[userIndex]))
+
+      // Update the role and seller profile
+      updatedUser.role = role
+      updatedUser.sellerProfile = {
+        approved: true,
+        bio: sellerApplication.bio,
+        socialMedia: sellerApplication.socialMedia,
+        salesCount: 0,
+        rating: 0,
+        joinedDate: new Date().toISOString(),
+      }
+      updatedUser.sellerApplication = sellerApplication
+
+      // Update the user in the users array
+      users[userIndex] = updatedUser
+      setItem("crochet_users", JSON.stringify(users))
+
+      // Also update if this is the current user
+      const currentUser = getItem("crochet_user", null)
+      if (currentUser && currentUser.id === userId) {
+        setItem("crochet_user", JSON.stringify(updatedUser))
+      }
+
+      return true
+    }
+    return false
+  } catch (error) {
+    console.error("Error updating user role:", error)
+    return false
+  }
 }
 
 // Initialize the database with some data if it doesn't exist
@@ -212,6 +193,7 @@ function initializeDatabase() {
 export default function AdminDashboardPage() {
   const { user, isLoading, logout } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [applications, setApplications] = useState<SellerApplication[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -253,14 +235,85 @@ export default function AdminDashboardPage() {
 
   const handleApprove = (id: string) => {
     if (typeof window !== "undefined") {
-      updateSellerApplication(id, { status: "approved" })
+      const application = applications.find((app) => app.id === id)
+      if (!application) {
+        toast({
+          title: "Error",
+          description: "Application not found",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Update the application status
+      const updatedApp = updateSellerApplication(id, { status: "approved" })
+
+      if (updatedApp) {
+        // Explicitly update the user's role to ensure it's set correctly
+        const roleUpdated = updateUserRole(updatedApp.userId, "seller", updatedApp)
+
+        if (roleUpdated) {
+          toast({
+            title: "Application Approved",
+            description: `${updatedApp.name}'s application has been approved and their role has been updated to seller.`,
+          })
+        } else {
+          toast({
+            title: "Partial Update",
+            description:
+              "Application approved but user role update may have failed. User may need to log out and back in.",
+            variant: "destructive",
+          })
+        }
+      }
+
       refreshApplications()
     }
   }
 
   const handleReject = (id: string) => {
     if (typeof window !== "undefined") {
-      updateSellerApplication(id, { status: "rejected" })
+      const application = applications.find((app) => app.id === id)
+      if (!application) {
+        toast({
+          title: "Error",
+          description: "Application not found",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Update the application status
+      const updatedApp = updateSellerApplication(id, { status: "rejected" })
+
+      if (updatedApp) {
+        // Update the user's application status
+        const users = getItem("crochet_users", [])
+        const userIndex = users.findIndex((u: any) => u.id === updatedApp.userId)
+
+        if (userIndex !== -1) {
+          users[userIndex] = {
+            ...users[userIndex],
+            sellerApplication: updatedApp,
+          }
+          setItem("crochet_users", users)
+
+          // If this is the current user, update them too
+          const currentUser = getItem("crochet_user", null)
+          if (currentUser && currentUser.id === updatedApp.userId) {
+            setItem("crochet_user", {
+              ...currentUser,
+              sellerApplication: updatedApp,
+            })
+          }
+        }
+
+        toast({
+          title: "Application Rejected",
+          description: `${updatedApp.name}'s application has been rejected.`,
+        })
+      }
+
       refreshApplications()
     }
   }
@@ -278,8 +331,8 @@ export default function AdminDashboardPage() {
   const rejectedApplications = applications.filter((app) => app.status === "rejected")
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-6">
+    <div className="container mx-auto py-10 px-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
             <Home className="h-4 w-4" />
@@ -306,7 +359,7 @@ export default function AdminDashboardPage() {
       </div>
 
       <Tabs defaultValue="pending">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex flex-wrap">
           <TabsTrigger value="pending">
             Pending Applications
             {pendingApplications.length > 0 && (
@@ -331,7 +384,7 @@ export default function AdminDashboardPage() {
               {pendingApplications.map((application) => (
                 <Card key={application.id}>
                   <CardHeader>
-                    <div className="flex justify-between items-start">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                       <div>
                         <CardTitle>{application.name}</CardTitle>
                         <CardDescription>{application.email}</CardDescription>
@@ -370,12 +423,12 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                   </CardContent>
-                  <CardFooter className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => handleReject(application.id)}>
+                  <CardFooter className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
+                    <Button variant="outline" onClick={() => handleReject(application.id)} className="w-full sm:w-auto">
                       <XCircle className="h-4 w-4 mr-2" />
                       Reject
                     </Button>
-                    <Button onClick={() => handleApprove(application.id)}>
+                    <Button onClick={() => handleApprove(application.id)} className="w-full sm:w-auto">
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Approve
                     </Button>
@@ -398,7 +451,7 @@ export default function AdminDashboardPage() {
               {approvedApplications.map((application) => (
                 <Card key={application.id}>
                   <CardHeader>
-                    <div className="flex justify-between items-start">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                       <div>
                         <CardTitle>{application.name}</CardTitle>
                         <CardDescription>{application.email}</CardDescription>
@@ -445,7 +498,7 @@ export default function AdminDashboardPage() {
               {rejectedApplications.map((application) => (
                 <Card key={application.id}>
                   <CardHeader>
-                    <div className="flex justify-between items-start">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                       <div>
                         <CardTitle>{application.name}</CardTitle>
                         <CardDescription>{application.email}</CardDescription>

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, ShieldCheck, Store, User } from "lucide-react"
@@ -24,11 +24,28 @@ export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
 
+  // Set default email based on role for demo purposes
+  useEffect(() => {
+    if (loginRole === "admin") {
+      setEmail("admin@example.com")
+      setPassword("password123")
+    } else if (loginRole === "seller") {
+      setEmail("seller@example.com")
+      setPassword("password123")
+    } else {
+      setEmail("jane@example.com")
+      setPassword("password123")
+    }
+  }, [loginRole])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
+      // Show the login attempt for debugging
+      console.log(`Attempting to login with: ${email}, role: ${loginRole}`)
+
       const success = await login(email, password, loginRole)
       if (success) {
         toast({
@@ -52,6 +69,7 @@ export default function LoginPage() {
         })
       }
     } catch (error) {
+      console.error("Login error:", error)
       toast({
         title: "Login failed",
         description: "An error occurred during login. Please try again.",
@@ -104,6 +122,11 @@ export default function LoginPage() {
                 <p className="mt-2 text-sm text-muted-foreground">
                   Admin access is restricted. Login to manage the platform.
                 </p>
+                <div className="mt-2 rounded-md bg-muted p-2 text-xs">
+                  <p>Demo admin credentials:</p>
+                  <p>Email: admin@example.com</p>
+                  <p>Password: password123</p>
+                </div>
               </TabsContent>
             </Tabs>
 

@@ -4,7 +4,8 @@ import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { toast } from "@/hooks/use-toast"
-import type { User } from "@/lib/local-storage-db"
+import type { User } from "@/lib/db"
+import { useRouter } from "next/navigation"
 
 type AuthContextType = {
   user: User | null
@@ -14,6 +15,7 @@ type AuthContextType = {
   register: (name: string, email: string, password: string, role: string) => Promise<boolean>
   logout: () => void
   updateUser: (updates: Partial<User>) => Promise<boolean>
+  refreshUserData: () => Promise<boolean>
 }
 
 // Create a default value for the context
@@ -25,6 +27,7 @@ const defaultAuthContext: AuthContextType = {
   register: async () => false,
   logout: () => {},
   updateUser: async () => false,
+  refreshUserData: async () => false,
 }
 
 const AuthContext = createContext<AuthContextType>(defaultAuthContext)
@@ -32,6 +35,7 @@ const AuthContext = createContext<AuthContextType>(defaultAuthContext)
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
 
   // Check if user is already logged in
   useEffect(() => {
@@ -50,27 +54,79 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [])
 
+  // Function to refresh user data from localStorage
+  const refreshUserData = async (): Promise<boolean> => {
+    if (typeof window === "undefined") return false
+
+    try {
+      // Get the current user ID
+      const currentUser = user
+      if (!currentUser || !currentUser.id) return false
+
+      // Get the latest user data from localStorage
+      const users = JSON.parse(localStorage.getItem("crochet_users") || "[]")
+      const updatedUser = users.find((u: User) => u.id === currentUser.id)
+
+      if (updatedUser) {
+        // Update the user in state and localStorage
+        setUser(updatedUser)
+        localStorage.setItem("crochet_user", JSON.stringify(updatedUser))
+
+        // If the role changed, show a notification
+        if (updatedUser.role !== currentUser.role) {
+          toast({
+            title: "Role updated",
+            description: `Your role has been updated to ${updatedUser.role}.`,
+          })
+        }
+
+        return true
+      }
+
+      return false
+    } catch (error) {
+      console.error("Error refreshing user data:", error)
+      return false
+    }
+  }
+
   const login = async (email: string, password: string, role?: string): Promise<boolean> => {
     try {
       setIsLoading(true)
+
+      // Log the login attempt for debugging
+      console.log(`Login attempt in auth context: ${email}, role: ${role}`)
+
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password, role }),
+        body: JSON.stringify({ email, password }),
       })
 
       if (!response.ok) {
+        const errorData = await response.json()
         toast({
           title: "Login failed",
-          description: "Invalid email or password. Please try again.",
+          description: errorData.error || "Invalid email or password. Please try again.",
           variant: "destructive",
         })
         return false
       }
 
       const data = await response.json()
+
+      // Check if the user has the requested role
+      if (role && data.user.role !== role) {
+        toast({
+          title: "Access denied",
+          description: `This account does not have ${role} privileges.`,
+          variant: "destructive",
+        })
+        return false
+      }
+
       setUser(data.user)
       localStorage.setItem("crochet_user", JSON.stringify(data.user))
 
@@ -148,6 +204,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       title: "Logged out",
       description: "You have been successfully logged out.",
     })
+    router.push("/")
   }
 
   const updateUser = async (updates: Partial<User>): Promise<boolean> => {
@@ -158,6 +215,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const updatedUser = { ...user, ...updates }
       setUser(updatedUser)
       localStorage.setItem("crochet_user", JSON.stringify(updatedUser))
+
+      // Also update the user in the users array
+      const users = JSON.parse(localStorage.getItem("crochet_users") || "[]")
+      const userIndex = users.findIndex((u: User) => u.id === user.id)
+
+      if (userIndex !== -1) {
+        users[userIndex] = updatedUser
+        localStorage.setItem("crochet_users", JSON.stringify(users))
+      }
+
       return true
     } catch (error) {
       console.error("Update user error:", error)
@@ -175,6 +242,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         register,
         logout,
         updateUser,
+        refreshUserData,
       }}
     >
       {children}
