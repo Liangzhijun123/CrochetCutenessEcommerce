@@ -5,13 +5,14 @@ import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, Store, ShieldCheck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/context/auth-context"
 
 const loginSchema = z.object({
@@ -24,6 +25,7 @@ type LoginFormValues = z.infer<typeof loginSchema>
 export default function LoginPage() {
   const { login, isLoading } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
+  const [loginRole, setLoginRole] = useState<"customer" | "seller" | "admin">("customer")
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -34,7 +36,7 @@ export default function LoginPage() {
   })
 
   async function onSubmit(data: LoginFormValues) {
-    await login(data.email, data.password)
+    await login(data.email, data.password, loginRole)
   }
 
   return (
@@ -45,6 +47,37 @@ export default function LoginPage() {
           <CardDescription>Enter your email and password to access your account</CardDescription>
         </CardHeader>
         <CardContent>
+          <Tabs defaultValue="customer" className="mb-6" onValueChange={(value) => setLoginRole(value as any)}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="customer" className="flex items-center gap-2">
+                Customer
+              </TabsTrigger>
+              <TabsTrigger value="seller" className="flex items-center gap-2">
+                <Store className="h-4 w-4" />
+                Seller
+              </TabsTrigger>
+              <TabsTrigger value="admin" className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4" />
+                Admin
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="customer">
+              <p className="text-sm text-muted-foreground mt-2">
+                Sign in as a customer to shop and manage your orders.
+              </p>
+            </TabsContent>
+            <TabsContent value="seller">
+              <p className="text-sm text-muted-foreground mt-2">
+                Sign in as a seller to manage your products and view your sales.
+              </p>
+            </TabsContent>
+            <TabsContent value="admin">
+              <p className="text-sm text-muted-foreground mt-2">
+                Admin access is restricted. Sign in to manage the platform.
+              </p>
+            </TabsContent>
+          </Tabs>
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField

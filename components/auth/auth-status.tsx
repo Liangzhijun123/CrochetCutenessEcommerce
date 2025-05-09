@@ -1,7 +1,7 @@
 "use client"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { User, LogOut, Settings, ShoppingBag, Heart, Award } from "lucide-react"
+import { User, LogOut, Settings, ShoppingBag, Heart, Award, Store, ShieldCheck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -13,11 +13,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/context/auth-context"
-import { toast } from "@/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 
 export default function AuthStatus() {
   const { user, isAuthenticated, isLoading, logout } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
 
   const handleLogout = () => {
     logout()
@@ -62,6 +63,7 @@ export default function AuthStatus() {
           <div className="flex flex-col">
             <span>{user?.name}</span>
             <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
+            <span className="text-xs font-normal text-muted-foreground capitalize">{user?.role}</span>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -89,6 +91,31 @@ export default function AuthStatus() {
             <span>Loyalty Points</span>
           </Link>
         </DropdownMenuItem>
+
+        {user?.role === "seller" && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/seller-dashboard" className="flex w-full cursor-pointer items-center">
+                <Store className="mr-2 h-4 w-4" />
+                <span>Seller Dashboard</span>
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
+
+        {user?.role === "admin" && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/admin-dashboard" className="flex w-full cursor-pointer items-center">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                <span>Admin Dashboard</span>
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
+
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
           <LogOut className="mr-2 h-4 w-4" />

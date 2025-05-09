@@ -62,37 +62,24 @@ export default function SellerApplicationForm() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch("/api/seller/apply", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          name: data.name,
-          email: data.email,
-          bio: data.bio,
-          experience: data.experience,
-          socialMedia: {
-            instagram: data.instagram || undefined,
-            pinterest: data.pinterest || undefined,
-            youtube: data.youtube || undefined,
-          },
-        }),
-      })
+      // In a real app, this would be an API call
+      // For demo purposes, we'll simulate a successful application
+      await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to submit application")
+      // Update user role to seller (in a real app, this would be done by an admin)
+      const updatedUser = {
+        ...user,
+        role: "seller" as const,
       }
+      localStorage.setItem("user", JSON.stringify(updatedUser))
 
       toast({
-        title: "Application submitted",
-        description: "Your seller application has been submitted successfully. We'll review it shortly.",
+        title: "Application approved",
+        description: "Your seller application has been approved. You can now access your seller dashboard.",
       })
 
-      router.push("/")
+      // Redirect to seller dashboard
+      router.push("/seller-dashboard")
     } catch (error) {
       console.error("Application submission error:", error)
       toast({

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, Store, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useAuth } from "@/context/auth-context"
 
 const registerSchema = z
@@ -26,6 +27,7 @@ const registerSchema = z
       .regex(/[a-z]/, "Password must contain at least one lowercase letter")
       .regex(/[0-9]/, "Password must contain at least one number"),
     confirmPassword: z.string(),
+    role: z.enum(["customer", "seller"]),
     terms: z.boolean().refine((val) => val === true, {
       message: "You must agree to the terms and conditions",
     }),
@@ -50,13 +52,14 @@ export default function RegisterPage() {
       email: "",
       password: "",
       confirmPassword: "",
+      role: "customer",
       terms: false,
       marketing: false,
     },
   })
 
   async function onSubmit(data: RegisterFormValues) {
-    await register(data.name, data.email, data.password)
+    await register(data.name, data.email, data.password, data.role)
   }
 
   return (
@@ -147,6 +150,46 @@ export default function RegisterPage() {
                         </Button>
                       </div>
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Account Type</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="customer" />
+                          </FormControl>
+                          <FormLabel className="font-normal flex items-center gap-2">
+                            <User className="h-4 w-4" /> Customer
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="seller" />
+                          </FormControl>
+                          <FormLabel className="font-normal flex items-center gap-2">
+                            <Store className="h-4 w-4" /> Seller
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormDescription>
+                      {field.value === "seller"
+                        ? "Register as a seller to list and sell your crochet products"
+                        : "Register as a customer to shop and place orders"}
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -1,116 +1,100 @@
 "use client"
 
 import type React from "react"
+
 import { createContext, useContext, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { toast } from "@/hooks/use-toast"
-import type { User } from "@/lib/db"
+import { useToast } from "@/hooks/use-toast"
 
-type UserProfile = {
-  address?: {
-    street: string
-    city: string
-    state: string
-    postalCode: string
-    country: string
-  }
-  phone?: string
-  birthdate?: string
-  preferences?: {
-    newsletter: boolean
-    marketing: boolean
-  }
+type User = {
+  id: string
+  name: string
+  email: string
+  role: "customer" | "seller" | "admin"
 }
 
 type AuthContextType = {
   user: User | null
-  profile: UserProfile | null
-  isLoading: boolean
   isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<void>
-  register: (name: string, email: string, password: string) => Promise<void>
+  isLoading: boolean
+  login: (email: string, password: string, role?: "customer" | "seller" | "admin") => Promise<void>
+  register: (name: string, email: string, password: string, role?: "customer" | "seller") => Promise<void>
   logout: () => void
-  updateProfile: (profile: Partial<UserProfile>) => Promise<void>
-  updateUser: (user: Partial<User>) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const { toast } = useToast()
   const router = useRouter()
 
-  // Check if user is already logged in (from localStorage)
   useEffect(() => {
-    const storedUser = localStorage.getItem("crochet_user")
-    const storedProfile = localStorage.getItem("crochet_profile")
-
+    // Check if user is logged in from localStorage
+    const storedUser = localStorage.getItem("user")
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser))
-        if (storedProfile) {
-          setProfile(JSON.parse(storedProfile))
-        }
       } catch (error) {
         console.error("Failed to parse stored user:", error)
-        localStorage.removeItem("crochet_user")
-        localStorage.removeItem("crochet_profile")
+        localStorage.removeItem("user")
       }
     }
-
     setIsLoading(false)
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, role: "customer" | "seller" | "admin" = "customer") => {
     setIsLoading(true)
-
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      // In a real app, this would be an API call
+      // For demo purposes, we'll simulate a successful login
+      const mockUsers = {
+        customer: {
+          id: "cust-123",
+          name: "John Customer",
+          email: email,
+          role: "customer" as const,
         },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Login failed")
-      }
-
-      // Set user in state and localStorage
-      setUser(data.user)
-      localStorage.setItem("crochet_user", JSON.stringify(data.user))
-
-      // Mock profile data
-      const mockProfile: UserProfile = {
-        address: {
-          street: "123 Main St",
-          city: "Anytown",
-          state: "CA",
-          postalCode: "12345",
-          country: "United States",
+        seller: {
+          id: "sell-456",
+          name: "Jane Seller",
+          email: email,
+          role: "seller" as const,
         },
-        phone: "555-123-4567",
-        preferences: {
-          newsletter: true,
-          marketing: false,
+        admin: {
+          id: "admin-789",
+          name: "Admin User",
+          email: email,
+          role: "admin" as const,
         },
       }
 
-      setProfile(mockProfile)
-      localStorage.setItem("crochet_profile", JSON.stringify(mockProfile))
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      // Check if email is admin@example.com for admin access
+      if (role === "admin" && email !== "admin@example.com") {
+        throw new Error("Invalid admin credentials")
+      }
+
+      const loggedInUser = mockUsers[role]
+      setUser(loggedInUser)
+      localStorage.setItem("user", JSON.stringify(loggedInUser))
 
       toast({
-        title: "Welcome back!",
-        description: `You've successfully logged in as ${data.user.name}`,
+        title: "Login successful",
+        description: `Welcome back, ${loggedInUser.name}!`,
       })
 
-      // Redirect to home page
-      router.push("/")
+      // Redirect based on role
+      if (role === "seller") {
+        router.push("/seller-dashboard")
+      } else if (role === "admin") {
+        router.push("/admin-dashboard")
+      } else {
+        router.push("/")
+      }
     } catch (error) {
       console.error("Login error:", error)
       toast({
@@ -123,46 +107,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string, role: "customer" | "seller" = "customer") => {
     setIsLoading(true)
-
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name, email, password }),
-      })
+      // In a real app, this would be an API call
+      // For demo purposes, we'll simulate a successful registration
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Registration failed")
+      const newUser = {
+        id: `user-${Date.now()}`,
+        name,
+        email,
+        role,
       }
 
-      // Set user in state and localStorage
-      setUser(data.user)
-      localStorage.setItem("crochet_user", JSON.stringify(data.user))
-
-      // Create empty profile
-      const newProfile: UserProfile = {
-        preferences: {
-          newsletter: true,
-          marketing: true,
-        },
-      }
-
-      setProfile(newProfile)
-      localStorage.setItem("crochet_profile", JSON.stringify(newProfile))
+      setUser(newUser)
+      localStorage.setItem("user", JSON.stringify(newUser))
 
       toast({
-        title: "Registration successful!",
-        description: "Your account has been created.",
+        title: "Registration successful",
+        description: `Welcome, ${name}!`,
       })
 
-      // Redirect to home page
-      router.push("/")
+      // Redirect based on role
+      if (role === "seller") {
+        router.push("/become-seller")
+      } else {
+        router.push("/")
+      }
     } catch (error) {
       console.error("Registration error:", error)
       toast({
@@ -177,86 +149,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = () => {
     setUser(null)
-    setProfile(null)
-    localStorage.removeItem("crochet_user")
-    localStorage.removeItem("crochet_profile")
-
-    toast({
-      title: "Logged out",
-      description: "You've been successfully logged out.",
-    })
-
+    localStorage.removeItem("user")
     router.push("/")
-  }
-
-  const updateProfile = async (updatedProfile: Partial<UserProfile>) => {
-    setIsLoading(true)
-
-    try {
-      // In a real app, you would make an API call here
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      const newProfile = { ...profile, ...updatedProfile }
-      setProfile(newProfile)
-      localStorage.setItem("crochet_profile", JSON.stringify(newProfile))
-
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been successfully updated.",
-      })
-    } catch (error) {
-      console.error("Profile update error:", error)
-      toast({
-        title: "Update failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const updateUser = async (updatedUser: Partial<User>) => {
-    setIsLoading(true)
-
-    try {
-      // In a real app, you would make an API call here
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      if (!user) throw new Error("No user logged in")
-
-      const newUser = { ...user, ...updatedUser }
-      setUser(newUser)
-      localStorage.setItem("crochet_user", JSON.stringify(newUser))
-
-      toast({
-        title: "Account updated",
-        description: "Your account information has been successfully updated.",
-      })
-    } catch (error) {
-      console.error("User update error:", error)
-      toast({
-        title: "Update failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
   }
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        profile,
-        isLoading,
         isAuthenticated: !!user,
+        isLoading,
         login,
         register,
         logout,
-        updateProfile,
-        updateUser,
       }}
     >
       {children}
@@ -264,7 +169,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   )
 }
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext)
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider")

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Heart, Menu, Search, Store, X } from "lucide-react"
+import { Heart, Menu, Search, ShieldCheck, Store, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -79,47 +79,61 @@ export default function Header() {
                   Seller Dashboard
                 </Link>
               )}
+              {isAuthenticated && user?.role === "admin" && (
+                <Link
+                  href="/admin-dashboard"
+                  className="text-lg font-medium transition-colors hover:text-rose-500"
+                  onClick={() => document.body.click()}
+                >
+                  <ShieldCheck className="mr-2 h-4 w-4 inline" />
+                  Admin Dashboard
+                </Link>
+              )}
             </nav>
           </SheetContent>
         </Sheet>
-        <Link href="/" className="mr-6 flex items-center space-x-2">
-          <span className="text-xl font-bold">CrochetCraft</span>
-        </Link>
-        <nav className="hidden md:flex md:flex-1 md:items-center md:gap-6">
-          <Link
-            href="/"
-            className={`text-sm font-medium transition-colors hover:text-rose-500 ${
-              isActive("/") ? "text-rose-500" : ""
-            }`}
-          >
-            Home
+        <div className="flex items-center md:w-1/4">
+          <Link href="/" className="flex items-center space-x-2">
+            <span className="text-xl font-bold">CrochetCraft</span>
           </Link>
-          <Link
-            href="/shop"
-            className={`text-sm font-medium transition-colors hover:text-rose-500 ${
-              isActive("/shop") ? "text-rose-500" : ""
-            }`}
-          >
-            Shop
-          </Link>
-          <Link
-            href="/about"
-            className={`text-sm font-medium transition-colors hover:text-rose-500 ${
-              isActive("/about") ? "text-rose-500" : ""
-            }`}
-          >
-            About
-          </Link>
-          <Link
-            href="/contact"
-            className={`text-sm font-medium transition-colors hover:text-rose-500 ${
-              isActive("/contact") ? "text-rose-500" : ""
-            }`}
-          >
-            Contact
-          </Link>
+        </div>
+        <nav className="hidden md:flex md:flex-1 md:items-center md:justify-center">
+          <div className="flex items-center gap-8">
+            <Link
+              href="/"
+              className={`text-sm font-medium transition-colors hover:text-rose-500 ${
+                isActive("/") ? "text-rose-500" : ""
+              }`}
+            >
+              Home
+            </Link>
+            <Link
+              href="/shop"
+              className={`text-sm font-medium transition-colors hover:text-rose-500 ${
+                isActive("/shop") ? "text-rose-500" : ""
+              }`}
+            >
+              Shop
+            </Link>
+            <Link
+              href="/about"
+              className={`text-sm font-medium transition-colors hover:text-rose-500 ${
+                isActive("/about") ? "text-rose-500" : ""
+              }`}
+            >
+              About
+            </Link>
+            <Link
+              href="/contact"
+              className={`text-sm font-medium transition-colors hover:text-rose-500 ${
+                isActive("/contact") ? "text-rose-500" : ""
+              }`}
+            >
+              Contact
+            </Link>
+          </div>
         </nav>
-        <div className="flex flex-1 items-center justify-end gap-2">
+        <div className="flex items-center justify-end md:w-1/4 gap-2">
           {isSearchOpen ? (
             <div className="relative flex items-center">
               <Input
@@ -162,6 +176,14 @@ export default function Header() {
               <Link href="/seller-dashboard">
                 <Store className="mr-2 h-4 w-4" />
                 Seller Dashboard
+              </Link>
+            </Button>
+          )}
+          {isAuthenticated && user?.role === "admin" && (
+            <Button variant="outline" size="sm" className="hidden md:flex" asChild>
+              <Link href="/admin-dashboard">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                Admin
               </Link>
             </Button>
           )}
