@@ -4,41 +4,13 @@ import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { toast } from "@/hooks/use-toast"
-
-export type User = {
-  id: string
-  name: string
-  email: string
-  role: "user" | "seller" | "admin"
-  avatar?: string
-  loyaltyPoints: number
-  loyaltyTier: "bronze" | "silver" | "gold" | "platinum"
-  sellerProfile?: {
-    approved: boolean
-    bio: string
-    storeDescription?: string
-    socialMedia?: {
-      instagram?: string
-      pinterest?: string
-      etsy?: string
-      youtube?: string
-    }
-    bankInfo?: {
-      accountName: string
-      accountNumber: string
-      bankName: string
-    }
-    salesCount: number
-    rating: number
-    joinedDate: string
-  }
-}
+import type { User } from "@/lib/local-storage-db"
 
 type AuthContextType = {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (email: string, password: string) => Promise<boolean>
+  login: (email: string, password: string, role?: string) => Promise<boolean>
   register: (name: string, email: string, password: string, role: string) => Promise<boolean>
   logout: () => void
   updateUser: (updates: Partial<User>) => Promise<boolean>
@@ -63,19 +35,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Check if user is already logged in
   useEffect(() => {
-    const storedUser = localStorage.getItem("crochet_user")
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser))
-      } catch (error) {
-        console.error("Failed to parse stored user:", error)
-        localStorage.removeItem("crochet_user")
+    // Only run in browser environment
+    if (typeof window !== "undefined") {
+      const storedUser = localStorage.getItem("crochet_user")
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser))
+        } catch (error) {
+          console.error("Failed to parse stored user:", error)
+          localStorage.removeItem("crochet_user")
+        }
       }
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }, [])
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string, role?: string): Promise<boolean> => {
     try {
       setIsLoading(true)
       const response = await fetch("/api/auth/login", {
@@ -83,7 +58,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, role }),
       })
 
       if (!response.ok) {

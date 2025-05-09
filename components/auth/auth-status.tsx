@@ -1,5 +1,7 @@
 "use client"
 
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
+
 import Link from "next/link"
 import { LogOut, ShieldCheck, Store, User } from "lucide-react"
 
@@ -8,7 +10,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -34,12 +35,16 @@ export default function AuthStatus() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative cursor-pointer hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+          aria-label="User menu"
+        >
           <User className="h-5 w-5" />
-          <span className="sr-only">User menu</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end">
+      <DropdownMenuContent className="w-56 z-[100]" align="end" forceMount sideOffset={8}>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium">{user.name}</p>
@@ -59,20 +64,20 @@ export default function AuthStatus() {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link href="/profile">
+            <Link href="/profile" className="w-full flex items-center">
               <User className="mr-2 h-4 w-4" />
               <span>My Profile</span>
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/profile/orders">
+            <Link href="/profile/orders" className="w-full flex items-center">
               <Store className="mr-2 h-4 w-4" />
               <span>My Orders</span>
             </Link>
           </DropdownMenuItem>
           {user.role === "seller" && (
             <DropdownMenuItem asChild>
-              <Link href="/seller-dashboard">
+              <Link href="/seller-dashboard" className="w-full flex items-center">
                 <Store className="mr-2 h-4 w-4" />
                 <span>Seller Dashboard</span>
               </Link>
@@ -80,7 +85,7 @@ export default function AuthStatus() {
           )}
           {user.role === "admin" && (
             <DropdownMenuItem asChild>
-              <Link href="/admin-dashboard">
+              <Link href="/admin-dashboard" className="w-full flex items-center">
                 <ShieldCheck className="mr-2 h-4 w-4" />
                 <span>Admin Dashboard</span>
               </Link>
@@ -88,7 +93,7 @@ export default function AuthStatus() {
           )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={logout}>
+        <DropdownMenuItem onClick={logout} className="cursor-pointer">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>

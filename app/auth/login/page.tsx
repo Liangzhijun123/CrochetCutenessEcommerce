@@ -5,7 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, ShieldCheck } from "lucide-react"
+import { Eye, EyeOff, ShieldCheck, Store, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,12 +13,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/context/auth-context"
 import { toast } from "@/hooks/use-toast"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [loginRole, setLoginRole] = useState<"customer" | "seller" | "admin">("customer")
   const router = useRouter()
   const { login } = useAuth()
 
@@ -27,13 +29,21 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const success = await login(email, password)
+      const success = await login(email, password, loginRole)
       if (success) {
         toast({
           title: "Login successful",
-          description: "Welcome back!",
+          description: `Welcome back! You are logged in as a ${loginRole}.`,
         })
-        router.push("/")
+
+        // Redirect based on role
+        if (loginRole === "admin") {
+          router.push("/admin-dashboard")
+        } else if (loginRole === "seller") {
+          router.push("/seller-dashboard")
+        } else {
+          router.push("/")
+        }
       } else {
         toast({
           title: "Login failed",
@@ -52,11 +62,6 @@ export default function LoginPage() {
     }
   }
 
-  const handleAdminLogin = () => {
-    setEmail("admin@example.com")
-    setPassword("password123")
-  }
-
   return (
     <div className="container flex h-screen items-center justify-center">
       <Card className="mx-auto w-full max-w-md">
@@ -66,6 +71,42 @@ export default function LoginPage() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+            <Tabs
+              defaultValue="customer"
+              className="w-full"
+              onValueChange={(value) => setLoginRole(value as "customer" | "seller" | "admin")}
+            >
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="customer" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Customer
+                </TabsTrigger>
+                <TabsTrigger value="seller" className="flex items-center gap-2">
+                  <Store className="h-4 w-4" />
+                  Seller
+                </TabsTrigger>
+                <TabsTrigger value="admin" className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4" />
+                  Admin
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="customer">
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Login as a customer to shop and manage your orders.
+                </p>
+              </TabsContent>
+              <TabsContent value="seller">
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Login as a seller to manage your products and view your sales.
+                </p>
+              </TabsContent>
+              <TabsContent value="admin">
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Admin access is restricted. Login to manage the platform.
+                </p>
+              </TabsContent>
+            </Tabs>
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -105,10 +146,6 @@ export default function LoginPage() {
                 </Button>
               </div>
             </div>
-            <Button type="button" variant="outline" className="w-full" onClick={handleAdminLogin}>
-              <ShieldCheck className="mr-2 h-4 w-4" />
-              Login as Admin
-            </Button>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={isLoading}>

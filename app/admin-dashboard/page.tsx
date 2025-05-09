@@ -1,482 +1,485 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useAuth } from "@/context/auth-context"
-import type { User, Order, SellerApplication } from "@/lib/db"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { RefreshCw, CheckCircle, XCircle, Clock, Home } from "lucide-react"
 
-export default function AdminDashboard() {
-  const { user, isAuthenticated, logout } = useAuth()
-  const router = useRouter()
-  const [activeTab, setActiveTab] = useState("overview")
-  const [users, setUsers] = useState<User[]>([])
-  const [orders, setOrders] = useState<Order[]>([])
-  const [sellerApplications, setSellerApplications] = useState<SellerApplication[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+// Types
+type SellerApplication = {
+  id: string
+  userId: string
+  name: string
+  email: string
+  bio: string
+  experience: string
+  socialMedia?: {
+    instagram?: string
+    pinterest?: string
+    youtube?: string
+  }
+  status: "pending" | "approved" | "rejected"
+  submittedAt: string
+  updatedAt?: string
+}
 
-  useEffect(() => {
-    // Redirect if not authenticated or not an admin
-    if (!isAuthenticated) {
-      router.push("/auth/login?redirect=/admin-dashboard")
-      return
-    }
+// Helper function to generate UUID
+function uuidv4() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0,
+      v = c === "x" ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
 
-    if (user?.role !== "admin") {
-      router.push("/")
-      return
-    }
+// Helper functions for localStorage
+function getItem<T>(key: string, defaultValue: T): T {
+  if (typeof window === "undefined") {
+    return defaultValue
+  }
 
-    const fetchData = async () => {
-      try {
-        // In a real app, you would fetch this data from your API
-        // For now, we'll use mock data
-        setUsers([
-          {
-            id: "1",
-            name: "Jane Doe",
-            email: "jane@example.com",
-            role: "user",
-            createdAt: "2023-01-15T00:00:00.000Z",
-            loyaltyPoints: 250,
-            loyaltyTier: "silver",
-          },
-          {
-            id: "2",
-            name: "John Smith",
-            email: "john@example.com",
-            role: "user",
-            createdAt: "2023-02-20T00:00:00.000Z",
-            loyaltyPoints: 50,
-            loyaltyTier: "bronze",
-          },
-          {
-            id: "3",
-            name: "Seller Account",
-            email: "seller@example.com",
-            role: "seller",
-            createdAt: "2023-03-10T00:00:00.000Z",
-            loyaltyPoints: 0,
-            loyaltyTier: "bronze",
-          },
-        ])
+  try {
+    const item = localStorage.getItem(key)
+    return item ? JSON.parse(item) : defaultValue
+  } catch (error) {
+    console.error(`Error retrieving ${key} from localStorage:`, error)
+    return defaultValue
+  }
+}
 
-        setOrders([
-          {
-            id: "order1",
-            userId: "1",
-            items: [
-              {
-                productId: "product1",
-                name: "Bunny Amigurumi",
-                price: 24.99,
-                quantity: 1,
-                image: "/placeholder.svg?height=100&width=100",
-                sellerId: "3",
-              },
-            ],
-            status: "delivered",
-            createdAt: "2023-06-15T00:00:00.000Z",
-            updatedAt: "2023-06-20T00:00:00.000Z",
-            shippingAddress: {
-              fullName: "Jane Doe",
-              addressLine1: "123 Main St",
-              city: "Anytown",
-              state: "CA",
-              postalCode: "12345",
-              country: "United States",
-              phone: "555-123-4567",
-            },
-            billingAddress: {
-              fullName: "Jane Doe",
-              addressLine1: "123 Main St",
-              city: "Anytown",
-              state: "CA",
-              postalCode: "12345",
-              country: "United States",
-              phone: "555-123-4567",
-            },
-            paymentMethod: "Credit Card",
-            paymentStatus: "paid",
-            subtotal: 24.99,
-            tax: 2.0,
-            shipping: 4.99,
-            total: 31.98,
-          },
-          {
-            id: "order2",
-            userId: "2",
-            items: [
-              {
-                productId: "product2",
-                name: "Crochet Plant Hanger",
-                price: 18.99,
-                quantity: 1,
-                image: "/placeholder.svg?height=100&width=100",
-                sellerId: "3",
-              },
-            ],
-            status: "processing",
-            createdAt: "2023-07-10T00:00:00.000Z",
-            updatedAt: "2023-07-10T00:00:00.000Z",
-            shippingAddress: {
-              fullName: "John Smith",
-              addressLine1: "456 Oak St",
-              city: "Somewhere",
-              state: "NY",
-              postalCode: "67890",
-              country: "United States",
-              phone: "555-987-6543",
-            },
-            billingAddress: {
-              fullName: "John Smith",
-              addressLine1: "456 Oak St",
-              city: "Somewhere",
-              state: "NY",
-              postalCode: "67890",
-              country: "United States",
-              phone: "555-987-6543",
-            },
-            paymentMethod: "Credit Card",
-            paymentStatus: "paid",
-            subtotal: 18.99,
-            tax: 1.52,
-            shipping: 4.99,
-            total: 25.5,
-          },
-        ])
+function setItem<T>(key: string, value: T): void {
+  if (typeof window === "undefined") {
+    return
+  }
 
-        setSellerApplications([
-          {
-            id: "app1",
-            userId: "4",
-            name: "Alice Johnson",
-            email: "alice@example.com",
-            bio: "I've been crocheting for 5 years and love creating unique designs.",
-            experience: "5 years of crocheting experience, specializing in amigurumi and home decor items.",
-            socialMedia: {
-              instagram: "https://instagram.com/alicecrochet",
-            },
-            status: "pending",
-            createdAt: "2023-07-15T00:00:00.000Z",
-            updatedAt: "2023-07-15T00:00:00.000Z",
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (error) {
+    console.error(`Error storing ${key} in localStorage:`, error)
+  }
+}
+
+// Seller application methods
+function getSellerApplications(): SellerApplication[] {
+  return getItem<SellerApplication[]>("crochet_seller_applications", [])
+}
+
+function updateSellerApplication(id: string, updates: Partial<SellerApplication>): SellerApplication | null {
+  const applications = getSellerApplications()
+  const applicationIndex = applications.findIndex((app) => app.id === id)
+
+  if (applicationIndex === -1) return null
+
+  const updatedApplication: SellerApplication = {
+    ...applications[applicationIndex],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  }
+
+  applications[applicationIndex] = updatedApplication
+  setItem("crochet_seller_applications", applications)
+
+  // If the application is approved, update the user's role
+  if (updates.status === "approved") {
+    const users = getItem("crochet_users", [])
+    const userIndex = users.findIndex((u: any) => u.id === updatedApplication.userId)
+
+    if (userIndex !== -1) {
+      users[userIndex] = {
+        ...users[userIndex],
+        role: "seller",
+        sellerProfile: {
+          approved: true,
+          bio: updatedApplication.bio,
+          socialMedia: updatedApplication.socialMedia,
+          salesCount: 0,
+          rating: 0,
+          joinedDate: new Date().toISOString(),
+        },
+        sellerApplication: updatedApplication,
+      }
+      setItem("crochet_users", users)
+
+      // If this is the current user, update them too
+      const currentUser = getItem("crochet_user", null)
+      if (currentUser && currentUser.id === updatedApplication.userId) {
+        setItem("crochet_user", {
+          ...currentUser,
+          role: "seller",
+          sellerProfile: {
+            approved: true,
+            bio: updatedApplication.bio,
+            socialMedia: updatedApplication.socialMedia,
+            salesCount: 0,
+            rating: 0,
+            joinedDate: new Date().toISOString(),
           },
-          {
-            id: "app2",
-            userId: "5",
-            name: "Bob Williams",
-            email: "bob@example.com",
-            bio: "I create modern crochet patterns for home decor.",
-            experience: "3 years of professional pattern design experience.",
-            socialMedia: {
-              instagram: "https://instagram.com/bobcrochet",
-              etsy: "https://etsy.com/shop/bobcrochet",
-            },
-            status: "pending",
-            createdAt: "2023-07-20T00:00:00.000Z",
-            updatedAt: "2023-07-20T00:00:00.000Z",
-          },
-        ])
-      } catch (error) {
-        console.error("Error fetching admin data:", error)
-      } finally {
-        setIsLoading(false)
+          sellerApplication: updatedApplication,
+        })
       }
     }
+  } else if (updates.status === "rejected") {
+    // Update the user's application status
+    const users = getItem("crochet_users", [])
+    const userIndex = users.findIndex((u: any) => u.id === updatedApplication.userId)
 
-    fetchData()
-  }, [isAuthenticated, user, router])
+    if (userIndex !== -1) {
+      users[userIndex] = {
+        ...users[userIndex],
+        sellerApplication: updatedApplication,
+      }
+      setItem("crochet_users", users)
 
-  const handleApproveSellerApplication = (applicationId: string) => {
-    // In a real app, you would call your API to approve the application
-    setSellerApplications((prev) =>
-      prev.map((app) => (app.id === applicationId ? { ...app, status: "approved" as const } : app)),
+      // If this is the current user, update them too
+      const currentUser = getItem("crochet_user", null)
+      if (currentUser && currentUser.id === updatedApplication.userId) {
+        setItem("crochet_user", {
+          ...currentUser,
+          sellerApplication: updatedApplication,
+        })
+      }
+    }
+  }
+
+  return updatedApplication
+}
+
+// Initialize the database with some data if it doesn't exist
+function initializeDatabase() {
+  // Only run in browser environment
+  if (typeof window === "undefined") return
+
+  // Check if seller applications exist
+  const applications = getSellerApplications()
+  if (applications.length === 0) {
+    // Add some sample applications for testing
+    const sampleApplications: SellerApplication[] = [
+      {
+        id: uuidv4(),
+        userId: "sample-user-1",
+        name: "Jane Doe",
+        email: "jane@example.com",
+        bio: "I've been crocheting for 5 years and love creating unique designs.",
+        experience: "5 years of crocheting experience, specializing in amigurumi and home decor items.",
+        socialMedia: {
+          instagram: "https://instagram.com/janecrochet",
+        },
+        status: "pending",
+        submittedAt: new Date().toISOString(),
+      },
+      {
+        id: uuidv4(),
+        userId: "sample-user-2",
+        name: "John Smith",
+        email: "john@example.com",
+        bio: "I create modern crochet patterns for home decor.",
+        experience: "3 years of professional pattern design experience.",
+        socialMedia: {
+          instagram: "https://instagram.com/johncrochet",
+          pinterest: "https://pinterest.com/johncrochet",
+        },
+        status: "approved",
+        submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+        updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+      },
+      {
+        id: uuidv4(),
+        userId: "sample-user-3",
+        name: "Alice Johnson",
+        email: "alice@example.com",
+        bio: "I specialize in crochet toys and gifts.",
+        experience: "7 years of experience selling on Etsy.",
+        socialMedia: {
+          instagram: "https://instagram.com/alicecrochet",
+          pinterest: "https://pinterest.com/alicecrochet",
+          youtube: "https://youtube.com/alicecrochet",
+        },
+        status: "rejected",
+        submittedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago
+        updatedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), // 8 days ago
+      },
+    ]
+
+    setItem("crochet_seller_applications", sampleApplications)
+  }
+}
+
+export default function AdminDashboardPage() {
+  const { user, isLoading, logout } = useAuth()
+  const router = useRouter()
+  const [applications, setApplications] = useState<SellerApplication[]>([])
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Initialize database and load seller applications
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // Initialize the database
+      initializeDatabase()
+
+      // Load applications
+      loadApplications()
+    }
+  }, [])
+
+  // Check if user is admin
+  useEffect(() => {
+    if (!isLoading && (!user || user.role !== "admin")) {
+      router.push("/")
+    }
+  }, [user, isLoading, router])
+
+  const loadApplications = () => {
+    if (typeof window !== "undefined") {
+      try {
+        const apps = getSellerApplications()
+        setApplications(apps)
+      } catch (error) {
+        console.error("Error loading applications:", error)
+        setApplications([])
+      }
+    }
+  }
+
+  const refreshApplications = () => {
+    setIsRefreshing(true)
+    loadApplications()
+    setTimeout(() => setIsRefreshing(false), 500)
+  }
+
+  const handleApprove = (id: string) => {
+    if (typeof window !== "undefined") {
+      updateSellerApplication(id, { status: "approved" })
+      refreshApplications()
+    }
+  }
+
+  const handleReject = (id: string) => {
+    if (typeof window !== "undefined") {
+      updateSellerApplication(id, { status: "rejected" })
+      refreshApplications()
+    }
+  }
+
+  if (isLoading || !user) {
+    return (
+      <div className="container mx-auto py-10">
+        <h1 className="text-2xl font-bold mb-6">Loading...</h1>
+      </div>
     )
   }
 
-  const handleRejectSellerApplication = (applicationId: string) => {
-    // In a real app, you would call your API to reject the application
-    setSellerApplications((prev) =>
-      prev.map((app) => (app.id === applicationId ? { ...app, status: "rejected" as const } : app)),
-    )
-  }
-
-  if (!isAuthenticated || user?.role !== "admin") {
-    return null
-  }
+  const pendingApplications = applications.filter((app) => app.status === "pending")
+  const approvedApplications = applications.filter((app) => app.status === "approved")
+  const rejectedApplications = applications.filter((app) => app.status === "rejected")
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-10 border-b bg-background">
-        <div className="container flex h-16 items-center justify-between py-4">
-          <div className="flex items-center gap-2">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="text-xl font-bold text-rose-500">Crochet</span>
-            </Link>
-          </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => logout()}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              Logout
-            </button>
-          </div>
+    <div className="container mx-auto py-10">
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
+            <Home className="h-4 w-4" />
+            Back to Home
+          </Link>
+          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
         </div>
-      </header>
-      <main className="flex-1 p-6">
-        <div className="container">
-          <div className="mb-8 flex items-center justify-between">
-            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={refreshApplications} disabled={isRefreshing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              logout()
+              router.push("/")
+            }}
+          >
+            Sign Out
+          </Button>
+        </div>
+      </div>
 
-          <div className="mb-8 flex space-x-4 border-b">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`pb-2 text-sm font-medium ${
-                activeTab === "overview"
-                  ? "border-b-2 border-rose-500 text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab("users")}
-              className={`pb-2 text-sm font-medium ${
-                activeTab === "users"
-                  ? "border-b-2 border-rose-500 text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Users
-            </button>
-            <button
-              onClick={() => setActiveTab("orders")}
-              className={`pb-2 text-sm font-medium ${
-                activeTab === "orders"
-                  ? "border-b-2 border-rose-500 text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Orders
-            </button>
-            <button
-              onClick={() => setActiveTab("seller-applications")}
-              className={`pb-2 text-sm font-medium ${
-                activeTab === "seller-applications"
-                  ? "border-b-2 border-rose-500 text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Seller Applications
-            </button>
-          </div>
+      <Tabs defaultValue="pending">
+        <TabsList className="mb-4">
+          <TabsTrigger value="pending">
+            Pending Applications
+            {pendingApplications.length > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {pendingApplications.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="approved">Approved</TabsTrigger>
+          <TabsTrigger value="rejected">Rejected</TabsTrigger>
+        </TabsList>
 
-          {isLoading ? (
-            <div className="flex h-64 items-center justify-center">
-              <div className="text-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-rose-500 border-t-transparent"></div>
-                <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
-              </div>
-            </div>
+        <TabsContent value="pending">
+          {pendingApplications.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-center text-muted-foreground">No pending applications</p>
+              </CardContent>
+            </Card>
           ) : (
-            <>
-              {activeTab === "overview" && (
-                <div className="grid gap-6 md:grid-cols-3">
-                  <div className="rounded-lg border bg-card p-6 shadow-sm">
-                    <h3 className="mb-4 text-lg font-medium">Total Users</h3>
-                    <p className="text-3xl font-bold">{users.length}</p>
-                  </div>
-                  <div className="rounded-lg border bg-card p-6 shadow-sm">
-                    <h3 className="mb-4 text-lg font-medium">Total Orders</h3>
-                    <p className="text-3xl font-bold">{orders.length}</p>
-                  </div>
-                  <div className="rounded-lg border bg-card p-6 shadow-sm">
-                    <h3 className="mb-4 text-lg font-medium">Pending Applications</h3>
-                    <p className="text-3xl font-bold">
-                      {sellerApplications.filter((app) => app.status === "pending").length}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "users" && (
-                <div className="rounded-lg border shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b bg-muted/50">
-                          <th className="px-4 py-3 text-left text-sm font-medium">Name</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Email</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Role</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Joined</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Loyalty</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {users.map((user) => (
-                          <tr key={user.id} className="border-b">
-                            <td className="px-4 py-3 text-sm">{user.name}</td>
-                            <td className="px-4 py-3 text-sm">{user.email}</td>
-                            <td className="px-4 py-3 text-sm">
-                              <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                  user.role === "admin"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : user.role === "seller"
-                                      ? "bg-amber-100 text-amber-800"
-                                      : "bg-green-100 text-green-800"
-                                }`}
-                              >
-                                {user.role}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-sm">{new Date(user.createdAt).toLocaleDateString()}</td>
-                            <td className="px-4 py-3 text-sm">
-                              <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                  user.loyaltyTier === "gold"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : user.loyaltyTier === "silver"
-                                      ? "bg-gray-100 text-gray-800"
-                                      : "bg-amber-100 text-amber-800"
-                                }`}
-                              >
-                                {user.loyaltyTier} ({user.loyaltyPoints} pts)
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "orders" && (
-                <div className="rounded-lg border shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b bg-muted/50">
-                          <th className="px-4 py-3 text-left text-sm font-medium">Order ID</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Customer</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Date</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {orders.map((order) => (
-                          <tr key={order.id} className="border-b">
-                            <td className="px-4 py-3 text-sm">{order.id}</td>
-                            <td className="px-4 py-3 text-sm">{order.shippingAddress.fullName}</td>
-                            <td className="px-4 py-3 text-sm">{new Date(order.createdAt).toLocaleDateString()}</td>
-                            <td className="px-4 py-3 text-sm">
-                              <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                  order.status === "delivered"
-                                    ? "bg-green-100 text-green-800"
-                                    : order.status === "processing"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-amber-100 text-amber-800"
-                                }`}
-                              >
-                                {order.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-sm">${order.total.toFixed(2)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "seller-applications" && (
-                <div className="space-y-6">
-                  {sellerApplications.length === 0 ? (
-                    <div className="rounded-lg border bg-card p-6 text-center shadow-sm">
-                      <p className="text-muted-foreground">No seller applications found.</p>
-                    </div>
-                  ) : (
-                    sellerApplications.map((application) => (
-                      <div key={application.id} className="rounded-lg border bg-card p-6 shadow-sm">
-                        <div className="mb-4 flex items-center justify-between">
-                          <h3 className="text-lg font-medium">{application.name}</h3>
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              application.status === "approved"
-                                ? "bg-green-100 text-green-800"
-                                : application.status === "rejected"
-                                  ? "bg-red-100 text-red-800"
-                                  : "bg-amber-100 text-amber-800"
-                            }`}
-                          >
-                            {application.status}
-                          </span>
-                        </div>
-                        <div className="mb-4 grid gap-2">
-                          <div>
-                            <span className="text-sm font-medium text-muted-foreground">Email:</span>{" "}
-                            <span className="text-sm">{application.email}</span>
-                          </div>
-                          <div>
-                            <span className="text-sm font-medium text-muted-foreground">Bio:</span>{" "}
-                            <span className="text-sm">{application.bio}</span>
-                          </div>
-                          <div>
-                            <span className="text-sm font-medium text-muted-foreground">Experience:</span>{" "}
-                            <span className="text-sm">{application.experience}</span>
-                          </div>
-                          <div>
-                            <span className="text-sm font-medium text-muted-foreground">Social Media:</span>{" "}
-                            <div className="flex flex-wrap gap-2">
-                              {Object.entries(application.socialMedia).map(([platform, url]) => (
-                                <a
-                                  key={platform}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium hover:bg-muted/80"
-                                >
-                                  {platform}
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-sm font-medium text-muted-foreground">Applied:</span>{" "}
-                            <span className="text-sm">{new Date(application.createdAt).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                        {application.status === "pending" && (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleApproveSellerApplication(application.id)}
-                              className="inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleRejectSellerApplication(application.id)}
-                              className="inline-flex items-center justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        )}
+            <div className="grid gap-4">
+              {pendingApplications.map((application) => (
+                <Card key={application.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle>{application.name}</CardTitle>
+                        <CardDescription>{application.email}</CardDescription>
                       </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </>
+                      <Badge variant="outline" className="flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Pending
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-medium mb-1">Bio</h3>
+                        <p className="text-sm text-muted-foreground">{application.bio}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium mb-1">Experience</h3>
+                        <p className="text-sm text-muted-foreground">{application.experience}</p>
+                      </div>
+                      {application.socialMedia && (
+                        <div>
+                          <h3 className="font-medium mb-1">Social Media</h3>
+                          <div className="text-sm text-muted-foreground">
+                            {application.socialMedia.instagram && <p>Instagram: {application.socialMedia.instagram}</p>}
+                            {application.socialMedia.pinterest && <p>Pinterest: {application.socialMedia.pinterest}</p>}
+                            {application.socialMedia.youtube && <p>YouTube: {application.socialMedia.youtube}</p>}
+                          </div>
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="font-medium mb-1">Submitted</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(application.submittedAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => handleReject(application.id)}>
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Reject
+                    </Button>
+                    <Button onClick={() => handleApprove(application.id)}>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Approve
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
           )}
-        </div>
-      </main>
+        </TabsContent>
+
+        <TabsContent value="approved">
+          {approvedApplications.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-center text-muted-foreground">No approved applications</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {approvedApplications.map((application) => (
+                <Card key={application.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle>{application.name}</CardTitle>
+                        <CardDescription>{application.email}</CardDescription>
+                      </div>
+                      <Badge className="bg-green-100 text-green-800 flex items-center">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Approved
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-medium mb-1">Bio</h3>
+                        <p className="text-sm text-muted-foreground">{application.bio}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium mb-1">Experience</h3>
+                        <p className="text-sm text-muted-foreground">{application.experience}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium mb-1">Approved On</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {application.updatedAt ? new Date(application.updatedAt).toLocaleString() : "Unknown"}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="rejected">
+          {rejectedApplications.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-center text-muted-foreground">No rejected applications</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {rejectedApplications.map((application) => (
+                <Card key={application.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle>{application.name}</CardTitle>
+                        <CardDescription>{application.email}</CardDescription>
+                      </div>
+                      <Badge variant="destructive" className="flex items-center">
+                        <XCircle className="h-3 w-3 mr-1" />
+                        Rejected
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-medium mb-1">Bio</h3>
+                        <p className="text-sm text-muted-foreground">{application.bio}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium mb-1">Experience</h3>
+                        <p className="text-sm text-muted-foreground">{application.experience}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium mb-1">Rejected On</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {application.updatedAt ? new Date(application.updatedAt).toLocaleString() : "Unknown"}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

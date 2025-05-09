@@ -1,106 +1,98 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { Instagram, PinIcon as Pinterest, Youtube } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/context/auth-context"
-
-const sellerFormSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  bio: z.string().min(50, "Bio must be at least 50 characters").max(500, "Bio cannot exceed 500 characters"),
-  experience: z
-    .string()
-    .min(50, "Experience must be at least 50 characters")
-    .max(500, "Experience cannot exceed 500 characters"),
-  instagram: z.string().optional(),
-  pinterest: z.string().optional(),
-  youtube: z.string().optional(),
-})
-
-type SellerFormValues = z.infer<typeof sellerFormSchema>
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { toast } from "@/hooks/use-toast"
 
 export default function SellerApplicationForm() {
-  const { user, updateUser } = useAuth()
-  const { toast } = useToast()
+  const { user } = useAuth()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const form = useForm<SellerFormValues>({
-    resolver: zodResolver(sellerFormSchema),
-    defaultValues: {
-      name: user?.name || "",
-      email: user?.email || "",
-      bio: "",
-      experience: "",
-      instagram: "",
-      pinterest: "",
-      youtube: "",
-    },
+  const [formData, setFormData] = useState({
+    bio: "",
+    experience: "",
+    instagram: "",
+    pinterest: "",
+    youtube: "",
   })
 
-  async function onSubmit(data: SellerFormValues) {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
     if (!user) {
       toast({
-        title: "Authentication required",
-        description: "Please log in to apply as a seller",
+        title: "Error",
+        description: "You must be logged in to apply as a seller",
         variant: "destructive",
       })
-      router.push("/auth/login")
       return
     }
 
     setIsSubmitting(true)
 
     try {
-      // In a real app, this would be an API call to submit the seller application
-      // For demo purposes, we'll simulate a successful application
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      // Generate a unique ID
+      function uuidv4() {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0,
+            v = c === "x" ? r : (r & 0x3) | 0x8
+          return v.toString(16)
+        })
+      }
 
-      // Update user role to seller using the auth context
-      const success = await updateUser({
-        role: "seller",
-        sellerProfile: {
-          approved: true,
-          bio: data.bio,
-          socialMedia: {
-            instagram: data.instagram || undefined,
-            pinterest: data.pinterest || undefined,
-            youtube: data.youtube || undefined,
-          },
-          salesCount: 0,
-          rating: 0,
-          joinedDate: new Date().toISOString(),
+      // Create the application object
+      const application = {
+        id: uuidv4(),
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        bio: formData.bio,
+        experience: formData.experience,
+        socialMedia: {
+          instagram: formData.instagram || undefined,
+          pinterest: formData.pinterest || undefined,
+          youtube: formData.youtube || undefined,
         },
+        status: "pending",
+        submittedAt: new Date().toISOString(),
+      }
+
+      // Save to localStorage
+      const applications = JSON.parse(localStorage.getItem("crochet_seller_applications") || "[]")
+      applications.push(application)
+      localStorage.setItem("crochet_seller_applications", JSON.stringify(applications))
+
+      // Update the user object
+      const currentUser = JSON.parse(localStorage.getItem("crochet_user") || "{}")
+      currentUser.sellerApplication = application
+      localStorage.setItem("crochet_user", JSON.stringify(currentUser))
+
+      // Show success message
+      toast({
+        title: "Application Submitted",
+        description: "Your seller application has been submitted for review.",
       })
 
-      if (success) {
-        toast({
-          title: "Application approved",
-          description: "Your seller application has been approved. You can now access your seller dashboard.",
-        })
-
-        // Use setTimeout to ensure state updates are processed before navigation
-        setTimeout(() => {
-          router.push("/seller-dashboard")
-        }, 500)
-      } else {
-        throw new Error("Failed to update user profile")
-      }
+      // Redirect to profile
+      router.push("/profile")
     } catch (error) {
-      console.error("Application submission error:", error)
+      console.error("Error submitting application:", error)
       toast({
-        title: "Submission failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
+        title: "Error",
+        description: "There was an error submitting your application. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -109,134 +101,103 @@ export default function SellerApplicationForm() {
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Full Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Your name" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input placeholder="your.email@example.com" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="bio"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Bio</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Tell us about yourself and your crochet journey..."
-                  className="min-h-[120px]"
-                  {...field}
-                />
-              </FormControl>
-              <FormDescription>This will be displayed on your seller profile. Minimum 50 characters.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="experience"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Crochet Experience</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Describe your experience with crochet, including how long you've been crocheting, any specialties, and previous selling experience..."
-                  className="min-h-[120px]"
-                  {...field}
-                />
-              </FormControl>
-              <FormDescription>
-                Tell us about your experience with crochet and selling handmade items. Minimum 50 characters.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div>
-          <h3 className="mb-4 text-lg font-medium">Social Media (Optional)</h3>
-          <div className="grid gap-6 md:grid-cols-3">
-            <FormField
-              control={form.control}
-              name="instagram"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Instagram className="h-4 w-4" /> Instagram
-                  </FormLabel>
-                  <FormControl>
-                    <Input placeholder="@yourusername" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="pinterest"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Pinterest className="h-4 w-4" /> Pinterest
-                  </FormLabel>
-                  <FormControl>
-                    <Input placeholder="@yourusername" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="youtube"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Youtube className="h-4 w-4" /> YouTube
-                  </FormLabel>
-                  <FormControl>
-                    <Input placeholder="@yourchannel" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Become a Seller</CardTitle>
+        <CardDescription>
+          Fill out this form to apply as a seller on our platform. We'll review your application and get back to you.
+        </CardDescription>
+      </CardHeader>
+      <form onSubmit={handleSubmit}>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="bio">Bio</Label>
+            <Textarea
+              id="bio"
+              name="bio"
+              placeholder="Tell us about yourself and your crochet journey"
+              value={formData.bio}
+              onChange={handleChange}
+              required
+              className="min-h-[100px]"
             />
           </div>
-        </div>
 
-        <div className="flex justify-end">
-          <Button type="submit" className="bg-rose-500 hover:bg-rose-600" disabled={isSubmitting}>
+          <div className="space-y-2">
+            <Label htmlFor="experience">Experience</Label>
+            <Textarea
+              id="experience"
+              name="experience"
+              placeholder="Describe your experience with crochet and selling handmade items"
+              value={formData.experience}
+              onChange={handleChange}
+              required
+              className="min-h-[100px]"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Social Media (Optional)</Label>
+            <div className="grid gap-2">
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-3 flex items-center">
+                  <Label htmlFor="instagram" className="text-sm">
+                    Instagram
+                  </Label>
+                </div>
+                <div className="col-span-9">
+                  <Input
+                    id="instagram"
+                    name="instagram"
+                    placeholder="https://instagram.com/yourusername"
+                    value={formData.instagram}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-3 flex items-center">
+                  <Label htmlFor="pinterest" className="text-sm">
+                    Pinterest
+                  </Label>
+                </div>
+                <div className="col-span-9">
+                  <Input
+                    id="pinterest"
+                    name="pinterest"
+                    placeholder="https://pinterest.com/yourusername"
+                    value={formData.pinterest}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-3 flex items-center">
+                  <Label htmlFor="youtube" className="text-sm">
+                    YouTube
+                  </Label>
+                </div>
+                <div className="col-span-9">
+                  <Input
+                    id="youtube"
+                    name="youtube"
+                    placeholder="https://youtube.com/yourchannel"
+                    value={formData.youtube}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button type="submit" disabled={isSubmitting} className="w-full">
             {isSubmitting ? "Submitting..." : "Submit Application"}
           </Button>
-        </div>
+        </CardFooter>
       </form>
-    </Form>
+    </Card>
   )
 }
