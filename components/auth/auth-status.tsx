@@ -1,49 +1,30 @@
 "use client"
+
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { User, LogOut, Settings, ShoppingBag, Heart, Award, Store, ShieldCheck } from "lucide-react"
+import { LogOut, ShieldCheck, Store, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/context/auth-context"
-import { useToast } from "@/hooks/use-toast"
 
 export default function AuthStatus() {
-  const { user, isAuthenticated, isLoading, logout } = useAuth()
-  const router = useRouter()
-  const { toast } = useToast()
-
-  const handleLogout = () => {
-    logout()
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out.",
-    })
-    router.push("/")
-  }
-
-  if (isLoading) {
-    return (
-      <Button variant="ghost" size="sm" disabled>
-        <span className="h-4 w-4 animate-pulse rounded-full bg-muted"></span>
-      </Button>
-    )
-  }
+  const { user, isAuthenticated, logout } = useAuth()
 
   if (!isAuthenticated) {
     return (
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" asChild>
-          <Link href="/auth/login">Sign In</Link>
+          <Link href="/auth/login">Login</Link>
         </Button>
-        <Button className="bg-rose-500 hover:bg-rose-600" size="sm" asChild>
+        <Button size="sm" asChild>
           <Link href="/auth/register">Register</Link>
         </Button>
       </div>
@@ -53,73 +34,63 @@ export default function AuthStatus() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2">
-          <User className="h-4 w-4" />
-          <span className="hidden sm:inline-block">{user?.name?.split(" ")[0] || "Account"}</span>
+        <Button variant="ghost" size="icon" className="relative">
+          <User className="h-5 w-5" />
+          <span className="sr-only">User menu</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>
-          <div className="flex flex-col">
-            <span>{user?.name}</span>
-            <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
-            <span className="text-xs font-normal text-muted-foreground capitalize">{user?.role}</span>
+      <DropdownMenuContent className="w-56" align="end">
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium">{user.name}</p>
+            <p className="text-xs text-muted-foreground">{user.email}</p>
+            {user.role === "admin" && (
+              <p className="flex items-center text-xs font-medium text-rose-500">
+                <ShieldCheck className="mr-1 h-3 w-3" /> Admin
+              </p>
+            )}
+            {user.role === "seller" && (
+              <p className="flex items-center text-xs font-medium text-blue-500">
+                <Store className="mr-1 h-3 w-3" /> Seller
+              </p>
+            )}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/profile" className="flex w-full cursor-pointer items-center">
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Profile Settings</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/profile?tab=orders" className="flex w-full cursor-pointer items-center">
-            <ShoppingBag className="mr-2 h-4 w-4" />
-            <span>Order History</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/profile?tab=wishlist" className="flex w-full cursor-pointer items-center">
-            <Heart className="mr-2 h-4 w-4" />
-            <span>Wishlist</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/profile?tab=loyalty" className="flex w-full cursor-pointer items-center">
-            <Award className="mr-2 h-4 w-4" />
-            <span>Loyalty Points</span>
-          </Link>
-        </DropdownMenuItem>
-
-        {user?.role === "seller" && (
-          <>
-            <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild>
+            <Link href="/profile">
+              <User className="mr-2 h-4 w-4" />
+              <span>My Profile</span>
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/profile/orders">
+              <Store className="mr-2 h-4 w-4" />
+              <span>My Orders</span>
+            </Link>
+          </DropdownMenuItem>
+          {user.role === "seller" && (
             <DropdownMenuItem asChild>
-              <Link href="/seller-dashboard" className="flex w-full cursor-pointer items-center">
+              <Link href="/seller-dashboard">
                 <Store className="mr-2 h-4 w-4" />
                 <span>Seller Dashboard</span>
               </Link>
             </DropdownMenuItem>
-          </>
-        )}
-
-        {user?.role === "admin" && (
-          <>
-            <DropdownMenuSeparator />
+          )}
+          {user.role === "admin" && (
             <DropdownMenuItem asChild>
-              <Link href="/admin-dashboard" className="flex w-full cursor-pointer items-center">
+              <Link href="/admin-dashboard">
                 <ShieldCheck className="mr-2 h-4 w-4" />
                 <span>Admin Dashboard</span>
               </Link>
             </DropdownMenuItem>
-          </>
-        )}
-
+          )}
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
+        <DropdownMenuItem onClick={logout}>
           <LogOut className="mr-2 h-4 w-4" />
-          <span>Sign Out</span>
+          <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

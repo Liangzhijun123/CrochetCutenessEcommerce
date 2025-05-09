@@ -3,145 +3,164 @@
 import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "@/hooks/use-toast"
 
-type User = {
+export type User = {
   id: string
   name: string
   email: string
-  role: "customer" | "seller" | "admin"
+  role: "user" | "seller" | "admin"
+  avatar?: string
+  loyaltyPoints: number
+  loyaltyTier: "bronze" | "silver" | "gold" | "platinum"
+  sellerProfile?: {
+    approved: boolean
+    bio: string
+    storeDescription?: string
+    socialMedia?: {
+      instagram?: string
+      pinterest?: string
+      etsy?: string
+      youtube?: string
+    }
+    bankInfo?: {
+      accountName: string
+      accountNumber: string
+      bankName: string
+    }
+    salesCount: number
+    rating: number
+    joinedDate: string
+  }
 }
 
 type AuthContextType = {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (email: string, password: string, role?: "customer" | "seller" | "admin") => Promise<void>
-  register: (name: string, email: string, password: string, role?: "customer" | "seller") => Promise<void>
+  login: (email: string, password: string) => Promise<boolean>
+  register: (name: string, email: string, password: string, role: string) => Promise<boolean>
   logout: () => void
+  updateUser: (updates: Partial<User>) => Promise<boolean>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+// Create a default value for the context
+const defaultAuthContext: AuthContextType = {
+  user: null,
+  isAuthenticated: false,
+  isLoading: true,
+  login: async () => false,
+  register: async () => false,
+  logout: () => {},
+  updateUser: async () => false,
+}
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+const AuthContext = createContext<AuthContextType>(defaultAuthContext)
+
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const { toast } = useToast()
-  const router = useRouter()
 
+  // Check if user is already logged in
   useEffect(() => {
-    // Check if user is logged in from localStorage
-    const storedUser = localStorage.getItem("user")
+    const storedUser = localStorage.getItem("crochet_user")
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser))
       } catch (error) {
         console.error("Failed to parse stored user:", error)
-        localStorage.removeItem("user")
+        localStorage.removeItem("crochet_user")
       }
     }
     setIsLoading(false)
   }, [])
 
-  const login = async (email: string, password: string, role: "customer" | "seller" | "admin" = "customer") => {
-    setIsLoading(true)
+  const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // In a real app, this would be an API call
-      // For demo purposes, we'll simulate a successful login
-      const mockUsers = {
-        customer: {
-          id: "cust-123",
-          name: "John Customer",
-          email: email,
-          role: "customer" as const,
+      setIsLoading(true)
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        seller: {
-          id: "sell-456",
-          name: "Jane Seller",
-          email: email,
-          role: "seller" as const,
-        },
-        admin: {
-          id: "admin-789",
-          name: "Admin User",
-          email: email,
-          role: "admin" as const,
-        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (!response.ok) {
+        toast({
+          title: "Login failed",
+          description: "Invalid email or password. Please try again.",
+          variant: "destructive",
+        })
+        return false
       }
 
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Check if email is admin@example.com for admin access
-      if (role === "admin" && email !== "admin@example.com") {
-        throw new Error("Invalid admin credentials")
-      }
-
-      const loggedInUser = mockUsers[role]
-      setUser(loggedInUser)
-      localStorage.setItem("user", JSON.stringify(loggedInUser))
+      const data = await response.json()
+      setUser(data.user)
+      localStorage.setItem("crochet_user", JSON.stringify(data.user))
 
       toast({
         title: "Login successful",
-        description: `Welcome back, ${loggedInUser.name}!`,
+        description: "You have been logged in successfully.",
       })
 
-      // Redirect based on role
-      if (role === "seller") {
-        router.push("/seller-dashboard")
-      } else if (role === "admin") {
-        router.push("/admin-dashboard")
-      } else {
-        router.push("/")
-      }
+      return true
     } catch (error) {
       console.error("Login error:", error)
       toast({
         title: "Login failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
+        description: "An error occurred during login. Please try again.",
         variant: "destructive",
       })
+      return false
     } finally {
       setIsLoading(false)
     }
   }
 
-  const register = async (name: string, email: string, password: string, role: "customer" | "seller" = "customer") => {
-    setIsLoading(true)
+  const register = async (name: string, email: string, password: string, role: string): Promise<boolean> => {
     try {
-      // In a real app, this would be an API call
-      // For demo purposes, we'll simulate a successful registration
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      setIsLoading(true)
 
-      const newUser = {
-        id: `user-${Date.now()}`,
-        name,
-        email,
-        role,
+      // Map the role from the form to the database role
+      const dbRole = role === "customer" ? "user" : role
+
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, password, role: dbRole }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast({
+          title: "Registration failed",
+          description: errorData.error || "Registration failed. Please try again.",
+          variant: "destructive",
+        })
+        return false
       }
 
-      setUser(newUser)
-      localStorage.setItem("user", JSON.stringify(newUser))
+      const data = await response.json()
+      setUser(data.user)
+      localStorage.setItem("crochet_user", JSON.stringify(data.user))
 
       toast({
         title: "Registration successful",
-        description: `Welcome, ${name}!`,
+        description: "Your account has been created successfully!",
       })
 
-      // Redirect based on role
-      if (role === "seller") {
-        router.push("/become-seller")
-      } else {
-        router.push("/")
-      }
+      return true
     } catch (error) {
       console.error("Registration error:", error)
       toast({
         title: "Registration failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
+        description: "An error occurred during registration. Please try again.",
         variant: "destructive",
       })
+      return false
     } finally {
       setIsLoading(false)
     }
@@ -149,8 +168,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setUser(null)
-    localStorage.removeItem("user")
-    router.push("/")
+    localStorage.removeItem("crochet_user")
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+    })
+  }
+
+  const updateUser = async (updates: Partial<User>): Promise<boolean> => {
+    try {
+      if (!user) return false
+
+      // In a real app, you would make an API call to update the user
+      const updatedUser = { ...user, ...updates }
+      setUser(updatedUser)
+      localStorage.setItem("crochet_user", JSON.stringify(updatedUser))
+      return true
+    } catch (error) {
+      console.error("Update user error:", error)
+      return false
+    }
   }
 
   return (
@@ -162,6 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         logout,
+        updateUser,
       }}
     >
       {children}
@@ -169,9 +207,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider")
   }
   return context

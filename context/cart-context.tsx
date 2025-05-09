@@ -13,6 +13,7 @@ export type CartItem = {
   quantity: number
   image: string
   sellerId: string
+  color?: string
 }
 
 type CartContextType = {
@@ -22,6 +23,9 @@ type CartContextType = {
   tax: number
   shipping: number
   total: number
+  isCartOpen: boolean
+  openCart: () => void
+  closeCart: () => void
   addItem: (item: Omit<CartItem, "quantity">) => void
   updateQuantity: (id: string, quantity: number) => void
   removeItem: (id: string) => void
@@ -47,6 +51,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([])
+  const [isCartOpen, setIsCartOpen] = useState(false)
   const { user, updateUser } = useAuth()
 
   // Load cart from localStorage on initial render
@@ -73,9 +78,14 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const shipping = subtotal > 50 ? 0 : 4.99 // Free shipping over $50
   const total = subtotal + tax + shipping
 
+  const openCart = () => setIsCartOpen(true)
+  const closeCart = () => setIsCartOpen(false)
+
   const addItem = (item: Omit<CartItem, "quantity">) => {
     setItems((prevItems) => {
-      const existingItemIndex = prevItems.findIndex((i) => i.id === item.id)
+      const existingItemIndex = prevItems.findIndex(
+        (i) => i.id === item.id && (i.color === item.color || (!i.color && !item.color)),
+      )
 
       if (existingItemIndex !== -1) {
         // Item already exists, increment quantity
@@ -92,6 +102,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       title: "Item added to cart",
       description: `${item.name} has been added to your cart.`,
     })
+
+    // Open the cart drawer when an item is added
+    openCart()
   }
 
   const updateQuantity = (id: string, quantity: number) => {
@@ -121,8 +134,42 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       // Simulate payment processing delay
       await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      // In a real app, you would make an API call to process the payment
-      // and create an order in the database
+      // Create order in the database
+      if (user) {
+        const orderData = {
+          userId: user.id,
+          items: items.map((item) => ({
+            productId: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            image: item.image,
+            sellerId: item.sellerId,
+          })),
+          status: "processing",
+          shippingAddress: paymentDetails.billingAddress,
+          billingAddress: paymentDetails.billingAddress,
+          paymentMethod: "Credit Card",
+          paymentStatus: "paid",
+          subtotal,
+          tax,
+          shipping,
+          total,
+        }
+
+        // Call the API to create the order
+        const response = await fetch("/api/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(orderData),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to create order")
+        }
+      }
 
       // Calculate loyalty points (1 point per dollar spent)
       const pointsEarned = Math.floor(total)
@@ -178,6 +225,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         tax,
         shipping,
         total,
+        isCartOpen,
+        openCart,
+        closeCart,
         addItem,
         updateQuantity,
         removeItem,

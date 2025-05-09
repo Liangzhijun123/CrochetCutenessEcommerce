@@ -30,7 +30,7 @@ const sellerFormSchema = z.object({
 type SellerFormValues = z.infer<typeof sellerFormSchema>
 
 export default function SellerApplicationForm() {
-  const { user } = useAuth()
+  const { user, updateUser } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -62,24 +62,40 @@ export default function SellerApplicationForm() {
     setIsSubmitting(true)
 
     try {
-      // In a real app, this would be an API call
+      // In a real app, this would be an API call to submit the seller application
       // For demo purposes, we'll simulate a successful application
       await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      // Update user role to seller (in a real app, this would be done by an admin)
-      const updatedUser = {
-        ...user,
-        role: "seller" as const,
-      }
-      localStorage.setItem("user", JSON.stringify(updatedUser))
-
-      toast({
-        title: "Application approved",
-        description: "Your seller application has been approved. You can now access your seller dashboard.",
+      // Update user role to seller using the auth context
+      const success = await updateUser({
+        role: "seller",
+        sellerProfile: {
+          approved: true,
+          bio: data.bio,
+          socialMedia: {
+            instagram: data.instagram || undefined,
+            pinterest: data.pinterest || undefined,
+            youtube: data.youtube || undefined,
+          },
+          salesCount: 0,
+          rating: 0,
+          joinedDate: new Date().toISOString(),
+        },
       })
 
-      // Redirect to seller dashboard
-      router.push("/seller-dashboard")
+      if (success) {
+        toast({
+          title: "Application approved",
+          description: "Your seller application has been approved. You can now access your seller dashboard.",
+        })
+
+        // Use setTimeout to ensure state updates are processed before navigation
+        setTimeout(() => {
+          router.push("/seller-dashboard")
+        }, 500)
+      } else {
+        throw new Error("Failed to update user profile")
+      }
     } catch (error) {
       console.error("Application submission error:", error)
       toast({

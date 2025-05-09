@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/context/auth-context"
 import AuthStatus from "@/components/auth/auth-status"
 import CartButton from "@/components/cart/cart-button"
+import CartDrawer from "@/components/cart/cart-drawer"
 
 export default function Header() {
   const pathname = usePathname()
@@ -190,6 +191,7 @@ export default function Header() {
           <AuthStatus />
         </div>
       </div>
+      <CartDrawer />
     </header>
   )
 }

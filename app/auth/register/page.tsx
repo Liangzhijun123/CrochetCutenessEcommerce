@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -15,6 +16,7 @@ import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useAuth } from "@/context/auth-context"
+import { toast } from "@/hooks/use-toast"
 
 const registerSchema = z
   .object({
@@ -41,6 +43,7 @@ const registerSchema = z
 type RegisterFormValues = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
+  const router = useRouter()
   const { register, isLoading } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -59,7 +62,25 @@ export default function RegisterPage() {
   })
 
   async function onSubmit(data: RegisterFormValues) {
-    await register(data.name, data.email, data.password, data.role)
+    try {
+      const success = await register(data.name, data.email, data.password, data.role)
+
+      if (success) {
+        // Redirect based on role
+        if (data.role === "seller") {
+          router.push("/seller-dashboard")
+        } else {
+          router.push("/")
+        }
+      }
+    } catch (error) {
+      console.error("Registration error:", error)
+      toast({
+        title: "Registration failed",
+        description: "An error occurred during registration. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (

@@ -1,6 +1,6 @@
 "use client"
 
-import { ShoppingBag } from "lucide-react"
+import { ShoppingCart } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -10,16 +10,16 @@ export default function CartEmpty() {
   const { closeCart } = useCart()
 
   return (
-    <div className="flex h-full flex-col items-center justify-center space-y-4 py-12">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-        <ShoppingBag className="h-10 w-10 text-muted-foreground" />
+    <div className="flex flex-1 flex-col items-center justify-center py-12">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+        <ShoppingCart className="h-8 w-8 text-muted-foreground" />
       </div>
-      <div className="text-center">
-        <h3 className="text-lg font-medium">Your cart is empty</h3>
-        <p className="text-muted-foreground">Looks like you haven't added any items to your cart yet.</p>
-      </div>
-      <Button asChild className="bg-rose-500 hover:bg-rose-600" onClick={closeCart}>
-        <Link href="/">Continue Shopping</Link>
+      <h3 className="mt-4 text-lg font-medium">Your cart is empty</h3>
+      <p className="mt-2 text-center text-sm text-muted-foreground">
+        Looks like you haven&apos;t added anything to your cart yet.
+      </p>
+      <Button asChild className="mt-6" onClick={closeCart}>
+        <Link href="/shop">Start Shopping</Link>
       </Button>
     </div>
   )
