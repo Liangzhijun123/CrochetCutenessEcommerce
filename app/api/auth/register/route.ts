@@ -3,7 +3,7 @@ import { db } from "@/lib/db"
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password } = await request.json()
+    const { name, email, password, role } = await request.json()
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: "Name, email, and password are required" }, { status: 400 })
@@ -20,11 +20,22 @@ export async function POST(request: NextRequest) {
       name,
       email,
       password,
-      role: "user",
+      role: role || "user",
     })
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = newUser
+
+    // Save user to localStorage for persistence
+    if (typeof window !== "undefined") {
+      localStorage.setItem("crochet_user", JSON.stringify(userWithoutPassword))
+
+      // Also update users array
+      const usersJson = localStorage.getItem("crochet_users")
+      const users = usersJson ? JSON.parse(usersJson) : []
+      users.push(newUser)
+      localStorage.setItem("crochet_users", JSON.stringify(users))
+    }
 
     return NextResponse.json({
       user: userWithoutPassword,

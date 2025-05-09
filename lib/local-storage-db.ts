@@ -1,252 +1,160 @@
-"use client"
+// This is a simple in-memory database that uses localStorage for persistence
+// In a production app, you would use a real database like PostgreSQL, MongoDB, etc.
+
+import { v4 as uuidv4 } from "uuid"
 
 // Types
-export interface SellerApplication {
+export type User = {
   id: string
-  userId: string
   name: string
   email: string
+  password: string // In a real app, this would be hashed
+  role: "user" | "seller" | "admin"
+  createdAt: string
+  avatar?: string
+  loyaltyPoints: number
+  loyaltyTier: "bronze" | "silver" | "gold" | "platinum"
+  sellerProfile?: SellerProfile
+}
+
+export type SellerProfile = {
+  approved: boolean
   bio: string
-  experience: string
+  storeDescription?: string
   socialMedia?: {
     instagram?: string
     pinterest?: string
+    etsy?: string
     youtube?: string
   }
-  status: "pending" | "approved" | "rejected"
-  submittedAt: string
-  updatedAt?: string
-}
-
-export interface User {
-  id: string
-  name: string
-  email: string
-  role: "user" | "seller" | "admin"
-  sellerApplication?: SellerApplication
-  sellerProfile?: any
-  // Other user properties
-  avatar?: string
-  loyaltyPoints?: number
-  loyaltyTier?: string
-}
-
-// Storage keys
-const STORAGE_KEYS = {
-  USERS: "crochet_users",
-  SELLER_APPLICATIONS: "crochet_seller_applications",
-  CURRENT_USER: "crochet_user",
-}
-
-// Helper function to generate UUID
-export function uuidv4() {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0,
-      v = c === "x" ? r : (r & 0x3) | 0x8
-    return v.toString(16)
-  })
-}
-
-// Helper functions
-export function getItem<ItemType>(key: string, defaultValue: ItemType): ItemType {
-  if (typeof window === "undefined") {
-    return defaultValue
+  bankInfo?: {
+    accountName: string
+    accountNumber: string
+    bankName: string
   }
-
-  try {
-    const item = localStorage.getItem(key)
-    return item ? JSON.parse(item) : defaultValue
-  } catch (error) {
-    console.error(`Error retrieving ${key} from localStorage:`, error)
-    return defaultValue
-  }
+  salesCount: number
+  rating: number
+  joinedDate: string
 }
 
-export function setItem<ItemType>(key: string, value: ItemType): void {
-  if (typeof window === "undefined") {
-    return
-  }
-
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch (error) {
-    console.error(`Error storing ${key} in localStorage:`, error)
-  }
-}
-
-// User methods
+// Helper functions to interact with localStorage
 export function getUsers(): User[] {
-  return getItem<User[]>(STORAGE_KEYS.USERS, [])
-}
+  if (typeof window === "undefined") return []
 
-export function getCurrentUser(): User | null {
-  return getItem<User | null>(STORAGE_KEYS.CURRENT_USER, null)
-}
-
-export function updateCurrentUser(updates: Partial<User>): User | null {
-  const currentUser = getCurrentUser()
-  if (!currentUser) return null
-
-  const updatedUser = { ...currentUser, ...updates } as User
-  setItem<User>(STORAGE_KEYS.CURRENT_USER, updatedUser)
-
-  // Also update the user in the users array
-  const users = getUsers()
-  const userIndex = users.findIndex((u) => u.id === currentUser.id)
-  if (userIndex !== -1) {
-    users[userIndex] = updatedUser
-    setItem<User[]>(STORAGE_KEYS.USERS, users)
+  const usersJson = localStorage.getItem("crochet_users")
+  if (!usersJson) {
+    // Initialize with default users if none exist
+    const defaultUsers = [
+      {
+        id: "1",
+        name: "Jane Doe",
+        email: "jane@example.com",
+        password: "password123", // In a real app, this would be hashed
+        role: "user",
+        createdAt: "2023-01-15T00:00:00.000Z",
+        avatar: "/placeholder.svg?height=200&width=200",
+        loyaltyPoints: 250,
+        loyaltyTier: "silver",
+      },
+      {
+        id: "2",
+        name: "John Smith",
+        email: "john@example.com",
+        password: "password123",
+        role: "user",
+        createdAt: "2023-02-20T00:00:00.000Z",
+        avatar: "/placeholder.svg?height=200&width=200",
+        loyaltyPoints: 50,
+        loyaltyTier: "bronze",
+      },
+      {
+        id: "3",
+        name: "Seller Account",
+        email: "seller@example.com",
+        password: "password123",
+        role: "seller",
+        createdAt: "2023-03-10T00:00:00.000Z",
+        avatar: "/placeholder.svg?height=200&width=200",
+        loyaltyPoints: 0,
+        loyaltyTier: "bronze",
+        sellerProfile: {
+          approved: true,
+          bio: "I create handmade crochet items with love and care.",
+          storeDescription: "Welcome to my crochet store! I specialize in amigurumi and baby items.",
+          socialMedia: {
+            instagram: "https://instagram.com/crochetcreator",
+            pinterest: "https://pinterest.com/crochetcreator",
+          },
+          salesCount: 157,
+          rating: 4.8,
+          joinedDate: "2023-03-10T00:00:00.000Z",
+        },
+      },
+      {
+        id: "4",
+        name: "Admin User",
+        email: "admin@example.com",
+        password: "password123",
+        role: "admin",
+        createdAt: "2023-01-01T00:00:00.000Z",
+        avatar: "/placeholder.svg?height=200&width=200",
+        loyaltyPoints: 0,
+        loyaltyTier: "bronze",
+      },
+    ]
+    localStorage.setItem("crochet_users", JSON.stringify(defaultUsers))
+    return defaultUsers
   }
+
+  return JSON.parse(usersJson)
+}
+
+export function getUserById(id: string): User | undefined {
+  const users = getUsers()
+  return users.find((user) => user.id === id)
+}
+
+export function getUserByEmail(email: string): User | undefined {
+  const users = getUsers()
+  return users.find((user) => user.email.toLowerCase() === email.toLowerCase())
+}
+
+export function createUser(userData: Omit<User, "id" | "createdAt" | "loyaltyPoints" | "loyaltyTier">): User {
+  const users = getUsers()
+
+  const newUser: User = {
+    id: uuidv4(),
+    ...userData,
+    createdAt: new Date().toISOString(),
+    loyaltyPoints: 0,
+    loyaltyTier: "bronze",
+  }
+
+  users.push(newUser)
+  localStorage.setItem("crochet_users", JSON.stringify(users))
+
+  return newUser
+}
+
+export function updateUser(id: string, updates: Partial<User>): User | undefined {
+  const users = getUsers()
+  const userIndex = users.findIndex((user) => user.id === id)
+
+  if (userIndex === -1) return undefined
+
+  const updatedUser = { ...users[userIndex], ...updates }
+  users[userIndex] = updatedUser
+
+  localStorage.setItem("crochet_users", JSON.stringify(users))
 
   return updatedUser
 }
 
-// Seller application methods
-export function getSellerApplications(): SellerApplication[] {
-  return getItem<SellerApplication[]>(STORAGE_KEYS.SELLER_APPLICATIONS, [])
-}
-
-export function createSellerApplication(
-  application: Omit<SellerApplication, "id" | "submittedAt" | "status">,
-): SellerApplication {
-  const newApplication: SellerApplication = {
-    id: uuidv4(),
-    ...application,
-    status: "pending",
-    submittedAt: new Date().toISOString(),
-  }
-
-  // Add to seller applications
-  const applications = getSellerApplications()
-  applications.push(newApplication)
-  setItem<SellerApplication[]>(STORAGE_KEYS.SELLER_APPLICATIONS, applications)
-
-  // Update the user with the application reference
-  const currentUser = getCurrentUser()
-  if (currentUser && currentUser.id === application.userId) {
-    updateCurrentUser({ sellerApplication: newApplication })
-  }
-
-  // Update the user in the users array
-  const users = getUsers()
-  const userIndex = users.findIndex((u) => u.id === application.userId)
-  if (userIndex !== -1) {
-    users[userIndex] = {
-      ...users[userIndex],
-      sellerApplication: newApplication,
-    }
-    setItem<User[]>(STORAGE_KEYS.USERS, users)
-  }
-
-  return newApplication
-}
-
-export function updateSellerApplication(id: string, updates: Partial<SellerApplication>): SellerApplication | null {
-  const applications = getSellerApplications()
-  const applicationIndex = applications.findIndex((app) => app.id === id)
-
-  if (applicationIndex === -1) return null
-
-  const updatedApplication: SellerApplication = {
-    ...applications[applicationIndex],
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  }
-
-  applications[applicationIndex] = updatedApplication
-  setItem<SellerApplication[]>(STORAGE_KEYS.SELLER_APPLICATIONS, applications)
-
-  // If the application is approved, update the user's role
-  if (updates.status === "approved") {
-    const users = getUsers()
-    const userIndex = users.findIndex((u) => u.id === updatedApplication.userId)
-
-    if (userIndex !== -1) {
-      users[userIndex] = {
-        ...users[userIndex],
-        role: "seller",
-        sellerProfile: {
-          approved: true,
-          bio: updatedApplication.bio,
-          socialMedia: updatedApplication.socialMedia,
-          salesCount: 0,
-          rating: 0,
-          joinedDate: new Date().toISOString(),
-        },
-        sellerApplication: updatedApplication,
-      }
-      setItem<User[]>(STORAGE_KEYS.USERS, users)
-
-      // If this is the current user, update them too
-      const currentUser = getCurrentUser()
-      if (currentUser && currentUser.id === updatedApplication.userId) {
-        updateCurrentUser({
-          role: "seller",
-          sellerProfile: {
-            approved: true,
-            bio: updatedApplication.bio,
-            socialMedia: updatedApplication.socialMedia,
-            salesCount: 0,
-            rating: 0,
-            joinedDate: new Date().toISOString(),
-          },
-          sellerApplication: updatedApplication,
-        })
-      }
-    }
-  } else if (updates.status === "rejected") {
-    // Update the user's application status
-    const users = getUsers()
-    const userIndex = users.findIndex((u) => u.id === updatedApplication.userId)
-
-    if (userIndex !== -1) {
-      users[userIndex] = {
-        ...users[userIndex],
-        sellerApplication: updatedApplication,
-      }
-      setItem<User[]>(STORAGE_KEYS.USERS, users)
-
-      // If this is the current user, update them too
-      const currentUser = getCurrentUser()
-      if (currentUser && currentUser.id === updatedApplication.userId) {
-        updateCurrentUser({
-          sellerApplication: updatedApplication,
-        })
-      }
-    }
-  }
-
-  return updatedApplication
-}
-
-// Initialize the database with some data if it doesn't exist
-export function initializeDatabase() {
-  // Only run in browser environment
-  if (typeof window === "undefined") return
-
-  // Check if users exist
-  const users = getUsers()
-  if (users.length === 0) {
-    // Add admin user
-    const adminUser: User = {
-      id: uuidv4(),
-      name: "Admin User",
-      email: "admin@example.com",
-      role: "admin",
-    }
-
-    setItem<User[]>(STORAGE_KEYS.USERS, [adminUser])
-  }
-
-  // Check if seller applications exist
-  const applications = getSellerApplications()
-  if (applications.length === 0) {
-    // No need to add sample applications
-    setItem<SellerApplication[]>(STORAGE_KEYS.SELLER_APPLICATIONS, [])
-  }
-}
-
-// Only initialize in browser environment
-if (typeof window !== "undefined") {
-  initializeDatabase()
+// Export a database object for compatibility with existing code
+export const db = {
+  getUsers,
+  getUserById,
+  getUserByEmail,
+  createUser,
+  updateUser,
 }

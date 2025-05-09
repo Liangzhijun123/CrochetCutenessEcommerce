@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, ShieldCheck, Store, User } from "lucide-react"
@@ -24,28 +24,11 @@ export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
 
-  // Set default email based on role for demo purposes
-  useEffect(() => {
-    if (loginRole === "admin") {
-      setEmail("admin@example.com")
-      setPassword("password123")
-    } else if (loginRole === "seller") {
-      setEmail("seller@example.com")
-      setPassword("password123")
-    } else {
-      setEmail("jane@example.com")
-      setPassword("password123")
-    }
-  }, [loginRole])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      // Show the login attempt for debugging
-      console.log(`Attempting to login with: ${email}, role: ${loginRole}`)
-
       const success = await login(email, password, loginRole)
       if (success) {
         toast({
@@ -81,7 +64,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="container flex h-screen items-center justify-center">
+    <div className="container flex min-h-screen items-center justify-center py-8">
       <Card className="mx-auto w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>

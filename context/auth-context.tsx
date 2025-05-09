@@ -64,22 +64,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (!currentUser || !currentUser.id) return false
 
       // Get the latest user data from localStorage
-      const users = JSON.parse(localStorage.getItem("crochet_users") || "[]")
-      const updatedUser = users.find((u: User) => u.id === currentUser.id)
-
-      if (updatedUser) {
-        // Update the user in state and localStorage
-        setUser(updatedUser)
-        localStorage.setItem("crochet_user", JSON.stringify(updatedUser))
-
-        // If the role changed, show a notification
-        if (updatedUser.role !== currentUser.role) {
-          toast({
-            title: "Role updated",
-            description: `Your role has been updated to ${updatedUser.role}.`,
-          })
-        }
-
+      const storedUser = localStorage.getItem("crochet_user")
+      if (storedUser) {
+        const userData = JSON.parse(storedUser)
+        setUser(userData)
         return true
       }
 
@@ -93,9 +81,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async (email: string, password: string, role?: string): Promise<boolean> => {
     try {
       setIsLoading(true)
-
-      // Log the login attempt for debugging
-      console.log(`Login attempt in auth context: ${email}, role: ${role}`)
 
       const response = await fetch("/api/auth/login", {
         method: "POST",
@@ -178,6 +163,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(data.user)
       localStorage.setItem("crochet_user", JSON.stringify(data.user))
 
+      // Also update users array in localStorage
+      const usersJson = localStorage.getItem("crochet_users")
+      const users = usersJson ? JSON.parse(usersJson) : []
+      users.push(data.user)
+      localStorage.setItem("crochet_users", JSON.stringify(users))
+
       toast({
         title: "Registration successful",
         description: "Your account has been created successfully!",
@@ -217,12 +208,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.setItem("crochet_user", JSON.stringify(updatedUser))
 
       // Also update the user in the users array
-      const users = JSON.parse(localStorage.getItem("crochet_users") || "[]")
-      const userIndex = users.findIndex((u: User) => u.id === user.id)
-
-      if (userIndex !== -1) {
-        users[userIndex] = updatedUser
-        localStorage.setItem("crochet_users", JSON.stringify(users))
+      const usersJson = localStorage.getItem("crochet_users")
+      if (usersJson) {
+        const users = JSON.parse(usersJson)
+        const userIndex = users.findIndex((u: User) => u.id === user.id)
+        if (userIndex !== -1) {
+          users[userIndex] = updatedUser
+          localStorage.setItem("crochet_users", JSON.stringify(users))
+        }
       }
 
       return true
