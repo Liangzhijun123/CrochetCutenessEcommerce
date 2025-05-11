@@ -65,12 +65,12 @@ export default function Header() {
                 Shop
               </Link>
               <Link
-                href="/about"
+                href="/pattern-testing"
                 className={`text-sm font-medium transition-colors hover:text-rose-500 ${
-                  pathname === "/about" ? "text-rose-500" : "text-foreground"
+                  pathname === "/pattern-testing" ? "text-rose-500" : "text-foreground"
                 }`}
               >
-                About
+                Pattern Testing
               </Link>
               <Link
                 href="/contact"
@@ -161,12 +161,12 @@ export default function Header() {
                   Shop
                 </Link>
                 <Link
-                  href="/about"
+                  href="/pattern-testing"
                   className={`text-sm font-medium transition-colors hover:text-rose-500 ${
-                    pathname === "/about" ? "text-rose-500" : "text-foreground"
+                    pathname === "/pattern-testing" ? "text-rose-500" : "text-foreground"
                   }`}
                 >
-                  About
+                  Pattern Testing
                 </Link>
                 <Link
                   href="/contact"

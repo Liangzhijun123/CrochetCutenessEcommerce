@@ -127,6 +127,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   const clearCart = () => {
     setItems([])
+    localStorage.removeItem("crochet_cart")
   }
 
   const checkout = async (paymentDetails: PaymentDetails): Promise<boolean> => {

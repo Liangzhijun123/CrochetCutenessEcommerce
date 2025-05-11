@@ -1,59 +1,82 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getOrderById, updateOrder, getUserById } from "@/lib/local-storage-db"
+import { sendEmail, type EmailTemplate } from "@/lib/email-service"
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    // Only sellers and admins can update order status
-    if (session.user.role !== "SELLER" && session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
-
     const orderId = params.id
+    const order = getOrderById(orderId)
+
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 })
+    }
+
     const { status } = await request.json()
 
-    if (!["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"].includes(status)) {
+    // Validate status
+    const validStatuses = ["pending", "processing", "shipped", "delivered", "cancelled"]
+    if (!validStatuses.includes(status)) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 })
     }
 
-    // If seller, verify they have items in this order
-    if (session.user.role === "SELLER") {
-      const order = await db.order.findFirst({
-        where: {
-          id: orderId,
-          items: {
-            some: {
-              product: {
-                sellerId: session.user.id,
-              },
-            },
-          },
-        },
-      })
-
-      if (!order) {
-        return NextResponse.json({ error: "Order not found or does not contain your products" }, { status: 404 })
-      }
-    }
-
-    // Update order status
-    const updatedOrder = await db.order.update({
-      where: {
-        id: orderId,
-      },
-      data: {
-        status,
-      },
+    // Update the order
+    const updatedOrder = updateOrder(orderId, {
+      status,
+      updatedAt: new Date().toISOString(),
+      // Add tracking number if status is shipped
+      ...(status === "shipped" && !order.trackingNumber
+        ? {
+            trackingNumber: "CR" + Math.floor(Math.random() * 1000000000),
+            carrier: "CrochetExpress",
+          }
+        : {}),
     })
 
-    return NextResponse.json({ order: updatedOrder })
+    // Get the user to send email
+    const user = getUserById(order.userId)
+
+    // Send email notification if user exists
+    if (user) {
+      // Determine which email template to use
+      let template: EmailTemplate
+      switch (status) {
+        case "pending":
+          template = "order-confirmation"
+          break
+        case "processing":
+          template = "order-processing"
+          break
+        case "shipped":
+          template = "order-shipped"
+          break
+        case "delivered":
+          template = "order-delivered"
+          break
+        case "cancelled":
+          template = "order-cancelled"
+          break
+        default:
+          template = "order-confirmation"
+      }
+
+      // Send the email
+      await sendEmail(user.email, template, {
+        order: updatedOrder,
+        user,
+        orderId: updatedOrder.id,
+        orderDate: updatedOrder.createdAt,
+        items: updatedOrder.items,
+        shippingAddress: updatedOrder.shippingAddress,
+        trackingNumber: updatedOrder.trackingNumber,
+        estimatedDelivery: new Date(new Date().getTime() + 1000 * 60 * 60 * 24 * 5).toISOString(), // 5 days from now
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Order ${orderId} status updated to ${status}`,
+      order: updatedOrder,
+    })
   } catch (error) {
     console.error("Error updating order status:", error)
     return NextResponse.json({ error: "Failed to update order status" }, { status: 500 })

@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
+import { createSellerApplication, getSellerApplicationByUserId } from "@/lib/local-storage-db"
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,30 +10,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User ID, name, email, and bio are required" }, { status: 400 })
     }
 
-    // Check if user exists
-    const user = db.getUserById(applicationData.userId)
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
-    }
-
     // Check if user already has an application
-    const existingApplication = db.getSellerApplicationByUserId(applicationData.userId)
+    const existingApplication = getSellerApplicationByUserId(applicationData.userId)
     if (existingApplication) {
-      return NextResponse.json(
-        { error: "You already have a pending application", application: existingApplication },
-        { status: 409 },
-      )
+      return NextResponse.json({ error: "You already have a pending application" }, { status: 409 })
     }
 
-    // Create new application
-    const newApplication = db.createSellerApplication(applicationData)
+    const newApplication = createSellerApplication(applicationData)
 
-    return NextResponse.json({
-      application: newApplication,
-      message: "Application submitted successfully",
-    })
+    return NextResponse.json({ application: newApplication }, { status: 201 })
   } catch (error) {
     console.error("Error creating seller application:", error)
-    return NextResponse.json({ error: "An error occurred while submitting your application" }, { status: 500 })
+    return NextResponse.json({ error: "An error occurred while creating the application" }, { status: 500 })
   }
 }

@@ -5,18 +5,35 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatPrice(price: number): string {
+export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-  }).format(price)
+  }).format(amount)
 }
 
-export function formatDate(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date
-  return new Intl.DateTimeFormat("en-US", {
+// Add formatPrice as an alias to formatCurrency for backward compatibility
+export const formatPrice = formatCurrency
+
+export function formatDate(date: string | Date, includeTime = false): string {
+  const dateObj = typeof date === "string" ? new Date(date) : date
+
+  if (isNaN(dateObj.getTime())) {
+    return "Invalid Date"
+  }
+
+  const options: Intl.DateTimeFormatOptions = {
     year: "numeric",
     month: "long",
     day: "numeric",
-  }).format(d)
+  }
+
+  if (includeTime) {
+    options.hour = "numeric"
+    options.minute = "numeric"
+    options.second = "numeric"
+    options.timeZoneName = "short"
+  }
+
+  return dateObj.toLocaleDateString("en-US", options)
 }

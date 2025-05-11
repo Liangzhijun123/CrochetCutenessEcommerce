@@ -1,80 +1,83 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
+
+// Mock products database
+const products = [
+  {
+    id: "1",
+    name: "Crochet Bunny",
+    description: "A cute crochet bunny perfect for Easter or as a baby gift.",
+    price: 25.99,
+    category: "toys",
+    image: "/crochet-bunny.png",
+    sellerId: "2",
+    stock: 10,
+    featured: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "2",
+    name: "Cozy Crochet Blanket",
+    description: "A warm and cozy crochet blanket perfect for cold winter nights.",
+    price: 89.99,
+    category: "home",
+    image: "/cozy-crochet-blanket.png",
+    sellerId: "2",
+    stock: 5,
+    featured: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "3",
+    name: "Crochet Plant Hanger",
+    description: "A beautiful crochet plant hanger to display your favorite plants.",
+    price: 18.99,
+    category: "home",
+    image: "/crochet-plant-hanger.png",
+    sellerId: "2",
+    stock: 15,
+    featured: false,
+    createdAt: new Date().toISOString(),
+  },
+]
 
 export async function GET(request: NextRequest) {
   try {
-    const url = new URL(request.url)
-    const sellerId = url.searchParams.get("sellerId")
+    // Get seller ID from query params
+    const { searchParams } = new URL(request.url)
+    const sellerId = searchParams.get("sellerId")
 
-    if (!sellerId) {
-      return NextResponse.json({ error: "Seller ID is required" }, { status: 400 })
-    }
+    // Filter products by seller ID if provided
+    const filteredProducts = sellerId ? products.filter((product) => product.sellerId === sellerId) : products
 
-    // Get products by seller ID
-    const products = await db.product.findMany({
-      where: {
-        sellerId: sellerId,
-      },
-      include: {
-        seller: {
-          select: {
-            id: true,
-            name: true,
-            shopName: true,
-          },
-        },
-        category: true,
-      },
-    })
-
-    return NextResponse.json({ products })
+    return NextResponse.json(filteredProducts)
   } catch (error) {
-    console.error("Error fetching seller products:", error)
-    return NextResponse.json({ error: "Failed to fetch seller products" }, { status: 500 })
+    console.error("Error fetching products:", error)
+    return NextResponse.json({ error: "An error occurred while fetching products" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const {
-      name,
-      description,
-      price,
-      images,
-      categoryId,
-      sellerId,
-      inventory,
-      difficulty,
-      materials,
-      dimensions,
-      isPattern,
-    } = body
+    const productData = await request.json()
 
-    if (!name || !description || !price || !images || !categoryId || !sellerId) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    // Validate required fields
+    if (!productData.name || !productData.price || !productData.sellerId) {
+      return NextResponse.json({ error: "Name, price, and seller ID are required" }, { status: 400 })
     }
 
-    // Create new product
-    const product = await db.product.create({
-      data: {
-        name,
-        description,
-        price: Number.parseFloat(price),
-        images,
-        categoryId,
-        sellerId,
-        inventory: inventory || 1,
-        difficulty: difficulty || "BEGINNER",
-        materials: materials || [],
-        dimensions: dimensions || {},
-        isPattern: isPattern || false,
-      },
-    })
+    // Create a new product
+    const newProduct = {
+      id: Date.now().toString(),
+      ...productData,
+      createdAt: new Date().toISOString(),
+    }
 
-    return NextResponse.json({ product }, { status: 201 })
+    // Add to products array
+    products.push(newProduct)
+
+    return NextResponse.json(newProduct)
   } catch (error) {
     console.error("Error creating product:", error)
-    return NextResponse.json({ error: "Failed to create product" }, { status: 500 })
+    return NextResponse.json({ error: "An error occurred while creating the product" }, { status: 500 })
   }
 }

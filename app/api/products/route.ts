@@ -1,23 +1,29 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
+import { getProducts, getProductsByCategory, getProductsBySeller, createProduct } from "@/lib/local-storage-db"
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
     const sellerId = searchParams.get("sellerId")
+    const featured = searchParams.get("featured")
 
     let products
 
     if (category) {
-      products = db.getProductsByCategory(category)
+      products = getProductsByCategory(category)
     } else if (sellerId) {
-      products = db.getProductsBySeller(sellerId)
+      products = getProductsBySeller(sellerId)
     } else {
-      products = db.getProducts()
+      products = getProducts()
     }
 
-    return NextResponse.json(products)
+    // Filter by featured if requested
+    if (featured === "true") {
+      products = products.filter((product) => product.featured)
+    }
+
+    return NextResponse.json({ products })
   } catch (error) {
     console.error("Error fetching products:", error)
     return NextResponse.json({ error: "An error occurred while fetching products" }, { status: 500 })
@@ -33,9 +39,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name, price, and sellerId are required" }, { status: 400 })
     }
 
-    const newProduct = db.createProduct(productData)
+    const newProduct = createProduct(productData)
 
-    return NextResponse.json(newProduct)
+    return NextResponse.json({ product: newProduct }, { status: 201 })
   } catch (error) {
     console.error("Error creating product:", error)
     return NextResponse.json({ error: "An error occurred while creating the product" }, { status: 500 })

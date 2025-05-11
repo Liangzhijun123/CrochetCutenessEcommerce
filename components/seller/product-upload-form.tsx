@@ -3,322 +3,227 @@
 import type React from "react"
 
 import { useState } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { Plus, X } from "lucide-react"
-
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
 
-const productFormSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters"),
-  price: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
-    message: "Price must be a valid number",
-  }),
-  description: z.string().min(10, "Description must be at least 10 characters"),
-  materials: z.string().min(5, "Please list materials used"),
-  dimensions: z.string().min(2, "Please provide dimensions"),
-  weight: z.string().min(1, "Please provide weight"),
-  stock: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0 && Number.isInteger(Number(val)), {
-    message: "Stock must be a valid whole number",
-  }),
-  tags: z.string().optional(),
-  shippingNotes: z.string().optional(),
-})
-
-type ProductFormValues = z.infer<typeof productFormSchema>
-
 export default function ProductUploadForm() {
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [productImages, setProductImages] = useState<File[]>([])
-  const [productColors, setProductColors] = useState<string[]>([])
-  const [newColor, setNewColor] = useState("")
-
-  const form = useForm<ProductFormValues>({
-    resolver: zodResolver(productFormSchema),
-    defaultValues: {
-      title: "",
-      price: "",
-      description: "",
-      materials: "",
-      dimensions: "",
-      weight: "",
-      stock: "1",
-      tags: "",
-      shippingNotes: "",
-    },
+  const { user } = useAuth()
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    price: "",
+    category: "",
+    stock: "1",
+    difficulty: "beginner",
+    images: ["/placeholder.svg?height=400&width=400"],
+    colors: [],
+    tags: "",
+    featured: false,
   })
 
-  function onSubmit(data: ProductFormValues) {
-    if (productImages.length === 0) {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target
+    setFormData((prev) => ({ ...prev, [name]: checked }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!user) {
       toast({
-        title: "Product images required",
-        description: "Please upload at least one image of your product",
+        title: "Authentication required",
+        description: "You must be logged in to upload products",
         variant: "destructive",
       })
       return
     }
 
-    setIsSubmitting(true)
+    try {
+      setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      console.log(data, productImages, productColors)
-      toast({
-        title: "Product Uploaded!",
-        description: "Your product has been successfully uploaded.",
+      // Prepare the data
+      const productData = {
+        ...formData,
+        price: Number.parseFloat(formData.price),
+        stock: Number.parseInt(formData.stock),
+        sellerId: user.id,
+        tags: formData.tags.split(",").map((tag) => tag.trim()),
+        colors: formData.colors.length ? formData.colors : undefined,
+      }
+
+      // Submit to API
+      const response = await fetch("/api/products", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(productData),
       })
-      form.reset()
-      setProductImages([])
-      setProductColors([])
-      setIsSubmitting(false)
-    }, 1500)
-  }
 
-  const handleProductImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files)
-      setProductImages((prev) => [...prev, ...newFiles].slice(0, 5)) // Limit to 5 images
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to create product")
+      }
+
+      const result = await response.json()
+
+      toast({
+        title: "Product created",
+        description: "Your product has been successfully created",
+      })
+
+      // Redirect to the product page or seller dashboard
+      router.push(`/product/${result.product.id}`)
+      router.refresh()
+    } catch (error) {
+      console.error("Error creating product:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create product",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
-  }
-
-  const removeImage = (index: number) => {
-    setProductImages((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const addColor = () => {
-    if (newColor && !productColors.includes(newColor)) {
-      setProductColors([...productColors, newColor])
-      setNewColor("")
-    }
-  }
-
-  const removeColor = (color: string) => {
-    setProductColors(productColors.filter((c) => c !== color))
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="space-y-6">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Bunny Amigurumi" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="price"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Price ($)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="24.99" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="dimensions"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Dimensions</FormLabel>
-                    <FormControl>
-                      <Input placeholder="8 x 5 x 3 inches" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="weight"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Weight</FormLabel>
-                    <FormControl>
-                      <Input placeholder="3 oz" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="stock"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Stock Quantity</FormLabel>
-                  <FormControl>
-                    <Input type="number" min="0" step="1" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="tags"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tags</FormLabel>
-                  <FormControl>
-                    <Input placeholder="amigurumi, bunny, handmade (comma separated)" {...field} />
-                  </FormControl>
-                  <FormDescription>Add tags to help customers find your product</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Upload New Product</CardTitle>
+        <CardDescription>Add a new crochet product to your store</CardDescription>
+      </CardHeader>
+      <form onSubmit={handleSubmit}>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Product Name</Label>
+            <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
           </div>
 
-          <div className="space-y-6">
-            <FormField
-              control={form.control}
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
               name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Describe your product in detail..." className="min-h-[120px]" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="materials"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Materials</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="List all materials used in this product..."
-                      className="min-h-[80px]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="shippingNotes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Shipping Notes</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Any special shipping information..." className="min-h-[80px]" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              value={formData.description}
+              onChange={handleChange}
+              rows={4}
+              required
             />
           </div>
-        </div>
 
-        <div>
-          <FormLabel>Available Colors</FormLabel>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {productColors.map((color) => (
-              <div key={color} className="flex items-center rounded-full bg-rose-100 px-3 py-1 text-sm">
-                <span>{color}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="ml-1 h-5 w-5 rounded-full p-0"
-                  onClick={() => removeColor(color)}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
-
-            <div className="flex items-center gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="price">Price ($)</Label>
               <Input
-                placeholder="Add color"
-                value={newColor}
-                onChange={(e) => setNewColor(e.target.value)}
-                className="w-32"
+                id="price"
+                name="price"
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={formData.price}
+                onChange={handleChange}
+                required
               />
-              <Button type="button" variant="outline" size="sm" onClick={addColor} disabled={!newColor}>
-                Add
-              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="stock">Stock Quantity</Label>
+              <Input
+                id="stock"
+                name="stock"
+                type="number"
+                min="1"
+                value={formData.stock}
+                onChange={handleChange}
+                required
+              />
             </div>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">Add all available color options for this product</p>
-        </div>
 
-        <div>
-          <FormLabel>Product Images</FormLabel>
-          <div className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-            {productImages.map((image, index) => (
-              <div key={index} className="relative aspect-square rounded-md border bg-muted">
-                <img
-                  src={URL.createObjectURL(image) || "/placeholder.svg"}
-                  alt={`Product image ${index + 1}`}
-                  className="h-full w-full rounded-md object-cover"
-                />
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="absolute -right-2 -top-2 h-6 w-6 rounded-full"
-                  onClick={() => removeImage(index)}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Select value={formData.category} onValueChange={(value) => handleSelectChange("category", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="amigurumi">Amigurumi</SelectItem>
+                  <SelectItem value="baby">Baby Items</SelectItem>
+                  <SelectItem value="home">Home Decor</SelectItem>
+                  <SelectItem value="wearable">Wearables</SelectItem>
+                  <SelectItem value="pattern">Patterns</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            {productImages.length < 5 && (
-              <label className="flex aspect-square cursor-pointer items-center justify-center rounded-md border border-dashed">
-                <Input type="file" accept="image/*" className="hidden" onChange={handleProductImagesChange} />
-                <div className="flex flex-col items-center">
-                  <Plus className="h-6 w-6 text-muted-foreground" />
-                  <span className="mt-1 text-xs text-muted-foreground">Add Image</span>
-                </div>
-              </label>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="difficulty">Difficulty Level</Label>
+              <Select value={formData.difficulty} onValueChange={(value) => handleSelectChange("difficulty", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="beginner">Beginner</SelectItem>
+                  <SelectItem value="intermediate">Intermediate</SelectItem>
+                  <SelectItem value="advanced">Advanced</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Upload up to 5 images of your product from different angles
-          </p>
-        </div>
 
-        <div className="flex justify-end">
-          <Button type="submit" className="bg-rose-500 hover:bg-rose-600" disabled={isSubmitting}>
-            {isSubmitting ? "Uploading..." : "Upload Product"}
+          <div className="space-y-2">
+            <Label htmlFor="tags">Tags (comma separated)</Label>
+            <Input
+              id="tags"
+              name="tags"
+              value={formData.tags}
+              onChange={handleChange}
+              placeholder="e.g. bunny, toy, gift"
+            />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="featured"
+              name="featured"
+              checked={formData.featured}
+              onChange={handleCheckboxChange}
+              className="h-4 w-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500"
+            />
+            <Label htmlFor="featured">Feature this product on the homepage</Label>
+          </div>
+        </CardContent>
+
+        <CardFooter className="flex justify-between">
+          <Button variant="outline" type="button" onClick={() => router.back()}>
+            Cancel
           </Button>
-        </div>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Creating..." : "Create Product"}
+          </Button>
+        </CardFooter>
       </form>
-    </Form>
+    </Card>
   )
 }

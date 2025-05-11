@@ -1,5 +1,37 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
+
+// Mock database for demo purposes
+const users = [
+  {
+    id: "1",
+    name: "John Doe",
+    email: "user@example.com",
+    password: "password123",
+    role: "user",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "2",
+    name: "Seller Account",
+    email: "seller@example.com",
+    password: "password123",
+    role: "seller",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "3",
+    name: "Admin User",
+    email: "admin@example.com",
+    password: "password123",
+    role: "admin",
+    createdAt: new Date().toISOString(),
+  },
+]
+
+// Helper function to get user by email
+function getUserByEmail(email: string) {
+  return users.find((user) => user.email === email) || null
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user by email
-    const user = db.getUserByEmail(email)
+    const user = getUserByEmail(email)
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 401 })
@@ -27,17 +59,6 @@ export async function POST(request: NextRequest) {
     // Save user to localStorage for persistence
     if (typeof window !== "undefined") {
       localStorage.setItem("crochet_user", JSON.stringify(userWithoutPassword))
-
-      // Also update users array if it exists
-      const usersJson = localStorage.getItem("crochet_users")
-      if (usersJson) {
-        const users = JSON.parse(usersJson)
-        const userIndex = users.findIndex((u: any) => u.id === user.id)
-        if (userIndex !== -1) {
-          users[userIndex] = { ...users[userIndex], lastLogin: new Date().toISOString() }
-          localStorage.setItem("crochet_users", JSON.stringify(users))
-        }
-      }
     }
 
     return NextResponse.json({

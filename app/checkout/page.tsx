@@ -10,14 +10,13 @@ import CheckoutSummary from "@/components/checkout/checkout-summary"
 import ShippingForm from "@/components/checkout/shipping-form"
 import PaymentForm from "@/components/checkout/payment-form"
 import OrderReview from "@/components/checkout/order-review"
-import OrderConfirmation from "@/components/checkout/order-confirmation"
 import CheckoutSteps from "@/components/checkout/checkout-steps"
 
 type CheckoutStep = "shipping" | "payment" | "review" | "confirmation"
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, subtotal } = useCart()
+  const { items, subtotal, clearCart } = useCart()
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("shipping")
   const [shippingInfo, setShippingInfo] = useState({
     firstName: "",
@@ -42,7 +41,6 @@ export default function CheckoutPage() {
     expiryDate: "",
     cvv: "",
   })
-  const [orderId, setOrderId] = useState("")
 
   // Redirect to home if cart is empty
   if (items.length === 0 && currentStep !== "confirmation") {
@@ -65,12 +63,94 @@ export default function CheckoutPage() {
     window.scrollTo(0, 0)
   }
 
-  const handlePlaceOrder = () => {
-    // Generate a random order ID
-    const newOrderId = `ORD-${Math.floor(Math.random() * 10000)}-${Date.now().toString().slice(-4)}`
-    setOrderId(newOrderId)
-    setCurrentStep("confirmation")
-    window.scrollTo(0, 0)
+  const handlePlaceOrder = async () => {
+    try {
+      // Create the order data
+      const orderData = {
+        items: items.map((item) => ({
+          productId: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          image: item.image,
+          sellerId: item.sellerId,
+        })),
+        status: "processing",
+        shippingAddress: {
+          fullName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
+          addressLine1: shippingInfo.address,
+          city: shippingInfo.city,
+          state: shippingInfo.state,
+          postalCode: shippingInfo.postalCode,
+          country: shippingInfo.country,
+          phone: shippingInfo.phone,
+        },
+        billingAddress: {
+          fullName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
+          addressLine1: shippingInfo.address,
+          city: shippingInfo.city,
+          state: shippingInfo.state,
+          postalCode: shippingInfo.postalCode,
+          country: shippingInfo.country,
+          phone: shippingInfo.phone,
+        },
+        paymentMethod: "Credit Card",
+        paymentDetails: {
+          cardNumber: paymentInfo.cardNumber,
+          cardName: paymentInfo.cardName,
+          expiryDate: paymentInfo.expiryDate,
+        },
+        paymentStatus: "paid",
+        shippingMethod,
+        subtotal,
+        tax: subtotal * 0.08,
+        shipping: shippingMethod.price,
+        total: subtotal + subtotal * 0.08 + shippingMethod.price,
+      }
+
+      // Submit the order to the API
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderData),
+      })
+
+      if (response.ok) {
+        const order = await response.json()
+
+        // Store the order in localStorage as a fallback
+        localStorage.setItem(`order_${order.id}`, JSON.stringify(order))
+
+        // Clear the cart
+        clearCart()
+
+        // Redirect to the confirmation page
+        router.push(`/checkout/confirmation/${order.id}`)
+      } else {
+        // If API fails, create a mock order ID and redirect
+        const mockOrderId = `ORD-${Math.floor(Math.random() * 10000)}-${Date.now().toString().slice(-4)}`
+
+        // Store the order in localStorage
+        const mockOrder = {
+          id: mockOrderId,
+          ...orderData,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        localStorage.setItem(`order_${mockOrderId}`, JSON.stringify(mockOrder))
+
+        // Clear the cart
+        clearCart()
+
+        // Redirect to the confirmation page
+        router.push(`/checkout/confirmation/${mockOrderId}`)
+      }
+    } catch (error) {
+      console.error("Error creating order:", error)
+      // Handle error (show toast, etc.)
+    }
   }
 
   return (
@@ -93,44 +173,36 @@ export default function CheckoutPage() {
       )}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        {currentStep !== "confirmation" && (
-          <div className="lg:col-span-2">
-            {currentStep === "shipping" && (
-              <ShippingForm
-                initialValues={shippingInfo}
-                initialShippingMethod={shippingMethod}
-                onSubmit={handleShippingSubmit}
-              />
-            )}
+        <div className="lg:col-span-2">
+          {currentStep === "shipping" && (
+            <ShippingForm
+              initialValues={shippingInfo}
+              initialShippingMethod={shippingMethod}
+              onSubmit={handleShippingSubmit}
+            />
+          )}
 
-            {currentStep === "payment" && (
-              <PaymentForm
-                initialValues={paymentInfo}
-                onSubmit={handlePaymentSubmit}
-                onBack={() => setCurrentStep("shipping")}
-              />
-            )}
+          {currentStep === "payment" && (
+            <PaymentForm
+              initialValues={paymentInfo}
+              onSubmit={handlePaymentSubmit}
+              onBack={() => setCurrentStep("shipping")}
+            />
+          )}
 
-            {currentStep === "review" && (
-              <OrderReview
-                shippingInfo={shippingInfo}
-                shippingMethod={shippingMethod}
-                onBack={() => setCurrentStep("payment")}
-                onPlaceOrder={handlePlaceOrder}
-              />
-            )}
-          </div>
-        )}
+          {currentStep === "review" && (
+            <OrderReview
+              shippingInfo={shippingInfo}
+              shippingMethod={shippingMethod}
+              onBack={() => setCurrentStep("payment")}
+              onPlaceOrder={handlePlaceOrder}
+            />
+          )}
+        </div>
 
-        {currentStep === "confirmation" ? (
-          <div className="lg:col-span-3">
-            <OrderConfirmation orderId={orderId} shippingInfo={shippingInfo} shippingMethod={shippingMethod} />
-          </div>
-        ) : (
-          <div className="lg:col-span-1">
-            <CheckoutSummary items={items} subtotal={subtotal} shippingCost={shippingMethod.price} />
-          </div>
-        )}
+        <div className="lg:col-span-1">
+          <CheckoutSummary items={items} subtotal={subtotal} shippingCost={shippingMethod.price} />
+        </div>
       </div>
     </div>
   )

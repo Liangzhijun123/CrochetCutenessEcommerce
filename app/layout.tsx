@@ -8,6 +8,11 @@ import { AuthProvider } from "@/context/auth-context"
 import { CartProvider } from "@/context/cart-context"
 import { WishlistProvider } from "@/context/wishlist-context"
 import { Toaster } from "@/components/ui/toaster"
+import { DraggableCrochetProvider } from "@/context/draggable-crochet-context"
+import DraggableCrochetContainer from "@/components/draggable-crochet-container"
+import CrochetControlPanel from "@/components/crochet-control-panel"
+import { ThemeProvider } from "@/components/theme-provider"
+import CrochetWelcomeTooltip from "@/components/crochet-welcome-tooltip"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -25,18 +30,25 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <div className="flex min-h-screen flex-col">
-                <Header />
-                <main className="flex-1">{children}</main>
-                <Footer />
-              </div>
-              <Toaster />
-            </WishlistProvider>
-          </CartProvider>
-        </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="light">
+          <AuthProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <DraggableCrochetProvider>
+                  <div className="flex min-h-screen flex-col">
+                    <Header />
+                    <main className="flex-1">{children}</main>
+                    <Footer />
+                  </div>
+                  <DraggableCrochetContainer />
+                  <CrochetControlPanel />
+                  <CrochetWelcomeTooltip />
+                  <Toaster />
+                </DraggableCrochetProvider>
+              </WishlistProvider>
+            </CartProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -4,8 +4,16 @@ import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { toast } from "@/hooks/use-toast"
-import type { User } from "@/lib/db"
 import { useRouter } from "next/navigation"
+
+// Define User type
+type User = {
+  id: string
+  name: string
+  email: string
+  role: string
+  createdAt: string
+}
 
 type AuthContextType = {
   user: User | null
@@ -15,7 +23,6 @@ type AuthContextType = {
   register: (name: string, email: string, password: string, role: string) => Promise<boolean>
   logout: () => void
   updateUser: (updates: Partial<User>) => Promise<boolean>
-  refreshUserData: () => Promise<boolean>
 }
 
 // Create a default value for the context
@@ -27,7 +34,6 @@ const defaultAuthContext: AuthContextType = {
   register: async () => false,
   logout: () => {},
   updateUser: async () => false,
-  refreshUserData: async () => false,
 }
 
 const AuthContext = createContext<AuthContextType>(defaultAuthContext)
@@ -54,30 +60,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [])
 
-  // Function to refresh user data from localStorage
-  const refreshUserData = async (): Promise<boolean> => {
-    if (typeof window === "undefined") return false
-
-    try {
-      // Get the current user ID
-      const currentUser = user
-      if (!currentUser || !currentUser.id) return false
-
-      // Get the latest user data from localStorage
-      const storedUser = localStorage.getItem("crochet_user")
-      if (storedUser) {
-        const userData = JSON.parse(storedUser)
-        setUser(userData)
-        return true
-      }
-
-      return false
-    } catch (error) {
-      console.error("Error refreshing user data:", error)
-      return false
-    }
-  }
-
   const login = async (email: string, password: string, role?: string): Promise<boolean> => {
     try {
       setIsLoading(true)
@@ -90,11 +72,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         body: JSON.stringify({ email, password }),
       })
 
+      // Check if response is ok before trying to parse JSON
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorText = await response.text()
+        console.error("Login error response:", errorText)
+
+        let errorMessage = "Invalid email or password. Please try again."
+        try {
+          // Try to parse as JSON if possible
+          const errorData = JSON.parse(errorText)
+          if (errorData.error) {
+            errorMessage = errorData.error
+          }
+        } catch (e) {
+          // If parsing fails, use the raw text with a fallback
+          errorMessage = errorText || "An error occurred during login"
+        }
+
         toast({
           title: "Login failed",
-          description: errorData.error || "Invalid email or password. Please try again.",
+          description: errorMessage,
           variant: "destructive",
         })
         return false
@@ -120,6 +117,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: "You have been logged in successfully.",
       })
 
+      // Redirect based on role
+      if (data.user.role === "seller") {
+        router.push("/seller-dashboard")
+      } else if (data.user.role === "admin") {
+        router.push("/admin-dashboard")
+      }
+
       return true
     } catch (error) {
       console.error("Login error:", error)
@@ -138,36 +142,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setIsLoading(true)
 
-      // Map the role from the form to the database role
-      const dbRole = role === "customer" ? "user" : role
-
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name, email, password, role: dbRole }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        toast({
-          title: "Registration failed",
-          description: errorData.error || "Registration failed. Please try again.",
-          variant: "destructive",
-        })
-        return false
+      // For demo purposes, we'll just create a user object and store it in localStorage
+      const newUser = {
+        id: Date.now().toString(),
+        name,
+        email,
+        role: role === "customer" ? "user" : role,
+        createdAt: new Date().toISOString(),
       }
 
-      const data = await response.json()
-      setUser(data.user)
-      localStorage.setItem("crochet_user", JSON.stringify(data.user))
-
-      // Also update users array in localStorage
-      const usersJson = localStorage.getItem("crochet_users")
-      const users = usersJson ? JSON.parse(usersJson) : []
-      users.push(data.user)
-      localStorage.setItem("crochet_users", JSON.stringify(users))
+      setUser(newUser)
+      localStorage.setItem("crochet_user", JSON.stringify(newUser))
 
       toast({
         title: "Registration successful",
@@ -206,18 +191,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const updatedUser = { ...user, ...updates }
       setUser(updatedUser)
       localStorage.setItem("crochet_user", JSON.stringify(updatedUser))
-
-      // Also update the user in the users array
-      const usersJson = localStorage.getItem("crochet_users")
-      if (usersJson) {
-        const users = JSON.parse(usersJson)
-        const userIndex = users.findIndex((u: User) => u.id === user.id)
-        if (userIndex !== -1) {
-          users[userIndex] = updatedUser
-          localStorage.setItem("crochet_users", JSON.stringify(users))
-        }
-      }
-
       return true
     } catch (error) {
       console.error("Update user error:", error)
@@ -235,7 +208,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         register,
         logout,
         updateUser,
-        refreshUserData,
       }}
     >
       {children}

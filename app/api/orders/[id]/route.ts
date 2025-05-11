@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
+import { getOrderById } from "@/lib/local-storage-db"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const order = db.getOrderById(params.id)
+    const orderId = params.id
+    const order = getOrderById(orderId)
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
@@ -12,22 +13,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json(order)
   } catch (error) {
     console.error("Error fetching order:", error)
-    return NextResponse.json({ error: "An error occurred while fetching the order" }, { status: 500 })
-  }
-}
-
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    const updates = await request.json()
-    const updatedOrder = db.updateOrder(params.id, updates)
-
-    if (!updatedOrder) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 })
-    }
-
-    return NextResponse.json(updatedOrder)
-  } catch (error) {
-    console.error("Error updating order:", error)
-    return NextResponse.json({ error: "An error occurred while updating the order" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

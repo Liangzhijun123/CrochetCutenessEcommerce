@@ -1,53 +1,75 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
-
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get("userId")
-    const sellerId = searchParams.get("sellerId")
-
-    let orders
-
-    if (userId) {
-      orders = db.getOrdersByUser(userId)
-    } else if (sellerId) {
-      orders = db.getOrdersBySeller(sellerId)
-    } else {
-      orders = db.getOrders()
-    }
-
-    return NextResponse.json(orders)
-  } catch (error) {
-    console.error("Error fetching orders:", error)
-    return NextResponse.json({ error: "An error occurred while fetching orders" }, { status: 500 })
-  }
-}
+import { createOrder, getUserById } from "@/lib/local-storage-db"
+import { sendEmail } from "@/lib/email-service"
 
 export async function POST(request: NextRequest) {
   try {
     const orderData = await request.json()
 
     // Validate required fields
-    if (!orderData.userId || !orderData.items || orderData.items.length === 0) {
-      return NextResponse.json({ error: "UserId and items are required" }, { status: 400 })
+    if (!orderData.userId || !orderData.items || !orderData.shippingAddress) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const newOrder = db.createOrder(orderData)
+    // Create the order
+    const newOrder = createOrder({
+      ...orderData,
+      status: "pending",
+      paymentStatus: "paid", // Assume payment is successful for demo
+    })
 
-    // Update product stock
-    for (const item of orderData.items) {
-      const product = db.getProductById(item.productId)
-      if (product) {
-        db.updateProduct(product.id, {
-          stock: Math.max(0, product.stock - item.quantity),
-        })
-      }
+    // Send confirmation email
+    const user = getUserById(orderData.userId)
+    if (user) {
+      await sendEmail(user.email, "order-confirmation", {
+        order: newOrder,
+        user,
+        orderId: newOrder.id,
+        orderDate: newOrder.createdAt,
+        items: newOrder.items,
+        shippingAddress: newOrder.shippingAddress,
+      })
     }
 
-    return NextResponse.json(newOrder)
+    return NextResponse.json({
+      success: true,
+      message: "Order created successfully",
+      order: newOrder,
+    })
   } catch (error) {
     console.error("Error creating order:", error)
-    return NextResponse.json({ error: "An error occurred while creating the order" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to create order" }, { status: 500 })
   }
 }
+
+export async function GET(request: NextRequest) {
+  try {
+    // This would typically include authentication and authorization
+    // For demo purposes, we'll return all orders
+
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get("userId")
+    const sellerId = searchParams.get("sellerId")
+
+    let orders = []
+
+    if (userId) {
+      // Get orders for a specific user
+      orders = getOrdersByUser(userId)
+    } else if (sellerId) {
+      // Get orders for a specific seller
+      orders = getOrdersBySeller(sellerId)
+    } else {
+      // Get all orders
+      orders = getOrders()
+    }
+
+    return NextResponse.json(orders)
+  } catch (error) {
+    console.error("Error fetching orders:", error)
+    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 })
+  }
+}
+
+// Import these functions
+import { getOrders, getOrdersByUser, getOrdersBySeller } from "@/lib/local-storage-db"
