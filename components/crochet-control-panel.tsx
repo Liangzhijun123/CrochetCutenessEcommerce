@@ -208,7 +208,6 @@ export default function CrochetControlPanel() {
     const randomX = Math.floor(Math.random() * (window.innerWidth - 100))
     const randomY = Math.floor(Math.random() * (window.innerHeight - 100))
 
-    // Add the cropped image to the crochet items
     addCrochetItem({
       image: croppedImageUrl,
       position: { x: randomX, y: randomY },

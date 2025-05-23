@@ -31,7 +31,24 @@ export interface FilterState {
   priceRange: [number, number]
   difficulty: string
   isPattern: boolean | null
+  colors?: string[]
 }
+
+// Common yarn colors
+const colorOptions = [
+  { name: "Red", value: "red", hex: "#ef4444" },
+  { name: "Blue", value: "blue", hex: "#3b82f6" },
+  { name: "Green", value: "green", hex: "#10b981" },
+  { name: "Yellow", value: "yellow", hex: "#f59e0b" },
+  { name: "Pink", value: "pink", hex: "#ec4899" },
+  { name: "Purple", value: "purple", hex: "#8b5cf6" },
+  { name: "Orange", value: "orange", hex: "#f97316" },
+  { name: "Brown", value: "brown", hex: "#a16207" },
+  { name: "Black", value: "black", hex: "#1f2937" },
+  { name: "White", value: "white", hex: "#f9fafb" },
+  { name: "Gray", value: "gray", hex: "#6b7280" },
+  { name: "Beige", value: "beige", hex: "#e5e7eb" },
+]
 
 export function ProductFilters({ onFilterChange, initialFilters, categories, isMobile = false }: ProductFiltersProps) {
   const [filters, setFilters] = useState<FilterState>({
@@ -40,13 +57,19 @@ export function ProductFilters({ onFilterChange, initialFilters, categories, isM
     priceRange: initialFilters?.priceRange || [0, 500],
     difficulty: initialFilters?.difficulty || "",
     isPattern: initialFilters?.isPattern || null,
+    colors: initialFilters?.colors || [],
   })
 
   const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
     if (initialFilters) {
-      setFilters(initialFilters)
+      // Ensure colors is always an array
+      const safeInitialFilters = {
+        ...initialFilters,
+        colors: initialFilters.colors || [],
+      }
+      setFilters(safeInitialFilters)
     }
   }, [initialFilters])
 
@@ -73,6 +96,15 @@ export function ProductFilters({ onFilterChange, initialFilters, categories, isM
     setFilters({ ...filters, isPattern })
   }
 
+  const handleColorChange = (color: string) => {
+    // Ensure colors is always an array
+    const currentColors = filters.colors || []
+    const updatedColors = currentColors.includes(color)
+      ? currentColors.filter((c) => c !== color)
+      : [...currentColors, color]
+    setFilters({ ...filters, colors: updatedColors })
+  }
+
   const handleApplyFilters = () => {
     onFilterChange(filters)
     if (isMobile) {
@@ -87,10 +119,14 @@ export function ProductFilters({ onFilterChange, initialFilters, categories, isM
       priceRange: [0, 500],
       difficulty: "",
       isPattern: null,
+      colors: [],
     }
     setFilters(resetFilters)
     onFilterChange(resetFilters)
   }
+
+  // Ensure colors is always an array
+  const selectedColors = filters.colors || []
 
   const filterContent = (
     <div className="space-y-6">
@@ -124,6 +160,60 @@ export function ProductFilters({ onFilterChange, initialFilters, categories, isM
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <Separator />
+
+      <div>
+        <h3 className="text-lg font-medium mb-2">Colors</h3>
+        <div className="space-y-3">
+          <Select onValueChange={handleColorChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select colors" />
+            </SelectTrigger>
+            <SelectContent>
+              {colorOptions.map((color) => (
+                <SelectItem key={color.value} value={color.value}>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-4 h-4 rounded-full border border-gray-300"
+                      style={{ backgroundColor: color.hex }}
+                    />
+                    {color.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {selectedColors.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {selectedColors.map((colorValue) => {
+                const color = colorOptions.find((c) => c.value === colorValue)
+                return (
+                  <div
+                    key={colorValue}
+                    className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-sm"
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full border border-gray-300"
+                      style={{ backgroundColor: color?.hex }}
+                    />
+                    {color?.name}
+                    <button
+                      type="button"
+                      onClick={() => handleColorChange(colorValue)}
+                      className="ml-1 text-muted-foreground hover:text-foreground"
+                      aria-label={`Remove ${color?.name}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <Separator />

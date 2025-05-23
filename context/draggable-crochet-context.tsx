@@ -10,7 +10,6 @@ interface CrochetItem {
   position: { x: number; y: number }
   size: number
   zIndex: number
-  isSelected?: boolean
 }
 
 interface AddCrochetItemParams {
@@ -22,25 +21,15 @@ interface AddCrochetItemParams {
 
 interface DraggableCrochetContextType {
   crochetItems: CrochetItem[]
-  selectedItems: string[]
   addCrochetItem: (item: AddCrochetItemParams) => void
   removeCrochetItem: (id: string) => void
   resetCrochetItems: () => void
-  selectItem: (id: string, multiSelect?: boolean) => void
-  deselectItem: (id: string) => void
-  toggleItemSelection: (id: string, multiSelect?: boolean) => void
-  selectMultipleItems: (ids: string[]) => void
-  clearSelection: () => void
-  moveSelectedItems: (deltaX: number, deltaY: number) => void
-  removeSelectedItems: () => void
-  isItemSelected: (id: string) => boolean
 }
 
 const DraggableCrochetContext = createContext<DraggableCrochetContextType | undefined>(undefined)
 
 export function DraggableCrochetProvider({ children }: { children: React.ReactNode }) {
   const [crochetItems, setCrochetItems] = useState<CrochetItem[]>([])
-  const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [isInitialized, setIsInitialized] = useState(false)
 
   // Load items from localStorage on mount
@@ -75,84 +64,19 @@ export function DraggableCrochetProvider({ children }: { children: React.ReactNo
 
   const removeCrochetItem = (id: string) => {
     setCrochetItems((prev) => prev.filter((item) => item.id !== id))
-    setSelectedItems((prev) => prev.filter((itemId) => itemId !== id))
   }
 
   const resetCrochetItems = () => {
     setCrochetItems([])
-    setSelectedItems([])
-  }
-
-  const selectItem = (id: string, multiSelect = false) => {
-    if (multiSelect) {
-      setSelectedItems((prev) => [...prev, id])
-    } else {
-      setSelectedItems([id])
-    }
-  }
-
-  const deselectItem = (id: string) => {
-    setSelectedItems((prev) => prev.filter((itemId) => itemId !== id))
-  }
-
-  const toggleItemSelection = (id: string, multiSelect = false) => {
-    if (selectedItems.includes(id)) {
-      deselectItem(id)
-    } else {
-      selectItem(id, multiSelect)
-    }
-  }
-
-  const selectMultipleItems = (ids: string[]) => {
-    setSelectedItems(ids)
-  }
-
-  const clearSelection = () => {
-    setSelectedItems([])
-  }
-
-  const moveSelectedItems = (deltaX: number, deltaY: number) => {
-    setCrochetItems((prev) =>
-      prev.map((item) => {
-        if (selectedItems.includes(item.id)) {
-          return {
-            ...item,
-            position: {
-              x: item.position.x + deltaX,
-              y: item.position.y + deltaY,
-            },
-          }
-        }
-        return item
-      }),
-    )
-  }
-
-  const removeSelectedItems = () => {
-    setCrochetItems((prev) => prev.filter((item) => !selectedItems.includes(item.id)))
-    setSelectedItems([])
-  }
-
-  const isItemSelected = (id: string) => {
-    return selectedItems.includes(id)
   }
 
   return (
     <DraggableCrochetContext.Provider
       value={{
         crochetItems,
-        selectedItems,
         addCrochetItem,
         removeCrochetItem,
         resetCrochetItems,
-        selectItem,
-        deselectItem,
-        toggleItemSelection,
-        selectMultipleItems,
-        clearSelection,
-        moveSelectedItems,
-        removeSelectedItems,
-        isItemSelected,
       }}
     >
       {children}

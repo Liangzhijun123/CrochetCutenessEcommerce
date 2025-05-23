@@ -16,9 +16,24 @@ interface ProductCardProps {
   image: string
   category: string
   sellerId: string
+  difficulty?: string
+  materials?: string[]
+  isPattern?: boolean
+  showDetails?: boolean
 }
 
-export default function ProductCard({ id, name, price, image, category, sellerId }: ProductCardProps) {
+export default function ProductCard({
+  id,
+  name,
+  price,
+  image,
+  category,
+  sellerId,
+  difficulty,
+  materials,
+  isPattern,
+  showDetails,
+}: ProductCardProps) {
   const { addItem } = useCart()
   const { addToWishlist, isInWishlist, removeFromWishlist } = useWishlist()
 
@@ -64,6 +79,86 @@ export default function ProductCard({ id, name, price, image, category, sellerId
           {name}
         </Link>
         <div className="mt-1 font-semibold">${price.toFixed(2)}</div>
+
+        {showDetails && (
+          <div className="mt-3 space-y-2 text-sm">
+            {/* Difficulty Level */}
+            {difficulty && (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-xs">Difficulty:</span>
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    difficulty === "Beginner"
+                      ? "bg-green-100 text-green-800"
+                      : difficulty === "Intermediate"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : difficulty === "Advanced"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-800"
+                  }`}
+                >
+                  {difficulty}
+                </span>
+              </div>
+            )}
+
+            {/* Available Colors */}
+            {materials && materials.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-xs">Colors:</span>
+                <div className="flex gap-1">
+                  {materials.slice(0, 4).map((material, index) => (
+                    <div
+                      key={index}
+                      className="w-3 h-3 rounded-full border border-gray-300"
+                      style={{
+                        backgroundColor: material.toLowerCase().includes("red")
+                          ? "#ef4444"
+                          : material.toLowerCase().includes("blue")
+                            ? "#3b82f6"
+                            : material.toLowerCase().includes("green")
+                              ? "#10b981"
+                              : material.toLowerCase().includes("yellow")
+                                ? "#f59e0b"
+                                : material.toLowerCase().includes("pink")
+                                  ? "#ec4899"
+                                  : material.toLowerCase().includes("purple")
+                                    ? "#8b5cf6"
+                                    : material.toLowerCase().includes("orange")
+                                      ? "#f97316"
+                                      : material.toLowerCase().includes("brown")
+                                        ? "#a3a3a3"
+                                        : material.toLowerCase().includes("black")
+                                          ? "#1f2937"
+                                          : material.toLowerCase().includes("white")
+                                            ? "#f9fafb"
+                                            : "#6b7280",
+                      }}
+                      title={material}
+                    />
+                  ))}
+                  {materials.length > 4 && (
+                    <span className="text-xs text-muted-foreground">+{materials.length - 4}</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Product Type */}
+            {isPattern !== undefined && (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-xs">Type:</span>
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    isPattern ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
+                  }`}
+                >
+                  {isPattern ? "Pattern" : "Plushie"}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
       <CardFooter className="flex items-center justify-between p-4 pt-0">
         <Button variant="outline" size="icon" onClick={handleWishlistToggle}>

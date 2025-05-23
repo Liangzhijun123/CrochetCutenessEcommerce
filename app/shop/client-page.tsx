@@ -4,6 +4,9 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { ProductFilters, type FilterState } from "@/components/product-filters"
 import ProductCard from "@/components/product-card"
 import { useState } from "react"
+import { ProductQuickView } from "@/components/product-quick-view"
+import { Grid, LayoutList, Info } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface Product {
   id: string
@@ -45,9 +48,12 @@ interface ShopClientPageProps {
 export function ShopClientPage({ initialProducts, categories, initialFilters }: ShopClientPageProps) {
   const [products, setProducts] = useState<Product[]>(initialProducts)
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [viewMode, setViewMode] = useState<"grid" | "row">("grid")
+  const [showDetails, setShowDetails] = useState(false)
 
   const handleFilterChange = async (filters: FilterState) => {
     setIsLoading(true)
@@ -127,6 +133,10 @@ export function ShopClientPage({ initialProducts, categories, initialFilters }: 
     }
   }
 
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product)
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8 text-center">Shop Our Collection</h1>
@@ -146,10 +156,43 @@ export function ShopClientPage({ initialProducts, categories, initialFilters }: 
         </div>
 
         <div className="flex-1">
-          <div className="mb-4">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <p className="text-muted-foreground">
               Showing {products.length} {products.length === 1 ? "product" : "products"}
             </p>
+
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={viewMode === "grid" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("grid")}
+                  aria-label="Grid view"
+                >
+                  <Grid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "row" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("row")}
+                  aria-label="Row view"
+                >
+                  <LayoutList className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="h-4 w-px bg-border" />
+
+              <Button
+                variant={showDetails ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowDetails(!showDetails)}
+                aria-label="Show product details"
+              >
+                <Info className="h-4 w-4 mr-1" />
+                Details
+              </Button>
+            </div>
           </div>
 
           {isLoading ? (
@@ -162,21 +205,37 @@ export function ShopClientPage({ initialProducts, categories, initialFilters }: 
               <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div
+              className={
+                viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"
+              }
+            >
               {products.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  id={product.id}
-                  title={product.name}
-                  price={product.price}
-                  image={product.images[0] || "/placeholder.svg"}
-                  rating={product.averageRating || 4}
-                />
+                <div key={product.id} onClick={() => handleProductClick(product)} className="cursor-pointer">
+                  <ProductCard
+                    id={product.id}
+                    title={product.name}
+                    price={product.price}
+                    image={product.images[0] || "/placeholder.svg"}
+                    rating={product.averageRating || 4}
+                    difficulty={showDetails ? product.difficulty : undefined}
+                    materials={showDetails ? product.materials : undefined}
+                    isPattern={showDetails ? product.isPattern : undefined}
+                    showDetails={showDetails}
+                  />
+                </div>
               ))}
             </div>
           )}
         </div>
       </div>
+      {selectedProduct && (
+        <ProductQuickView
+          product={selectedProduct}
+          isOpen={!!selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
     </div>
   )
 }
