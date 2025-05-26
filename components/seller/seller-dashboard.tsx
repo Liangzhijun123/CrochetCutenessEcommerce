@@ -7,8 +7,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/auth-context"
-import { Clock, AlertCircle, CheckCircle, XCircle, RefreshCw, LogOut } from "lucide-react"
+import {
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  LogOut,
+  DollarSign,
+  TrendingUp,
+  Download,
+  CreditCard,
+} from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import PatternTestingManagement from "./pattern-testing-management"
+import BankAccountModal from "./bank-account-modal"
 
 export default function SellerDashboard() {
   const { user, isAuthenticated, logout, updateUser, refreshUserData } = useAuth()
@@ -17,6 +30,7 @@ export default function SellerDashboard() {
   const [activeTab, setActiveTab] = useState("products")
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isBankModalOpen, setIsBankModalOpen] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -94,6 +108,13 @@ export default function SellerDashboard() {
   const handleLogout = () => {
     logout()
     router.push("/")
+  }
+
+  const handleWithdraw = () => {
+    toast({
+      title: "Withdrawal Requested",
+      description: "Your withdrawal request has been submitted and will be processed within 3-5 business days.",
+    })
   }
 
   if (isLoading) {
@@ -295,6 +316,8 @@ export default function SellerDashboard() {
         <TabsList className="mb-8 flex flex-wrap">
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="orders">Orders</TabsTrigger>
+          <TabsTrigger value="earnings">Earnings</TabsTrigger>
+          <TabsTrigger value="pattern-testing">Pattern Testing</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
@@ -421,6 +444,183 @@ export default function SellerDashboard() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="earnings" className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h2 className="text-2xl font-bold">Earnings & Withdrawals</h2>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsBankModalOpen(true)}
+                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Manage Bank Account
+              </Button>
+              <Button onClick={handleWithdraw} className="bg-green-600 hover:bg-green-700">
+                <DollarSign className="h-4 w-4 mr-2" />
+                Request Withdrawal
+              </Button>
+            </div>
+          </div>
+
+          {/* Earnings Overview */}
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Available Balance</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">$342.50</div>
+                <p className="text-xs text-muted-foreground">Ready for withdrawal</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Earnings</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600">$89.25</div>
+                <p className="text-xs text-muted-foreground">Processing orders</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Earned</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">$1,247.80</div>
+                <p className="text-xs text-muted-foreground">All time earnings</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recent Transactions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Transactions</CardTitle>
+              <CardDescription>Your latest earnings and withdrawals</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                    <div>
+                      <p className="text-sm font-medium">Sale - Cute Bunny Amigurumi</p>
+                      <p className="text-xs text-muted-foreground">Order #1001 • Jan 15, 2024</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-medium text-green-600">+$24.99</span>
+                </div>
+
+                <div className="flex items-center justify-between border-b pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                    <div>
+                      <p className="text-sm font-medium">Withdrawal to Bank Account</p>
+                      <p className="text-xs text-muted-foreground">Jan 10, 2024</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-medium text-red-600">-$200.00</span>
+                </div>
+
+                <div className="flex items-center justify-between border-b pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                    <div>
+                      <p className="text-sm font-medium">Sale - Cozy Baby Blanket</p>
+                      <p className="text-xs text-muted-foreground">Order #1002 • Jan 8, 2024</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-medium text-green-600">+$39.99</span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                    <div>
+                      <p className="text-sm font-medium">Sale - Crochet Plant Hanger</p>
+                      <p className="text-xs text-muted-foreground">Order #1003 • Jan 5, 2024</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-medium text-green-600">+$19.99</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Withdrawal History */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Withdrawal History</CardTitle>
+                  <CardDescription>Track your past withdrawals</CardDescription>
+                </div>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="px-4 py-3 text-left text-sm font-medium">Date</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">Amount</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">Method</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b">
+                      <td className="px-4 py-3 text-sm">Jan 10, 2024</td>
+                      <td className="px-4 py-3 text-sm font-medium">$200.00</td>
+                      <td className="px-4 py-3 text-sm">Bank Transfer</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                          Completed
+                        </span>
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="px-4 py-3 text-sm">Dec 15, 2023</td>
+                      <td className="px-4 py-3 text-sm font-medium">$150.00</td>
+                      <td className="px-4 py-3 text-sm">PayPal</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                          Completed
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 text-sm">Nov 20, 2023</td>
+                      <td className="px-4 py-3 text-sm font-medium">$300.00</td>
+                      <td className="px-4 py-3 text-sm">Bank Transfer</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                          Completed
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pattern-testing" className="space-y-6">
+          <PatternTestingManagement />
+        </TabsContent>
+
         <TabsContent value="analytics" className="space-y-6">
           <h2 className="text-2xl font-bold">Analytics</h2>
 
@@ -509,6 +709,8 @@ export default function SellerDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <BankAccountModal isOpen={isBankModalOpen} onClose={() => setIsBankModalOpen(false)} />
     </div>
   )
 }
