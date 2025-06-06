@@ -1,7 +1,8 @@
 "use client"
 
+import type React from "react"
 import { useState } from "react"
-import { Clock, Calendar, Award, Lock, AlertCircle } from "lucide-react"
+import { Clock, Calendar, Award, Lock, AlertCircle, Eye, FileText, Video, Star, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,12 +13,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogClose,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
 
 interface PatternTestCardProps {
   pattern: {
@@ -52,18 +53,29 @@ export default function PatternTestCard({
 }: PatternTestCardProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [applicationNote, setApplicationNote] = useState("")
+  const [whyThisPattern, setWhyThisPattern] = useState("")
+  const [materialsConfirmed, setMaterialsConfirmed] = useState(false)
+  const [finalImages, setFinalImages] = useState<string[]>([])
+  const [finalReview, setFinalReview] = useState("")
+  const [patternRating, setPatternRating] = useState(0)
+  const [isCompletingPattern, setIsCompletingPattern] = useState(false)
   const { toast } = useToast()
+  const [isPatternDetailsOpen, setIsPatternDetailsOpen] = useState(false)
+  const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false)
 
   const isLocked = userLevel < pattern.requiredLevel
 
   const handleApply = () => {
     setIsSubmitting(true)
-    // Simulate API call
     setTimeout(() => {
       setIsSubmitting(false)
+      setIsApplicationModalOpen(false)
+      setApplicationNote("")
+      setWhyThisPattern("")
+      setMaterialsConfirmed(false)
       toast({
         title: "Application Submitted!",
-        description: `You've applied to test "${pattern.title}". The designer will review your application.`,
+        description: `Your application to test "${pattern.title}" has been sent to ${pattern.designer}. You'll hear back within 24-48 hours.`,
       })
     }, 1000)
   }
@@ -73,6 +85,40 @@ export default function PatternTestCard({
       title: "Progress Updated",
       description: `You've updated your progress to ${value}% for "${pattern.title}".`,
     })
+  }
+
+  const handleFinalImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (files) {
+      Array.from(files).forEach((file) => {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          if (e.target?.result) {
+            setFinalImages((prev) => [...prev, e.target?.result as string])
+          }
+        }
+        reader.readAsDataURL(file)
+      })
+    }
+  }
+
+  const removeFinalImage = (index: number) => {
+    setFinalImages((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleCompletePattern = () => {
+    setIsCompletingPattern(true)
+    setTimeout(() => {
+      setIsCompletingPattern(false)
+      setFinalImages([])
+      setFinalReview("")
+      setPatternRating(0)
+      toast({
+        title: "Pattern Test Completed!",
+        description: "Your final submission has been sent to the designer. Thank you for testing!",
+      })
+      setIsPatternDetailsOpen(false)
+    }, 1500)
   }
 
   const getDifficultyColor = (difficulty: string) => {
@@ -100,6 +146,8 @@ export default function PatternTestCard({
         return "bg-gray-100 text-gray-800"
     }
   }
+
+  const isApplicationValid = applicationNote.length >= 20 && whyThisPattern.length >= 10 && materialsConfirmed
 
   return (
     <Card className={`overflow-hidden transition-shadow hover:shadow-md ${isLocked ? "opacity-75" : ""}`}>
@@ -160,102 +208,348 @@ export default function PatternTestCard({
           <Badge className={`${getStatusColor(pattern.status)} mt-2`}>{pattern.status}</Badge>
         )}
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex flex-col gap-2">
         {isApplication && (
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="w-full bg-rose-500 hover:bg-rose-600" disabled={isLocked}>
-                Apply to Test
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Apply to Test This Pattern</DialogTitle>
-                <DialogDescription>
-                  Share why you're interested in testing this pattern and any relevant experience.
-                </DialogDescription>
-              </DialogHeader>
+          <Button
+            className="w-full bg-rose-500 hover:bg-rose-600"
+            disabled={isLocked}
+            onClick={() => setIsApplicationModalOpen(true)}
+          >
+            Apply to Test
+          </Button>
+        )}
 
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium">About the Pattern</h4>
-                  <div className="rounded-md bg-muted p-4">
-                    <h5 className="font-medium">{pattern.title}</h5>
-                    <p className="text-sm text-muted-foreground">{pattern.description}</p>
-                    <div className="mt-2 space-y-1">
-                      <p className="text-xs">
-                        <strong>Designer:</strong> {pattern.designer}
-                      </p>
-                      <p className="text-xs">
-                        <strong>Difficulty:</strong> {pattern.difficulty}
-                      </p>
-                      <p className="text-xs">
-                        <strong>Time Commitment:</strong> {pattern.estimatedTime}
-                      </p>
-                      <p className="text-xs">
-                        <strong>Testing Period:</strong> {pattern.deadline}
-                      </p>
+        {isInProgress && (
+          <>
+            <div className="w-full grid grid-cols-4 gap-2">
+              <Button variant="outline" size="sm" onClick={() => handleMarkProgress(25)} className="text-xs">
+                25%
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleMarkProgress(50)} className="text-xs">
+                50%
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleMarkProgress(75)} className="text-xs">
+                75%
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleMarkProgress(100)} className="text-xs">
+                100%
+              </Button>
+            </div>
+
+            <Button variant="outline" className="w-full" onClick={() => setIsPatternDetailsOpen(true)}>
+              <Eye className="h-4 w-4 mr-2" />
+              View Pattern Details
+            </Button>
+          </>
+        )}
+
+        {isCompleted && <Button className="w-full bg-green-500 hover:bg-green-600">View Certificate</Button>}
+
+        {/* Application Modal */}
+        <Dialog open={isApplicationModalOpen} onOpenChange={setIsApplicationModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Apply to Test This Pattern</DialogTitle>
+              <DialogDescription>
+                Tell us about yourself and why you'd be a great tester for this pattern. Your application will be
+                reviewed by the designer.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6 py-4">
+              {/* Pattern Information */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Pattern Information</h4>
+                <div className="rounded-md bg-muted p-4">
+                  <div className="flex gap-4">
+                    <img
+                      src={pattern.image || "/placeholder.svg"}
+                      alt={pattern.title}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                    <div>
+                      <h5 className="font-medium">{pattern.title}</h5>
+                      <p className="text-sm text-muted-foreground">By {pattern.designer}</p>
+                      <div className="mt-1 flex gap-4 text-xs text-muted-foreground">
+                        <span>Difficulty: {pattern.difficulty}</span>
+                        <span>Time: {pattern.estimatedTime}</span>
+                        <span>Deadline: {pattern.deadline}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
+              </div>
 
+              {/* Application Form */}
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Why do you want to test this pattern?</label>
+                  <label className="text-sm font-medium">About You *</label>
                   <Textarea
-                    placeholder="Share your experience with similar patterns, why you're interested, etc."
+                    placeholder="Tell us about your crochet experience, skill level, and what makes you interested in testing patterns..."
                     value={applicationNote}
                     onChange={(e) => setApplicationNote(e.target.value)}
                     rows={4}
+                    className="resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Share your crochet background, previous testing experience, and why you're excited about this
+                    pattern. (Minimum 20 characters)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Why This Pattern? *</label>
+                  <Textarea
+                    placeholder="What specifically interests you about this pattern? Do you have experience with similar projects?"
+                    value={whyThisPattern}
+                    onChange={(e) => setWhyThisPattern(e.target.value)}
+                    rows={3}
+                    className="resize-none"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Materials Needed</h4>
-                  <ul className="list-disc pl-5 text-sm">
-                    {pattern.materials.map((material, index) => (
-                      <li key={index}>{material}</li>
-                    ))}
-                  </ul>
-                  <p className="text-xs text-muted-foreground">
-                    By applying, you confirm you have (or can acquire) these materials.
-                  </p>
+                  <label className="text-sm font-medium">Testing Commitment</label>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>By applying, you commit to:</strong>
+                    </p>
+                    <ul className="text-xs text-blue-700 mt-1 space-y-1">
+                      <li>• Complete the pattern within the deadline ({pattern.deadline})</li>
+                      <li>• Provide detailed feedback and photos of your progress</li>
+                      <li>• Communicate any issues or questions promptly</li>
+                      <li>• Submit a final review and rating upon completion</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Required Materials</h4>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <ul className="list-disc pl-5 text-sm space-y-1">
+                      {pattern.materials.map((material, index) => (
+                        <li key={index}>{material}</li>
+                      ))}
+                    </ul>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="materials-confirm"
+                        className="rounded"
+                        checked={materialsConfirmed}
+                        onChange={(e) => setMaterialsConfirmed(e.target.checked)}
+                      />
+                      <label htmlFor="materials-confirm" className="text-xs text-muted-foreground">
+                        I confirm I have (or can acquire) all required materials
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
-                </DialogClose>
-                <Button
-                  onClick={handleApply}
-                  disabled={applicationNote.length < 10 || isSubmitting}
-                  className="bg-rose-500 hover:bg-rose-600"
-                >
-                  {isSubmitting ? "Applying..." : "Submit Application"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
+              {/* Application Status Info */}
+              <div className="bg-amber-50 p-3 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800">Application Review Process</p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Your application will be reviewed by {pattern.designer}. You'll receive a notification within
+                      24-48 hours about the status of your application. Selected testers will receive pattern access and
+                      instructions.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        {isInProgress && (
-          <div className="w-full grid grid-cols-4 gap-2">
-            <Button variant="outline" size="sm" onClick={() => handleMarkProgress(25)} className="text-xs">
-              25%
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => handleMarkProgress(50)} className="text-xs">
-              50%
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => handleMarkProgress(75)} className="text-xs">
-              75%
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => handleMarkProgress(100)} className="text-xs">
-              100%
-            </Button>
-          </div>
-        )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsApplicationModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleApply}
+                disabled={!isApplicationValid || isSubmitting}
+                className="bg-rose-500 hover:bg-rose-600"
+              >
+                {isSubmitting ? "Submitting Application..." : "Submit Application"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-        {isCompleted && <Button className="w-full bg-green-500 hover:bg-green-600">View Certificate</Button>}
+        {/* Pattern Details Modal */}
+        <Dialog open={isPatternDetailsOpen} onOpenChange={setIsPatternDetailsOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{pattern.title} - Pattern Details</DialogTitle>
+              <DialogDescription>Access pattern instructions, videos, and submit your final product</DialogDescription>
+            </DialogHeader>
+
+            <Tabs defaultValue="resources" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="resources">Pattern Resources</TabsTrigger>
+                <TabsTrigger value="submit">Submit Final Product</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="resources" className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* PDF Viewer */}
+                  <div className="space-y-2">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Pattern Instructions (PDF)
+                    </h4>
+                    <div className="border rounded-lg overflow-hidden">
+                      <iframe
+                        src="/placeholder.svg?height=400&width=300&text=Pattern+PDF+Instructions"
+                        className="w-full h-64"
+                        title="Pattern PDF"
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full">
+                      Download PDF
+                    </Button>
+                  </div>
+
+                  {/* YouTube Video */}
+                  <div className="space-y-2">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <Video className="h-4 w-4" />
+                      Tutorial Video
+                    </h4>
+                    <div className="border rounded-lg overflow-hidden">
+                      <iframe
+                        src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                        className="w-full h-64"
+                        title="Pattern Tutorial"
+                        allowFullScreen
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Watch the step-by-step tutorial for this pattern</p>
+                  </div>
+                </div>
+
+                {/* Additional Notes */}
+                <div className="space-y-2">
+                  <h4 className="font-medium">Additional Notes & Tips</h4>
+                  <div className="bg-muted p-4 rounded-lg">
+                    <ul className="text-sm space-y-1">
+                      <li>• Take your time with the foundation chain - accuracy is key</li>
+                      <li>• Use stitch markers to keep track of your rounds</li>
+                      <li>• Check your gauge every few rows to ensure proper sizing</li>
+                      <li>• Don't hesitate to ask questions if you get stuck!</li>
+                    </ul>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="submit" className="space-y-4">
+                <div className="space-y-4">
+                  {/* Final Product Images */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Final Product Photos *</label>
+                    <div className="border-2 border-dashed border-green-300 rounded-lg p-4 text-center">
+                      {finalImages.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          {finalImages.map((image, index) => (
+                            <div key={index} className="relative">
+                              <img
+                                src={image || "/placeholder.svg"}
+                                alt={`Final product ${index + 1}`}
+                                className="w-full h-20 object-cover rounded"
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="absolute top-1 right-1 h-5 w-5 p-0"
+                                onClick={() => removeFinalImage(index)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                          {finalImages.length < 4 && (
+                            <div className="border-2 border-dashed border-gray-300 rounded p-2 flex items-center justify-center">
+                              <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFinalImageUpload}
+                                className="hidden"
+                                id={`final-upload-${finalImages.length}`}
+                              />
+                              <label
+                                htmlFor={`final-upload-${finalImages.length}`}
+                                className="cursor-pointer text-xs text-gray-500"
+                              >
+                                + Add Photo
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <Upload className="h-8 w-8 mx-auto text-green-400 mb-2" />
+                          <p className="text-sm text-gray-600">Upload photos of your finished product</p>
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleFinalImageUpload}
+                            className="mt-2"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Final Review */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Final Review & Comments</label>
+                    <Textarea
+                      placeholder="Share your overall experience, any suggestions for improvement, difficulty level feedback..."
+                      value={finalReview}
+                      onChange={(e) => setFinalReview(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+
+                  {/* Rating */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Rate This Pattern</label>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Button
+                          key={star}
+                          variant="ghost"
+                          size="sm"
+                          className="p-1"
+                          onClick={() => setPatternRating(star)}
+                        >
+                          <Star
+                            className={`h-5 w-5 ${
+                              star <= patternRating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                            }`}
+                          />
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleCompletePattern}
+                    disabled={
+                      finalImages.length === 0 || !finalReview.trim() || patternRating === 0 || isCompletingPattern
+                    }
+                    className="w-full bg-green-500 hover:bg-green-600"
+                  >
+                    {isCompletingPattern ? "Submitting..." : "Submit Final Product & Complete Test"}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </DialogContent>
+        </Dialog>
       </CardFooter>
     </Card>
   )

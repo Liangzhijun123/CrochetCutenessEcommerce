@@ -26,6 +26,17 @@ const completedPatterns = [
     progress: 100,
     status: "Completed",
     designerFeedback: "Excellent feedback! Very detailed notes and helpful suggestions for improvement.",
+    uploadedImages: [
+      "/placeholder.svg?height=200&width=200&query=finished+crochet+granny+square+blanket",
+      "/placeholder.svg?height=200&width=200&query=crochet+blanket+detail+close+up",
+      "/placeholder.svg?height=200&width=200&query=crochet+blanket+full+view",
+      "/placeholder.svg?height=200&width=200&query=crochet+blanket+corner+detail",
+    ],
+    testerName: "Sarah Johnson",
+    completionDate: "Jan 15, 2025",
+    daysToComplete: 12,
+    xpEarned: 150,
+    certificateId: "CERT-2025-001",
   },
   {
     id: "10",
@@ -44,6 +55,15 @@ const completedPatterns = [
     progress: 100,
     status: "Completed",
     designerFeedback: "Good work! Your photo examples were particularly helpful.",
+    uploadedImages: [
+      "/placeholder.svg?height=200&width=200&query=finished+crochet+summer+hat",
+      "/placeholder.svg?height=200&width=200&query=crochet+hat+side+view",
+    ],
+    testerName: "Emily Chen",
+    completionDate: "Feb 3, 2025",
+    daysToComplete: 8,
+    xpEarned: 120,
+    certificateId: "CERT-2025-002",
   },
   {
     id: "11",
@@ -62,6 +82,16 @@ const completedPatterns = [
     progress: 100,
     status: "Completed",
     designerFeedback: "Thank you for your detailed feedback on the button placement!",
+    uploadedImages: [
+      "/placeholder.svg?height=200&width=200&query=finished+crochet+phone+pouch",
+      "/placeholder.svg?height=200&width=200&query=crochet+pouch+with+phone",
+      "/placeholder.svg?height=200&width=200&query=crochet+pouch+button+detail",
+    ],
+    testerName: "Mike Rodriguez",
+    completionDate: "Mar 21, 2025",
+    daysToComplete: 5,
+    xpEarned: 80,
+    certificateId: "CERT-2025-003",
   },
 ]
 
@@ -96,24 +126,82 @@ export default function CompletedTests() {
           {completedPatterns.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {completedPatterns.map((pattern) => (
-                <div key={pattern.id} className="relative">
+                <div key={pattern.id} className="relative bg-white rounded-lg border shadow-sm overflow-hidden">
+                  {/* Status Badge */}
                   <div className="absolute top-3 right-3 z-10">
                     <Badge variant="success" className="px-2 py-1 text-xs">
                       Certified
                     </Badge>
                   </div>
-                  <PatternTestCard
-                    pattern={pattern}
-                    userLevel={10} // Set high to ensure nothing is locked
-                    isCompleted={true}
-                  />
 
-                  <div className="mt-3 border rounded-md p-3 bg-amber-50">
-                    <h4 className="text-sm font-medium flex items-center">
-                      <Trophy className="h-4 w-4 text-amber-500 mr-1" />
-                      Designer Feedback
-                    </h4>
-                    <p className="text-sm mt-1">{pattern.designerFeedback}</p>
+                  {/* Uploaded Product Images Gallery */}
+                  <div className="relative h-48 bg-gray-100">
+                    <div className="grid grid-cols-2 gap-1 h-full p-2">
+                      {pattern.uploadedImages?.slice(0, 4).map((image, index) => (
+                        <div key={index} className="relative overflow-hidden rounded">
+                          <img
+                            src={image || "/placeholder.svg"}
+                            alt={`Completed ${pattern.title} - Image ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
+                      {pattern.uploadedImages?.length || 0} photos
+                    </div>
+                  </div>
+
+                  {/* Pattern Info */}
+                  <div className="p-4">
+                    <h3 className="font-semibold text-lg mb-2">{pattern.title}</h3>
+
+                    {/* Tester Info */}
+                    <div className="flex items-center mb-3 p-3 bg-green-50 rounded-lg">
+                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
+                        {pattern.testerName?.charAt(0) || "T"}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{pattern.testerName || "Anonymous Tester"}</p>
+                        <p className="text-xs text-muted-foreground">Completed Tester</p>
+                      </div>
+                    </div>
+
+                    {/* Completion Stats */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div className="text-center p-2 bg-blue-50 rounded">
+                        <p className="text-xs text-muted-foreground">Completed</p>
+                        <p className="font-semibold text-sm">{pattern.completionDate}</p>
+                      </div>
+                      <div className="text-center p-2 bg-purple-50 rounded">
+                        <p className="text-xs text-muted-foreground">Time Taken</p>
+                        <p className="font-semibold text-sm">{pattern.daysToComplete} days</p>
+                      </div>
+                    </div>
+
+                    {/* XP Earned */}
+                    <div className="flex items-center justify-between mb-4 p-2 bg-amber-50 rounded">
+                      <div className="flex items-center">
+                        <Trophy className="h-4 w-4 text-amber-500 mr-2" />
+                        <span className="text-sm font-medium">XP Earned</span>
+                      </div>
+                      <span className="font-bold text-amber-600">+{pattern.xpEarned} XP</span>
+                    </div>
+
+                    {/* Certificate Button */}
+                    <Button variant="outline" className="w-full mb-3 border-green-300 text-green-700 hover:bg-green-50">
+                      <Trophy className="h-4 w-4 mr-2" />
+                      View Certificate
+                    </Button>
+
+                    {/* Designer Feedback */}
+                    <div className="border rounded-md p-3 bg-amber-50">
+                      <h4 className="text-sm font-medium flex items-center">
+                        <Trophy className="h-4 w-4 text-amber-500 mr-1" />
+                        Designer Feedback
+                      </h4>
+                      <p className="text-sm mt-1">{pattern.designerFeedback}</p>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -133,20 +221,82 @@ export default function CompletedTests() {
         <TabsContent value="certified">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {completedPatterns.map((pattern) => (
-              <div key={pattern.id} className="relative">
+              <div key={pattern.id} className="relative bg-white rounded-lg border shadow-sm overflow-hidden">
+                {/* Status Badge */}
                 <div className="absolute top-3 right-3 z-10">
                   <Badge variant="success" className="px-2 py-1 text-xs">
                     Certified
                   </Badge>
                 </div>
-                <PatternTestCard pattern={pattern} userLevel={10} isCompleted={true} />
 
-                <div className="mt-3 border rounded-md p-3 bg-amber-50">
-                  <h4 className="text-sm font-medium flex items-center">
-                    <Trophy className="h-4 w-4 text-amber-500 mr-1" />
-                    Designer Feedback
-                  </h4>
-                  <p className="text-sm mt-1">{pattern.designerFeedback}</p>
+                {/* Uploaded Product Images Gallery */}
+                <div className="relative h-48 bg-gray-100">
+                  <div className="grid grid-cols-2 gap-1 h-full p-2">
+                    {pattern.uploadedImages?.slice(0, 4).map((image, index) => (
+                      <div key={index} className="relative overflow-hidden rounded">
+                        <img
+                          src={image || "/placeholder.svg"}
+                          alt={`Completed ${pattern.title} - Image ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
+                    {pattern.uploadedImages?.length || 0} photos
+                  </div>
+                </div>
+
+                {/* Pattern Info */}
+                <div className="p-4">
+                  <h3 className="font-semibold text-lg mb-2">{pattern.title}</h3>
+
+                  {/* Tester Info */}
+                  <div className="flex items-center mb-3 p-3 bg-green-50 rounded-lg">
+                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
+                      {pattern.testerName?.charAt(0) || "T"}
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{pattern.testerName || "Anonymous Tester"}</p>
+                      <p className="text-xs text-muted-foreground">Completed Tester</p>
+                    </div>
+                  </div>
+
+                  {/* Completion Stats */}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="text-center p-2 bg-blue-50 rounded">
+                      <p className="text-xs text-muted-foreground">Completed</p>
+                      <p className="font-semibold text-sm">{pattern.completionDate}</p>
+                    </div>
+                    <div className="text-center p-2 bg-purple-50 rounded">
+                      <p className="text-xs text-muted-foreground">Time Taken</p>
+                      <p className="font-semibold text-sm">{pattern.daysToComplete} days</p>
+                    </div>
+                  </div>
+
+                  {/* XP Earned */}
+                  <div className="flex items-center justify-between mb-4 p-2 bg-amber-50 rounded">
+                    <div className="flex items-center">
+                      <Trophy className="h-4 w-4 text-amber-500 mr-2" />
+                      <span className="text-sm font-medium">XP Earned</span>
+                    </div>
+                    <span className="font-bold text-amber-600">+{pattern.xpEarned} XP</span>
+                  </div>
+
+                  {/* Certificate Button */}
+                  <Button variant="outline" className="w-full mb-3 border-green-300 text-green-700 hover:bg-green-50">
+                    <Trophy className="h-4 w-4 mr-2" />
+                    View Certificate
+                  </Button>
+
+                  {/* Designer Feedback */}
+                  <div className="border rounded-md p-3 bg-amber-50">
+                    <h4 className="text-sm font-medium flex items-center">
+                      <Trophy className="h-4 w-4 text-amber-500 mr-1" />
+                      Designer Feedback
+                    </h4>
+                    <p className="text-sm mt-1">{pattern.designerFeedback}</p>
+                  </div>
                 </div>
               </div>
             ))}

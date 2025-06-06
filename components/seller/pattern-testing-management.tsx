@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/dialog"
 import { Star, CheckCircle, XCircle, MessageSquare, Plus, Send } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // Mock data for pattern testing
 const mockPatterns = [
@@ -85,6 +87,18 @@ export default function PatternTestingManagement() {
   const [feedbackText, setFeedbackText] = useState("")
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
   const { toast } = useToast()
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false)
+  const [selectedTesterForChat, setSelectedTesterForChat] = useState<any>(null)
+
+  const [newPatternData, setNewPatternData] = useState({
+    title: "",
+    description: "",
+    difficulty: "",
+    maxTesters: "",
+    deadline: "",
+    requirements: "",
+  })
 
   const handleApproveApplication = (applicationId: string) => {
     toast({
@@ -113,6 +127,25 @@ export default function PatternTestingManagement() {
     }, 1000)
   }
 
+  const handleAddPattern = () => {
+    // Simulate API call to add pattern for testing
+    toast({
+      title: "Pattern Added for Testing",
+      description: "Your pattern has been submitted for community testing.",
+    })
+    // Reset form data
+    setNewPatternData({
+      title: "",
+      description: "",
+      difficulty: "",
+      maxTesters: "",
+      deadline: "",
+      requirements: "",
+    })
+    // Close modal
+    setIsAddModalOpen(false)
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
@@ -135,10 +168,123 @@ export default function PatternTestingManagement() {
           <h2 className="text-2xl font-bold">Pattern Testing Management</h2>
           <p className="text-muted-foreground">Manage your pattern testers and provide feedback</p>
         </div>
-        <Button className="bg-rose-500 hover:bg-rose-600">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Pattern for Testing
-        </Button>
+        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+          <Button className="bg-rose-500 hover:bg-rose-600" onClick={() => setIsAddModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Pattern for Testing
+          </Button>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add Pattern for Community Testing</DialogTitle>
+              <DialogDescription>
+                Submit your pattern to our community of testers for feedback and validation before publishing.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="pattern-title">Pattern Title</Label>
+                  <Input
+                    id="pattern-title"
+                    placeholder="Enter pattern title"
+                    value={newPatternData.title}
+                    onChange={(e) => setNewPatternData({ ...newPatternData, title: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="difficulty">Difficulty Level</Label>
+                  <Select
+                    value={newPatternData.difficulty}
+                    onValueChange={(value) => setNewPatternData({ ...newPatternData, difficulty: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select difficulty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="beginner">Beginner</SelectItem>
+                      <SelectItem value="easy">Easy</SelectItem>
+                      <SelectItem value="intermediate">Intermediate</SelectItem>
+                      <SelectItem value="advanced">Advanced</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="description">Pattern Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Describe your pattern, what it creates, and any special techniques used..."
+                  value={newPatternData.description}
+                  onChange={(e) => setNewPatternData({ ...newPatternData, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="max-testers">Maximum Testers</Label>
+                  <Select
+                    value={newPatternData.maxTesters}
+                    onValueChange={(value) => setNewPatternData({ ...newPatternData, maxTesters: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select number" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3">3 testers</SelectItem>
+                      <SelectItem value="5">5 testers</SelectItem>
+                      <SelectItem value="8">8 testers</SelectItem>
+                      <SelectItem value="10">10 testers</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="deadline">Testing Deadline</Label>
+                  <Input
+                    id="deadline"
+                    type="date"
+                    value={newPatternData.deadline}
+                    onChange={(e) => setNewPatternData({ ...newPatternData, deadline: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="requirements">Tester Requirements</Label>
+                <Textarea
+                  id="requirements"
+                  placeholder="Specify any requirements for testers (experience level, materials, etc.)"
+                  value={newPatternData.requirements}
+                  onChange={(e) => setNewPatternData({ ...newPatternData, requirements: e.target.value })}
+                  rows={2}
+                />
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">Testing Process</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Testers will apply to test your pattern</li>
+                  <li>• You can approve/reject applications</li>
+                  <li>• Testers provide feedback and ratings</li>
+                  <li>• You can communicate with testers throughout the process</li>
+                </ul>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddPattern}
+                className="bg-rose-500 hover:bg-rose-600"
+                disabled={!newPatternData.title || !newPatternData.description || !newPatternData.difficulty}
+              >
+                Submit for Testing
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -181,6 +327,74 @@ export default function PatternTestingManagement() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Add Pattern Testing Controls Section */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+                <h4 className="font-medium mb-3">Pattern Testing Controls</h4>
+                <div className="flex flex-wrap gap-3">
+                  {selectedPattern.status === "testing" && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-orange-200 text-orange-700 hover:bg-orange-50"
+                        onClick={() => {
+                          toast({
+                            title: "Applications Closed",
+                            description: "No new testers can apply to this pattern.",
+                          })
+                        }}
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        End Accepting Testers
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-blue-500 hover:bg-blue-600"
+                        onClick={() => {
+                          toast({
+                            title: "Testing Started",
+                            description: "All approved testers have been notified to begin testing.",
+                          })
+                        }}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Start Testing Phase
+                      </Button>
+                    </>
+                  )}
+
+                  {selectedPattern.status === "testing" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-red-200 text-red-700 hover:bg-red-50"
+                      onClick={() => {
+                        toast({
+                          title: "Testing Ended",
+                          description: "Testing phase completed. You can now review all feedback.",
+                        })
+                      }}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      End Testing
+                    </Button>
+                  )}
+
+                  {selectedPattern.status === "completed" && (
+                    <div className="flex items-center gap-2 text-green-700">
+                      <CheckCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">Testing Completed</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 text-xs text-muted-foreground">
+                  <p>• End accepting testers to stop new applications</p>
+                  <p>• Start testing phase to notify approved testers to begin</p>
+                  <p>• End testing when you want to close the testing period</p>
+                </div>
+              </div>
+
               <Tabs defaultValue="applications" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="applications">Applications</TabsTrigger>
@@ -266,44 +480,17 @@ export default function PatternTestingManagement() {
                                 </div>
                               </div>
                             </div>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button size="sm" variant="outline">
-                                  <MessageSquare className="h-4 w-4 mr-1" />
-                                  Send Feedback
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Send Feedback to {application.userName}</DialogTitle>
-                                  <DialogDescription>
-                                    Provide feedback or ask questions about their testing progress.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <div>
-                                    <Label htmlFor="feedback">Feedback Message</Label>
-                                    <Textarea
-                                      id="feedback"
-                                      placeholder="Write your feedback here..."
-                                      value={feedbackText}
-                                      onChange={(e) => setFeedbackText(e.target.value)}
-                                      rows={4}
-                                    />
-                                  </div>
-                                </div>
-                                <DialogFooter>
-                                  <Button
-                                    onClick={() => handleSubmitFeedback(application.id)}
-                                    disabled={!feedbackText.trim() || isSubmittingFeedback}
-                                    className="bg-rose-500 hover:bg-rose-600"
-                                  >
-                                    <Send className="h-4 w-4 mr-2" />
-                                    {isSubmittingFeedback ? "Sending..." : "Send Feedback"}
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedTesterForChat(application)
+                                setIsChatModalOpen(true)
+                              }}
+                            >
+                              <MessageSquare className="h-4 w-4 mr-1" />
+                              View Chat & Reply
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
@@ -396,6 +583,138 @@ export default function PatternTestingManagement() {
           </Card>
         </div>
       </div>
+      {/* Chat Modal - place this after the main content, outside the map functions */}
+      <Dialog open={isChatModalOpen} onOpenChange={setIsChatModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Chat History with {selectedTesterForChat?.userName}</DialogTitle>
+            <DialogDescription>View conversation history and reply to tester questions and concerns.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Chat History Section */}
+            <div className="border rounded-lg p-4 max-h-96 overflow-y-auto bg-gray-50">
+              <h4 className="font-medium mb-3">Conversation History</h4>
+              <div className="space-y-3">
+                {/* Mock chat messages */}
+                <div className="flex justify-start">
+                  <div className="bg-blue-100 text-blue-900 p-3 rounded-lg max-w-xs">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-medium">Tester</span>
+                      <span className="text-xs text-blue-600">2 hours ago</span>
+                    </div>
+                    <p className="text-sm">
+                      I'm having trouble with step 15. The stitch count doesn't match what's shown in the pattern.
+                    </p>
+                    {/* Sample image attachment */}
+                    <div className="mt-2">
+                      <img
+                        src="/placeholder.svg?height=100&width=150&text=Progress+Photo"
+                        alt="Progress photo"
+                        className="rounded border max-w-full h-auto"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <div className="bg-rose-100 text-rose-900 p-3 rounded-lg max-w-xs">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-medium">You (Seller)</span>
+                      <span className="text-xs text-rose-600">1 hour ago</span>
+                    </div>
+                    <p className="text-sm">
+                      Thanks for the photo! I can see the issue. Try counting your stitches again - you might have
+                      missed a decrease in step 14.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-start">
+                  <div className="bg-blue-100 text-blue-900 p-3 rounded-lg max-w-xs">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-medium">Tester</span>
+                      <span className="text-xs text-blue-600">30 minutes ago</span>
+                    </div>
+                    <p className="text-sm">That worked! Thank you so much. The pattern is looking great now.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Empty state when no messages */}
+              <div className="text-center py-8 text-muted-foreground">
+                <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No conversation history yet.</p>
+                <p className="text-sm">Messages from this tester will appear here.</p>
+              </div>
+            </div>
+
+            {/* Reply Section */}
+            <div className="space-y-3">
+              <Label htmlFor="seller-reply">Send Reply to {selectedTesterForChat?.userName}</Label>
+              <Textarea
+                id="seller-reply"
+                placeholder="Type your response to help the tester with their questions or concerns..."
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+
+              {/* Quick Reply Templates */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Quick Reply Templates:</Label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setFeedbackText("Thanks for the update! Your progress looks great. Keep up the good work!")
+                    }
+                  >
+                    Encouragement
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setFeedbackText(
+                        "Could you please share a photo of your current progress? This will help me assist you better.",
+                      )
+                    }
+                  >
+                    Request Photo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setFeedbackText("I see the issue in your photo. Let me explain the correct technique...")
+                    }
+                  >
+                    Technical Help
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex justify-between">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>💡 Tip: Respond quickly to keep testers engaged</span>
+            </div>
+            <Button
+              onClick={() => handleSubmitFeedback(selectedTesterForChat?.id)}
+              disabled={!feedbackText.trim() || isSubmittingFeedback}
+              className="bg-rose-500 hover:bg-rose-600"
+            >
+              <Send className="h-4 w-4 mr-2" />
+              {isSubmittingFeedback ? "Sending..." : "Send Reply"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

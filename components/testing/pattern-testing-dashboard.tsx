@@ -9,9 +9,9 @@ import CompletedTests from "@/components/testing/completed-tests"
 import TesterLeaderboard from "@/components/testing/tester-leaderboard"
 import TesterProfile from "@/components/testing/tester-profile"
 import TestingGuidelines from "@/components/testing/testing-guidelines"
+import PatternTestingApplication from "@/components/testing/pattern-testing-application"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
-import Link from "next/link"
 
 export default function PatternTestingDashboard() {
   const { user } = useAuth()
@@ -19,6 +19,7 @@ export default function PatternTestingDashboard() {
   const [testerLevel, setTesterLevel] = useState(1)
   const [testerXP, setTesterXP] = useState(0)
   const [nextLevelXP, setNextLevelXP] = useState(100)
+  const [showApplication, setShowApplication] = useState(false)
 
   // Simulating fetching tester data
   useEffect(() => {
@@ -34,22 +35,30 @@ export default function PatternTestingDashboard() {
     }
   }, [user])
 
-  if (!user) {
+  // Show application form for non-users or when requested
+  if (!user || showApplication) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-center border rounded-lg">
-        <h2 className="text-2xl font-semibold mb-4">Join Our Testing Community</h2>
-        <p className="mb-6 text-muted-foreground">
-          Sign up or log in to join our pattern testing community. Test patterns before they're released, earn rewards,
-          and help creators perfect their designs.
-        </p>
-        <div className="flex gap-4">
-          <Button asChild>
-            <Link href="/auth/login">Log In</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/auth/register">Register</Link>
-          </Button>
-        </div>
+      <div>
+        {!user && (
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-lg">
+            <h3 className="text-lg font-semibold text-rose-800 mb-2">Join Our Pattern Testing Community</h3>
+            <p className="text-rose-700 mb-3">
+              Fill out the application below to become a pattern tester. Help designers perfect their patterns while
+              earning rewards!
+            </p>
+            {showApplication && (
+              <Button
+                variant="outline"
+                onClick={() => setShowApplication(false)}
+                className="border-rose-300 text-rose-700 hover:bg-rose-100"
+              >
+                ← Back to Community Overview
+              </Button>
+            )}
+          </div>
+        )}
+
+        <PatternTestingApplication />
       </div>
     )
   }
