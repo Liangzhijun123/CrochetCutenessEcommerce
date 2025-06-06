@@ -784,19 +784,64 @@ export default function ProfilePage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      <div className="flex flex-col items-center justify-center py-6 text-center">
-                        <div className="mb-4 rounded-full bg-rose-100 p-4">
-                          <Award className="h-10 w-10 text-rose-600" />
-                        </div>
-                        <h3 className="text-2xl font-bold">350 Points</h3>
-                        <p className="text-sm text-muted-foreground">Silver Tier Member</p>
-                        <div className="mt-4 w-full max-w-md">
-                          <div className="mb-2 flex items-center justify-between text-sm">
-                            <span>150 points to Gold tier</span>
-                            <span>350/500</span>
+                      {/* Casino-Style Loyalty Points Display */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Current Points - Casino Style */}
+                        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-rose-400 via-rose-500 to-rose-600 p-6 text-white shadow-xl">
+                          <div className="absolute inset-0 bg-black/10"></div>
+                          <div className="relative z-10">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="rounded-full bg-white/20 p-3">
+                                <Award className="h-8 w-8 text-white" />
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-medium opacity-90">LOYALTY POINTS</p>
+                                <p className="text-4xl font-bold">350</p>
+                                <p className="text-sm opacity-75">POINTS</p>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="opacity-90">Current Tier</span>
+                                <span className="font-bold">SILVER</span>
+                              </div>
+                              <div className="h-2 w-full bg-white/20 rounded-full overflow-hidden">
+                                <div className="h-full w-[70%] bg-white/60 rounded-full"></div>
+                              </div>
+                              <div className="flex justify-between text-xs opacity-75">
+                                <span>350/500 to Gold</span>
+                                <span>150 more needed</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                            <div className="h-full w-[70%] rounded-full bg-rose-500" />
+                        </div>
+
+                        {/* Next Tier Benefits - Casino Style */}
+                        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 p-6 text-white shadow-xl">
+                          <div className="absolute inset-0 bg-black/10"></div>
+                          <div className="relative z-10">
+                            <div className="text-center">
+                              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 mb-4">
+                                <Award className="h-8 w-8 text-white animate-pulse" />
+                              </div>
+                              <h3 className="text-xl font-bold mb-2">GOLD TIER</h3>
+                              <p className="text-sm opacity-90 mb-4">Unlock premium benefits</p>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex items-center justify-center gap-2">
+                                  <span>🚚</span>
+                                  <span>Free shipping on all orders</span>
+                                </div>
+                                <div className="flex items-center justify-center gap-2">
+                                  <span>🎂</span>
+                                  <span>20% birthday discount</span>
+                                </div>
+                                <div className="flex items-center justify-center gap-2">
+                                  <span>⭐</span>
+                                  <span>VIP customer support</span>
+                                </div>
+                              </div>
+                              <p className="text-xs mt-3 opacity-75">🎯 150 points to unlock</p>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -902,25 +947,45 @@ export default function ProfilePage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {/* Current Balance */}
-                      <div className="flex flex-col items-center justify-center py-6 text-center">
-                        <div className="mb-4 rounded-full bg-amber-100 p-4">
-                          <Award className="h-10 w-10 text-amber-600" />
+                      {/* Casino-Style Balance and Claim Row */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Current Balance - Casino Style */}
+                        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 p-6 text-white shadow-xl">
+                          <div className="absolute inset-0 bg-black/10"></div>
+                          <div className="relative z-10">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="rounded-full bg-white/20 p-3">
+                                <Award className="h-8 w-8 text-white" />
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-medium opacity-90">TOTAL BALANCE</p>
+                                <p className="text-3xl font-bold">127</p>
+                                <p className="text-sm opacity-75">COINS</p>
+                              </div>
+                            </div>
+                            <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
+                              <div className="h-full w-3/4 bg-white/40 rounded-full"></div>
+                            </div>
+                            <p className="text-xs mt-2 opacity-75">Level: Gold Member</p>
+                          </div>
                         </div>
-                        <h3 className="text-2xl font-bold">127 Coins</h3>
-                        <p className="text-sm text-muted-foreground">Total Balance</p>
-                      </div>
 
-                      {/* Daily Claim Section */}
-                      <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-6">
-                        <div className="text-center">
-                          <h3 className="text-lg font-semibold text-amber-800">Today's Claim</h3>
-                          <p className="text-sm text-amber-600 mb-4">Claim your daily 3 coins</p>
-                          <Button className="bg-amber-500 hover:bg-amber-600 text-white">
-                            <Award className="h-4 w-4 mr-2" />
-                            Claim 3 Coins
-                          </Button>
-                          <p className="text-xs text-amber-600 mt-2">Next claim available in 23h 45m</p>
+                        {/* Daily Claim - Casino Style */}
+                        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-green-400 via-green-500 to-green-600 p-6 text-white shadow-xl">
+                          <div className="absolute inset-0 bg-black/10"></div>
+                          <div className="relative z-10">
+                            <div className="text-center">
+                              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 mb-4">
+                                <Award className="h-8 w-8 text-white animate-pulse" />
+                              </div>
+                              <h3 className="text-xl font-bold mb-2">DAILY BONUS</h3>
+                              <p className="text-sm opacity-90 mb-4">Claim your daily reward</p>
+                              <Button className="w-full bg-white/20 hover:bg-white/30 text-white border border-white/30 font-bold py-3 text-lg backdrop-blur-sm">
+                                🎰 CLAIM 3 COINS
+                              </Button>
+                              <p className="text-xs mt-3 opacity-75">⏰ Next claim: 23h 45m</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
