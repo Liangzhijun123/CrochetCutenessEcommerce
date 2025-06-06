@@ -116,7 +116,7 @@ export default function ProfilePage() {
 
   // Set active tab from URL parameter if available
   useEffect(() => {
-    if (tabParam && ["account", "orders", "wishlist", "security", "loyalty"].includes(tabParam)) {
+    if (tabParam && ["account", "orders", "wishlist", "security", "loyalty", "coins"].includes(tabParam)) {
       setActiveTab(tabParam)
     }
   }, [tabParam])
@@ -357,6 +357,17 @@ export default function ProfilePage() {
               Loyalty Points
             </Button>
             <Button
+              variant={activeTab === "coins" ? "default" : "ghost"}
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                setActiveTab("coins")
+                router.push("/profile?tab=coins", { scroll: false })
+              }}
+            >
+              <Award className="h-4 w-4" />
+              Daily Coins
+            </Button>
+            <Button
               variant={activeTab === "security" ? "default" : "ghost"}
               className="w-full justify-start gap-2"
               onClick={() => {
@@ -379,11 +390,12 @@ export default function ProfilePage() {
               router.push(`/profile?tab=${value}`, { scroll: false })
             }}
           >
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="account">Account</TabsTrigger>
               <TabsTrigger value="orders">Orders</TabsTrigger>
               <TabsTrigger value="wishlist">Wishlist</TabsTrigger>
               <TabsTrigger value="loyalty">Loyalty</TabsTrigger>
+              <TabsTrigger value="coins">Coins</TabsTrigger>
               <TabsTrigger value="security">Security</TabsTrigger>
             </TabsList>
 
@@ -876,6 +888,209 @@ export default function ProfilePage() {
                       <li>Early access to sales</li>
                       <li>Exclusive monthly patterns</li>
                     </ul>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="coins" className="mt-6">
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Daily Coins</CardTitle>
+                    <CardDescription>Claim your daily coins and manage your balance</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {/* Current Balance */}
+                      <div className="flex flex-col items-center justify-center py-6 text-center">
+                        <div className="mb-4 rounded-full bg-amber-100 p-4">
+                          <Award className="h-10 w-10 text-amber-600" />
+                        </div>
+                        <h3 className="text-2xl font-bold">127 Coins</h3>
+                        <p className="text-sm text-muted-foreground">Total Balance</p>
+                      </div>
+
+                      {/* Daily Claim Section */}
+                      <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-6">
+                        <div className="text-center">
+                          <h3 className="text-lg font-semibold text-amber-800">Today's Claim</h3>
+                          <p className="text-sm text-amber-600 mb-4">Claim your daily 3 coins</p>
+                          <Button className="bg-amber-500 hover:bg-amber-600 text-white">
+                            <Award className="h-4 w-4 mr-2" />
+                            Claim 3 Coins
+                          </Button>
+                          <p className="text-xs text-amber-600 mt-2">Next claim available in 23h 45m</p>
+                        </div>
+                      </div>
+
+                      {/* Full Month Calendar */}
+                      <div>
+                        <h3 className="text-lg font-medium mb-3">Monthly Claim Calendar</h3>
+                        <div className="rounded-lg border p-4 bg-white">
+                          {/* Calendar Header */}
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-lg font-semibold">
+                              {new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                            </h4>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm">
+                                ‹
+                              </Button>
+                              <Button variant="outline" size="sm">
+                                ›
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Day Headers */}
+                          <div className="grid grid-cols-7 gap-1 mb-2">
+                            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                              <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+                                {day}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Calendar Grid */}
+                          <div className="grid grid-cols-7 gap-1">
+                            {Array.from({ length: 42 }, (_, i) => {
+                              const today = new Date()
+                              const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+                              const startDate = new Date(firstDay)
+                              startDate.setDate(startDate.getDate() - firstDay.getDay())
+
+                              const currentDate = new Date(startDate)
+                              currentDate.setDate(startDate.getDate() + i)
+
+                              const isCurrentMonth = currentDate.getMonth() === today.getMonth()
+                              const isToday = currentDate.toDateString() === today.toDateString()
+                              const isTomorrow =
+                                currentDate.toDateString() ===
+                                new Date(today.getTime() + 24 * 60 * 60 * 1000).toDateString()
+                              const isPast = currentDate < today && !isToday
+                              const isFuture = currentDate > today
+
+                              // Mock claim status (you can replace with real data)
+                              const isClaimed = isPast && Math.random() > 0.3 // 70% claimed for past days
+                              const isMissed = isPast && !isClaimed
+
+                              let bgColor = "bg-gray-50 text-gray-400" // Default for other month
+                              let status = ""
+
+                              if (isCurrentMonth) {
+                                if (isToday) {
+                                  bgColor = "bg-blue-100 border-2 border-blue-400 text-blue-800"
+                                  status = "TODAY"
+                                } else if (isTomorrow) {
+                                  bgColor = "bg-yellow-100 text-yellow-800"
+                                  status = "TOMORROW"
+                                } else if (isClaimed) {
+                                  bgColor = "bg-green-100 text-green-800"
+                                  status = "✓"
+                                } else if (isMissed) {
+                                  bgColor = "bg-red-100 text-red-800"
+                                  status = "✗"
+                                } else if (isFuture) {
+                                  bgColor = "bg-gray-100 text-gray-500"
+                                  status = "FUTURE"
+                                }
+                              }
+
+                              return (
+                                <div
+                                  key={i}
+                                  className={`
+                                    p-2 rounded-lg text-center text-sm min-h-[60px] flex flex-col justify-center
+                                    ${bgColor}
+                                    ${isCurrentMonth ? "font-medium" : "font-normal"}
+                                  `}
+                                >
+                                  <div className="font-semibold">{currentDate.getDate()}</div>
+                                  <div className="text-xs mt-1">{status}</div>
+                                </div>
+                              )
+                            })}
+                          </div>
+
+                          {/* Legend */}
+                          <div className="mt-4 flex flex-wrap gap-4 text-xs">
+                            <div className="flex items-center gap-1">
+                              <div className="w-3 h-3 bg-blue-100 border border-blue-400 rounded"></div>
+                              <span>Today</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <div className="w-3 h-3 bg-green-100 rounded"></div>
+                              <span>Claimed</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <div className="w-3 h-3 bg-red-100 rounded"></div>
+                              <span>Missed</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <div className="w-3 h-3 bg-yellow-100 rounded"></div>
+                              <span>Tomorrow</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <div className="w-3 h-3 bg-gray-100 rounded"></div>
+                              <span>Future</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Recovery Options */}
+                      <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                        <h3 className="text-lg font-medium text-red-800 mb-2">Missed Yesterday?</h3>
+                        <p className="text-sm text-red-600 mb-4">You can still recover your missed coins!</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Button variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50">
+                            📺 Watch 5 Ads (Free)
+                          </Button>
+                          <Button variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
+                            💳 Purchase for $1.99
+                          </Button>
+                        </div>
+                        <p className="text-xs text-red-500 mt-2">Recovery available for last 7 days only</p>
+                      </div>
+
+                      {/* Recent Activity */}
+                      <div>
+                        <h3 className="text-lg font-medium mb-3">Recent Activity</h3>
+                        <div className="rounded-lg border">
+                          <div className="border-b p-3 text-sm font-medium">
+                            <div className="grid grid-cols-3">
+                              <div>Date</div>
+                              <div>Activity</div>
+                              <div className="text-right">Coins</div>
+                            </div>
+                          </div>
+                          <div className="divide-y">
+                            <div className="p-3 text-sm">
+                              <div className="grid grid-cols-3">
+                                <div>Today</div>
+                                <div>Daily Claim</div>
+                                <div className="text-right text-green-600">+3</div>
+                              </div>
+                            </div>
+                            <div className="p-3 text-sm">
+                              <div className="grid grid-cols-3">
+                                <div>Yesterday</div>
+                                <div>Missed Claim</div>
+                                <div className="text-right text-red-600">-3</div>
+                              </div>
+                            </div>
+                            <div className="p-3 text-sm">
+                              <div className="grid grid-cols-3">
+                                <div>2 days ago</div>
+                                <div>Daily Claim</div>
+                                <div className="text-right text-green-600">+3</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </div>

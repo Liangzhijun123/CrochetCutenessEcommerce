@@ -205,13 +205,13 @@ export function ShopClientPage({ initialProducts, categories, initialFilters }: 
               <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>
             </div>
           ) : (
-            <div className={viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
+            <div
+              className={
+                viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"
+              }
+            >
               {products.map((product) => (
-                <div
-                  key={product.id}
-                  onClick={() => handleProductClick(product)}
-                  className={`cursor-pointer ${viewMode === "row" ? "w-full" : ""}`}
-                >
+                <div key={product.id} onClick={() => handleProductClick(product)} className="cursor-pointer">
                   <ProductCard
                     id={product.id}
                     title={product.name}
@@ -222,7 +222,6 @@ export function ShopClientPage({ initialProducts, categories, initialFilters }: 
                     materials={showDetails ? product.materials : undefined}
                     isPattern={showDetails ? product.isPattern : undefined}
                     showDetails={showDetails}
-                    viewMode={viewMode}
                   />
                 </div>
               ))}
