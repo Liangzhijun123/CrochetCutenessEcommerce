@@ -28,3 +28,6 @@ export function useMobile(breakpoint = 768): boolean {
 
   return isMobile
 }
+
+// Alias for compatibility
+export const useIsMobile = useMobile

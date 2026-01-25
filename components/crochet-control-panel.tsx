@@ -259,25 +259,23 @@ export default function CrochetControlPanel() {
   return (
     <>
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="image/*"
+          onChange={handleFileUpload}
+          aria-label="Upload custom crochet image"
+        />
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild>
-            <>
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept="image/*"
-                onChange={handleFileUpload}
-                aria-label="Upload custom crochet image"
-              />
-              <Button
-                className="rounded-full h-12 w-12 bg-rose-500 hover:bg-rose-600 shadow-lg"
-                aria-label="Add crochet items"
-                onClick={() => (isOpen ? setIsOpen(false) : fileInputRef.current?.click())}
-              >
-                {isOpen ? <X className="h-6 w-6" /> : <Plus className="h-6 w-6" />}
-              </Button>
-            </>
+            <Button
+              className="rounded-full h-12 w-12 bg-rose-500 hover:bg-rose-600 shadow-lg"
+              aria-label="Add crochet items"
+              onClick={() => (isOpen ? setIsOpen(false) : fileInputRef.current?.click())}
+            >
+              {isOpen ? <X className="h-6 w-6" /> : <Plus className="h-6 w-6" />}
+            </Button>
           </PopoverTrigger>
           <PopoverContent className="w-80 p-4" side="top">
             <div className="space-y-4">
