@@ -1,0 +1,12 @@
+[
+  {
+    "id": "7bdc7a38-837d-476e-af66-8548117c72b6",
+    "name": "n3",
+    "email": "newuser@example.com",
+    "password": "Testpassword123!",
+    "role": "user",
+    "createdAt": "2026-01-26T16:42:17.266Z",
+    "loyaltyPoints": 0,
+    "loyaltyTier": "bronze"
+  }
+]

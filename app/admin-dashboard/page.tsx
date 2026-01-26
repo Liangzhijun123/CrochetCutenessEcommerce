@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { RefreshCw, CheckCircle, XCircle, Clock, Home } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import AdminPatternTestingApplications from "@/components/admin-pattern-testing-applications"
 
 // Types
 type SellerApplication = {
@@ -370,6 +371,7 @@ export default function AdminDashboardPage() {
           </TabsTrigger>
           <TabsTrigger value="approved">Approved</TabsTrigger>
           <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          <TabsTrigger value="pattern-testing">Pattern Testing</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pending">
@@ -531,6 +533,10 @@ export default function AdminDashboardPage() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="pattern-testing">
+          <AdminPatternTestingApplications />
         </TabsContent>
       </Tabs>
     </div>

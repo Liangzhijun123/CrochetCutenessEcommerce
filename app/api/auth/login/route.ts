@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getUserByEmail, initializeDatabase } from "@/lib/local-storage-db"
 
-// Mock database for demo purposes
-const users = [
+// Mock database for demo purposes (fallback for initial testing)
+const mockUsers = [
   {
     id: "1",
     name: "John Doe",
@@ -28,45 +29,62 @@ const users = [
   },
 ]
 
-// Helper function to get user by email
-function getUserByEmail(email: string) {
-  return users.find((user) => user.email === email) || null
-}
-
 export async function POST(request: NextRequest) {
   try {
+    // Initialize database (load from files on first request)
+    console.log("\\n[LOGIN] ========== LOGIN REQUEST RECEIVED ==========")
+    console.log("[LOGIN] Initializing database...")
+    initializeDatabase()
+    console.log("[LOGIN] Database initialized")
+
     const { email, password } = await request.json()
+    console.log(`[LOGIN] Email: ${email}`)
+    console.log(`[LOGIN] Password length: ${password?.length || 0}`)
 
     if (!email || !password) {
+      console.log("[LOGIN] ❌ Missing email or password")
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
     }
 
-    // Get user by email
-    const user = getUserByEmail(email)
+    // Try to get user from local-storage-db first (registered users from file)
+    console.log("[LOGIN] Looking up user in database...")
+    let user = getUserByEmail(email)
+    console.log(`[LOGIN] User lookup: ${user ? "✅ Found" : "❌ Not found"}`)
+
+    // Fallback to mock users if not found (for testing)
+    if (!user) {
+      const mockUser = mockUsers.find((u) => u.email.toLowerCase() === email.toLowerCase())
+      if (mockUser) {
+        console.log(`[LOGIN] Using mock user`)
+        user = mockUser as any
+      }
+    }
 
     if (!user) {
+      console.log(`[LOGIN] ❌ User not found for email: ${email}`)
       return NextResponse.json({ error: "User not found" }, { status: 401 })
     }
 
     // Check password
     if (user.password !== password) {
+      console.log(`[LOGIN] ❌ Invalid password for user: ${email}`)
       return NextResponse.json({ error: "Invalid password" }, { status: 401 })
     }
 
+    console.log(`[LOGIN] ✅ Login successful - User: ${email}, ID: ${user.id}, Role: ${user.role}`)
+
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user
-
-    // Save user to localStorage for persistence
-    if (typeof window !== "undefined") {
-      localStorage.setItem("crochet_user", JSON.stringify(userWithoutPassword))
-    }
+    console.log("[LOGIN] ✅ Returning user data")
+    console.log("[LOGIN] ========== LOGIN SUCCESSFUL ==========\\n")
 
     return NextResponse.json({
       user: userWithoutPassword,
       message: "Login successful",
     })
   } catch (error) {
-    console.error("Login error:", error)
+    console.error("[LOGIN] ❌ Error:", error)
+    console.log("[LOGIN] ========== LOGIN FAILED ==========\\n")
     return NextResponse.json({ error: "An error occurred during login" }, { status: 500 })
   }
 }

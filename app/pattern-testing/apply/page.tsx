@@ -1,4 +1,4 @@
-import PatternTestingApplication from "@/components/testing/pattern-testing-application"
+import PatternTestingApplicationForm from "@/components/pattern-testing-application-form"
 
 export const metadata = {
   title: "Apply for Pattern Testing Program | Crochet Creations",
@@ -7,5 +7,9 @@ export const metadata = {
 }
 
 export default function PatternTestingApplicationPage() {
-  return <PatternTestingApplication />
+  return (
+    <div className="container mx-auto py-10">
+      <PatternTestingApplicationForm />
+    </div>
+  )
 }

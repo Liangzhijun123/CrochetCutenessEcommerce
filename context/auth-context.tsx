@@ -62,8 +62,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = async (email: string, password: string, role?: string): Promise<boolean> => {
     try {
+      console.log("\\n[AUTH-CONTEXT] ========== LOGIN INITIATED ==========")
+      console.log(`[AUTH-CONTEXT] Email: ${email}`)
+      console.log(`[AUTH-CONTEXT] Role request: ${role || "not specified"}`)
       setIsLoading(true)
 
+      console.log("[AUTH-CONTEXT] Calling /api/auth/login endpoint...")
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
@@ -72,10 +76,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         body: JSON.stringify({ email, password }),
       })
 
+      console.log(`[AUTH-CONTEXT] Response status: ${response.status}`)
+
       // Check if response is ok before trying to parse JSON
       if (!response.ok) {
         const errorText = await response.text()
-        console.error("Login error response:", errorText)
+        console.error("[AUTH-CONTEXT] ❌ Login error response:", errorText)
 
         let errorMessage = "Invalid email or password. Please try again."
         try {
@@ -89,28 +95,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           errorMessage = errorText || "An error occurred during login"
         }
 
+        console.log(`[AUTH-CONTEXT] Error message: ${errorMessage}`)
         toast({
           title: "Login failed",
           description: errorMessage,
           variant: "destructive",
         })
+        console.log("[AUTH-CONTEXT] ========== LOGIN FAILED ==========\\n")
         return false
       }
 
       const data = await response.json()
+      console.log(`[AUTH-CONTEXT] ✅ API returned user: ${data.user.email}, Role: ${data.user.role}`)
 
       // Check if the user has the requested role
       if (role && data.user.role !== role) {
+        console.log(`[AUTH-CONTEXT] ❌ Role mismatch - Expected: ${role}, Got: ${data.user.role}`)
         toast({
           title: "Access denied",
           description: `This account does not have ${role} privileges.`,
           variant: "destructive",
         })
+        console.log("[AUTH-CONTEXT] ========== LOGIN FAILED (ROLE MISMATCH) ==========\\n")
         return false
       }
 
+      console.log("[AUTH-CONTEXT] Storing user in state and localStorage...")
       setUser(data.user)
       localStorage.setItem("crochet_user", JSON.stringify(data.user))
+      console.log("[AUTH-CONTEXT] ✅ User stored successfully")
 
       toast({
         title: "Login successful",
@@ -118,20 +131,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       })
 
       // Redirect based on role
+      console.log(`[AUTH-CONTEXT] Redirecting based on role: ${data.user.role}`)
       if (data.user.role === "seller") {
+        console.log("[AUTH-CONTEXT] Redirecting to /seller-dashboard")
         router.push("/seller-dashboard")
       } else if (data.user.role === "admin") {
+        console.log("[AUTH-CONTEXT] Redirecting to /admin-dashboard")
         router.push("/admin-dashboard")
+      } else {
+        // For regular users, redirect to profile
+        console.log("[AUTH-CONTEXT] Redirecting to /profile")
+        router.push("/profile")
       }
 
+      console.log("[AUTH-CONTEXT] ========== LOGIN SUCCESSFUL ==========\\n")
       return true
     } catch (error) {
-      console.error("Login error:", error)
+      console.error("[AUTH-CONTEXT] ❌ Unexpected error:", error)
       toast({
         title: "Login failed",
         description: "An error occurred during login. Please try again.",
         variant: "destructive",
       })
+      console.log("[AUTH-CONTEXT] ========== LOGIN FAILED (EXCEPTION) ==========\\n")
       return false
     } finally {
       setIsLoading(false)
@@ -140,33 +162,71 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const register = async (name: string, email: string, password: string, role: string): Promise<boolean> => {
     try {
+      console.log("\n[AUTH-CONTEXT] ========== REGISTER INITIATED ==========")
+      console.log(`[AUTH-CONTEXT] Name: ${name}, Email: ${email}, Role: ${role}`)
       setIsLoading(true)
 
-      // For demo purposes, we'll just create a user object and store it in localStorage
-      const newUser = {
-        id: Date.now().toString(),
-        name,
-        email,
-        role: role === "customer" ? "user" : role,
-        createdAt: new Date().toISOString(),
+      // Convert customer role to user for backend
+      const backendRole = role === "customer" ? "user" : role
+      console.log(`[AUTH-CONTEXT] Calling /api/auth/register endpoint...`)
+
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, password, role: backendRole }),
+      })
+
+      console.log(`[AUTH-CONTEXT] Response status: ${response.status}`)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("[AUTH-CONTEXT] ❌ Registration error response:", errorText)
+
+        let errorMessage = "Registration failed"
+        try {
+          const errorData = JSON.parse(errorText)
+          if (errorData.error) {
+            errorMessage = errorData.error
+          }
+        } catch (e) {
+          errorMessage = errorText || "An error occurred during registration"
+        }
+
+        console.log(`[AUTH-CONTEXT] Error message: ${errorMessage}`)
+        toast({
+          title: "Registration failed",
+          description: errorMessage,
+          variant: "destructive",
+        })
+        console.log("[AUTH-CONTEXT] ========== REGISTER FAILED ==========\n")
+        return false
       }
 
-      setUser(newUser)
-      localStorage.setItem("crochet_user", JSON.stringify(newUser))
+      const data = await response.json()
+      console.log(`[AUTH-CONTEXT] ✅ API returned user: ${data.user.email}, Role: ${data.user.role}`)
+
+      console.log("[AUTH-CONTEXT] Storing user in state and localStorage...")
+      setUser(data.user)
+      localStorage.setItem("crochet_user", JSON.stringify(data.user))
+      console.log("[AUTH-CONTEXT] ✅ User stored successfully")
 
       toast({
         title: "Registration successful",
         description: "Your account has been created successfully!",
       })
 
+      console.log("[AUTH-CONTEXT] ========== REGISTER SUCCESSFUL ==========\n")
       return true
     } catch (error) {
-      console.error("Registration error:", error)
+      console.error("[AUTH-CONTEXT] ❌ Unexpected error:", error)
       toast({
         title: "Registration failed",
         description: "An error occurred during registration. Please try again.",
         variant: "destructive",
       })
+      console.log("[AUTH-CONTEXT] ========== REGISTER FAILED (EXCEPTION) ==========\n")
       return false
     } finally {
       setIsLoading(false)
@@ -174,12 +234,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const logout = () => {
+    console.log("\\n[LOGOUT] ========== LOGOUT REQUEST ==========")
+    console.log(`[LOGOUT] Current user: ${user?.email || "None"}`)
+    console.log("[LOGOUT] Clearing user state...")
     setUser(null)
+    console.log("[LOGOUT] Removing user from localStorage...")
     localStorage.removeItem("crochet_user")
+    console.log("[LOGOUT] ✅ User data cleared")
     toast({
       title: "Logged out",
       description: "You have been successfully logged out.",
     })
+    console.log("[LOGOUT] ========== LOGOUT COMPLETE ==========\\n")
     router.push("/")
   }
 

@@ -1,5 +1,54 @@
 // Enhanced local storage database with better API support
 
+import { readUsersFromFile, writeUsersToFile, readProductsFromFile, writeProductsToFile, readOrdersFromFile, writeOrdersToFile, readPatternTestingApplicationsFromFile, writePatternTestingApplicationsToFile } from "./file-db"
+
+// In-memory cache (loaded from files on startup)
+let inMemoryDB: {
+  users: User[]
+  products: Product[]
+  orders: Order[]
+  sellerApplications: SellerApplication[]
+  patternTestingApplications: PatternTestingApplication[]
+  paymentMethods: PaymentMethod[]
+} = {
+  users: [],
+  products: [],
+  orders: [],
+  sellerApplications: [],
+  patternTestingApplications: [],
+  paymentMethods: [],
+}
+
+// Initialize database from files
+export function initializeDatabase() {
+  console.log("[DB] ========== INITIALIZING DATABASE ==========")
+  console.log("[DB] Reading users from file...")
+  const users = readUsersFromFile()
+  console.log(`[DB] Read ${users.length} users from file`)
+  
+  console.log("[DB] Reading products from file...")
+  const products = readProductsFromFile()
+  console.log(`[DB] Read ${products.length} products from file`)
+  
+  console.log("[DB] Reading orders from file...")
+  const orders = readOrdersFromFile()
+  console.log(`[DB] Read ${orders.length} orders from file`)
+  
+  console.log("[DB] Reading pattern testing applications from file...")
+  const patternTestingApplications = readPatternTestingApplicationsFromFile()
+  console.log(`[DB] Read ${patternTestingApplications.length} pattern testing applications from file`)
+  
+  // Force update the in-memory cache
+  inMemoryDB.users = users
+  inMemoryDB.products = products
+  inMemoryDB.orders = orders
+  inMemoryDB.patternTestingApplications = patternTestingApplications
+  
+  console.log(`[DB] ✅ Database initialized: ${users.length} users, ${products.length} products, ${orders.length} orders, ${patternTestingApplications.length} pattern testing apps`)
+
+  console.log("[DB] ========== DATABASE READY ==========")
+}
+
 // Types
 export type User = {
   id: string
@@ -12,6 +61,11 @@ export type User = {
   loyaltyPoints: number
   loyaltyTier: "bronze" | "silver" | "gold" | "platinum"
   sellerProfile?: SellerProfile
+  // Pattern Testing fields
+  patternTestingApproved?: boolean
+  testerLevel?: number
+  testerXP?: number
+  patternTestingApplicationId?: string
 }
 
 export type SellerProfile = {
@@ -119,6 +173,21 @@ export type SellerApplication = {
   updatedAt: string
 }
 
+export type PatternTestingApplication = {
+  id: string
+  userId: string
+  userName: string
+  userEmail: string
+  whyTesting: string
+  experienceLevel: "beginner" | "intermediate" | "advanced"
+  availability: string // e.g., "10-15 hours per week"
+  comments?: string
+  status: "pending" | "approved" | "disapproved"
+  createdAt: string
+  reviewedAt?: string
+  reviewedBy?: string
+}
+
 export type PaymentMethod = {
   id: string
   userId: string
@@ -144,34 +213,93 @@ export type ShippingMethod = {
   isActive: boolean
 }
 
-// Helper functions for localStorage
-function getItem(key: string, defaultValue: any): any {
-  if (typeof window === "undefined") return defaultValue
-
-  const item = localStorage.getItem(key)
-  if (!item) return defaultValue
-
-  try {
-    return JSON.parse(item)
-  } catch (error) {
-    console.error(`Error parsing ${key} from localStorage:`, error)
-    return defaultValue
+// Helper functions for storage (works on server and client)
+export function getItem(key: string, defaultValue: any): any {
+  console.log(`[DB] getItem("${key}") called`)
+  
+  // Try browser localStorage first (client-side)
+  if (typeof window !== "undefined") {
+    try {
+      const item = localStorage.getItem(key)
+      console.log(`[DB] Browser localStorage for "${key}": ${item ? "found" : "not found"}`)
+      if (item) return JSON.parse(item)
+    } catch (error) {
+      console.error(`Error reading ${key} from localStorage:`, error)
+    }
+  } else {
+    console.log(`[DB] Running on server-side (no browser localStorage)`)
   }
+
+  // Fall back to in-memory cache (server-side or when localStorage unavailable)
+  console.log(`[DB] Falling back to in-memory cache for "${key}"`)
+  if (key === "crochet_users") {
+    console.log(`[DB] Returning inMemoryDB.users (${inMemoryDB.users.length} users)`)
+    return inMemoryDB.users
+  }
+  if (key === "crochet_products") {
+    console.log(`[DB] Returning inMemoryDB.products (${inMemoryDB.products.length} products)`)
+    return inMemoryDB.products
+  }
+  if (key === "crochet_orders") {
+    console.log(`[DB] Returning inMemoryDB.orders (${inMemoryDB.orders.length} orders)`)
+    return inMemoryDB.orders
+  }
+  if (key === "crochet_seller_applications") return inMemoryDB.sellerApplications
+  if (key === "crochet_pattern_testing_applications") {
+    console.log(`[DB] Returning inMemoryDB.patternTestingApplications (${inMemoryDB.patternTestingApplications.length} applications)`)
+    return inMemoryDB.patternTestingApplications
+  }
+  if (key === "crochet_payment_methods") return inMemoryDB.paymentMethods
+
+  return defaultValue
 }
 
-function setItem(key: string, value: any): void {
-  if (typeof window === "undefined") return
-
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch (error) {
-    console.error(`Error setting ${key} in localStorage:`, error)
+export function setItem(key: string, value: any): void {
+  console.log(`\n[DB] setItem("${key}") called with ${Array.isArray(value) ? value.length : "unknown"} items`)
+  
+  // Try browser localStorage (client-side)
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(key, JSON.stringify(value))
+      console.log(`[DB] ✅ Saved to browser localStorage`)
+    } catch (error) {
+      console.error(`Error setting ${key} in localStorage:`, error)
+    }
   }
+
+  // Always update in-memory cache
+  if (key === "crochet_users") {
+    console.log(`[DB] Updating crochet_users - Setting ${value.length} users to in-memory cache and file`)
+    inMemoryDB.users = value
+    console.log(`[DB] ✅ In-memory cache updated`)
+    console.log(`[DB] Now calling writeUsersToFile()...`)
+    writeUsersToFile(value) // Persist to file
+    console.log(`[DB] ✅ setItem("crochet_users") complete\n`)
+  }
+  if (key === "crochet_products") {
+    console.log(`[DB] Setting ${value.length} products to in-memory cache and file`)
+    inMemoryDB.products = value
+    writeProductsToFile(value) // Persist to file
+  }
+  if (key === "crochet_orders") {
+    console.log(`[DB] Setting ${value.length} orders to in-memory cache and file`)
+    inMemoryDB.orders = value
+    writeOrdersToFile(value) // Persist to file
+  }
+  if (key === "crochet_seller_applications") inMemoryDB.sellerApplications = value
+  if (key === "crochet_pattern_testing_applications") {
+    console.log(`[DB] Setting ${value.length} pattern testing applications to in-memory cache and file`)
+    inMemoryDB.patternTestingApplications = value
+    writePatternTestingApplicationsToFile(value) // Persist to file
+  }
+  if (key === "crochet_payment_methods") inMemoryDB.paymentMethods = value
 }
 
 // Database functions
 export const getUsers = (): User[] => {
-  return getItem("crochet_users", []) as User[]
+  const users = getItem("crochet_users", []) as User[]
+  console.log(`[DB] getUsers() called - returning ${users.length} users from getItem()`)
+  return users
 }
 
 export const getUserById = (id: string): User | undefined => {
@@ -180,15 +308,32 @@ export const getUserById = (id: string): User | undefined => {
 }
 
 export const getUserByEmail = (email: string): User | undefined => {
+  console.log(`[DB] getUserByEmail called for: ${email}`)
   const users = getUsers()
-  return users.find((user) => user.email.toLowerCase() === email.toLowerCase())
+  console.log(`[DB] getUsers() returned ${users.length} users`)
+  if (users.length > 0) {
+    users.forEach((u, idx) => {
+      console.log(`[DB]   User ${idx}: email="${u.email}", matches="${u.email.toLowerCase() === email.toLowerCase()}"`)
+    })
+  }
+  const foundUser = users.find((user) => user.email.toLowerCase() === email.toLowerCase())
+  if (foundUser) {
+    console.log(`[DB] ✅ Found user: ${foundUser.email} (ID: ${foundUser.id})`)
+  } else {
+    console.log(`[DB] ❌ User not found with email: ${email}`)
+  }
+  return foundUser
 }
 
 export const createUser = (user: Omit<User, "id" | "createdAt" | "loyaltyPoints" | "loyaltyTier">): User => {
+  console.log(`\\n[DB] ========== CREATE USER CALLED ==========`)
+  console.log(`[DB] Creating user for: ${user.email}`)
   const users = getUsers()
+  console.log(`[DB] Current users in memory: ${users.length}`)
 
   // Check if email already exists
   if (users.some((u) => u.email.toLowerCase() === user.email.toLowerCase())) {
+    console.log(`[DB] ❌ Email already exists: ${user.email}`)
     throw new Error("Email already exists")
   }
 
@@ -200,8 +345,12 @@ export const createUser = (user: Omit<User, "id" | "createdAt" | "loyaltyPoints"
     loyaltyTier: "bronze",
   }
 
+  console.log(`[DB] ✅ New user object created - ID: ${newUser.id}, Email: ${newUser.email}`)
   users.push(newUser)
+  console.log(`[DB] User added to array - Total users now: ${users.length}`)
+  console.log(`[DB] Calling setItem() to persist users to file...`)
   setItem("crochet_users", users)
+  console.log(`[DB] ========== CREATE USER COMPLETE ==========\\n`)
 
   return newUser
 }
@@ -533,98 +682,3 @@ export const updateSellerApplication = (id: string, updates: Partial<SellerAppli
   return updatedApp
 }
 
-// Initialize the database with some data if it doesn't exist
-export const initializeDatabase = (): void => {
-  // Only initialize if the database is empty
-  if (getUsers().length === 0) {
-    // Create admin user
-    try {
-      createUser({
-        name: "Admin User",
-        email: "admin@example.com",
-        password: "password123",
-        role: "admin",
-      })
-    } catch (error) {
-      console.error("Error creating admin user:", error)
-    }
-
-    // Create seller user
-    try {
-      const seller = createUser({
-        name: "Seller Account",
-        email: "seller@example.com",
-        password: "password123",
-        role: "seller",
-        sellerProfile: {
-          approved: true,
-          bio: "I create handmade crochet items with love and care.",
-          storeDescription: "Welcome to my crochet store! I specialize in amigurumi and baby items.",
-          socialMedia: {
-            instagram: "https://instagram.com/crochetcreator",
-            pinterest: "https://pinterest.com/crochetcreator",
-          },
-          salesCount: 157,
-          rating: 4.8,
-          joinedDate: new Date().toISOString(),
-        },
-      })
-
-      // Create some products for the seller
-      createProduct({
-        name: "Cute Bunny Amigurumi",
-        description: "Adorable handmade bunny amigurumi, perfect for children or as a decorative item.",
-        price: 24.99,
-        images: [
-          "/placeholder.svg?height=400&width=400",
-          "/placeholder.svg?height=400&width=400",
-          "/placeholder.svg?height=400&width=400",
-        ],
-        category: "amigurumi",
-        sellerId: seller.id,
-        stock: 10,
-        colors: ["white", "pink", "blue"],
-        difficulty: "beginner",
-        tags: ["bunny", "rabbit", "amigurumi", "toy", "gift"],
-        featured: true,
-      })
-
-      createProduct({
-        name: "Cozy Baby Blanket",
-        description: "Soft and warm baby blanket made with premium yarn. Perfect for newborns.",
-        price: 39.99,
-        images: [
-          "/placeholder.svg?height=400&width=400",
-          "/placeholder.svg?height=400&width=400",
-          "/placeholder.svg?height=400&width=400",
-        ],
-        category: "baby",
-        sellerId: seller.id,
-        stock: 5,
-        colors: ["yellow", "green", "blue"],
-        difficulty: "intermediate",
-        tags: ["blanket", "baby", "soft", "warm", "gift"],
-        featured: true,
-      })
-    } catch (error) {
-      console.error("Error creating seller and products:", error)
-    }
-
-    // Create customer user
-    try {
-      createUser({
-        name: "Customer Account",
-        email: "customer@example.com",
-        password: "password123",
-        role: "user",
-      })
-    } catch (error) {
-      console.error("Error creating customer user:", error)
-    }
-  }
-}
-
-// Call initialize on import
-if (typeof window !== "undefined") {
-  initializeDatabase()
-}

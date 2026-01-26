@@ -1,0 +1,1424 @@
+{
+  "info": {
+    "_postman_id": "crochet-ecommerce-api",
+    "name": "Crochet Cuteness Ecommerce API",
+    "description": "Full-stack API testing collection for Crochet Cuteness Ecommerce platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "d6a9df35-b95f-4c5e-bdee-12364813adcd",
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has user object', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('user');",
+                  "  pm.expect(responseBodyJson).to.have.property('message').that.equals('Registration successful');",
+                  "});",
+                  "",
+                  "pm.test('User has required fields', function () {",
+                  "  const user = responseBodyJson.user;",
+                  "  pm.expect(user).to.have.property('id');",
+                  "  pm.expect(user).to.have.property('email');",
+                  "  pm.expect(user).to.have.property('name');",
+                  "  pm.expect(user).to.have.property('role');",
+                  "});",
+                  "",
+                  "pm.test('Password is NOT returned', function () {",
+                  "  const user = responseBodyJson.user;",
+                  "  pm.expect(user).to.not.have.property('password');",
+                  "});",
+                  "",
+                  "// Save user ID for later requests",
+                  "if (responseBodyJson.user && responseBodyJson.user.id) {",
+                  "  pm.environment.set('userId', responseBodyJson.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "8dc92333-db98-498c-bc9e-50bfcb2fe238",
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "id": "3ad6369e-abcf-4105-abe9-74291a72779e",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"testuser@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"user\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/auth/register",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "32b115dc-69f4-464d-9caf-cd5ac43da657",
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has user and message', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('user');",
+                  "  pm.expect(responseBodyJson).to.have.property('message').that.equals('Login successful');",
+                  "});",
+                  "",
+                  "pm.test('Response does NOT have token (no JWT in this API)', function () {",
+                  "  pm.expect(responseBodyJson).to.not.have.property('token');",
+                  "});",
+                  "",
+                  "pm.test('User data has correct fields', function () {",
+                  "  const user = responseBodyJson.user;",
+                  "  pm.expect(user).to.have.property('id');",
+                  "  pm.expect(user).to.have.property('email');",
+                  "  pm.expect(user).to.have.property('name');",
+                  "  pm.expect(user).to.have.property('role');",
+                  "  pm.expect(user).to.not.have.property('password');",
+                  "});",
+                  "",
+                  "// Save user ID for later requests",
+                  "if (responseBodyJson.user && responseBodyJson.user.id) {",
+                  "  pm.environment.set('userId', responseBodyJson.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "5be3ee79-8f95-4e33-9600-e18e2bd70b42",
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "id": "6f36a45d-e05b-4878-b47e-4df0358506a3",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/auth/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "9771f966-f91d-4d6d-8532-698f73a80532"
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get All Products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has products array', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('products');",
+                  "  pm.expect(responseBodyJson.products).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Products have required fields', function () {",
+                  "  if (responseBodyJson.products.length > 0) {",
+                  "    const product = responseBodyJson.products[0];",
+                  "    pm.expect(product).to.have.property('id');",
+                  "    pm.expect(product).to.have.property('name');",
+                  "    pm.expect(product).to.have.property('price');",
+                  "  }",
+                  "});",
+                  "",
+                  "// Save first product ID for later use",
+                  "if (responseBodyJson.products.length > 0) {",
+                  "  pm.environment.set('productId', responseBodyJson.products[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "91711d59-cada-4861-b330-2b9627d05a74",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/products",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Products by Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has products array', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('products');",
+                  "  pm.expect(responseBodyJson.products).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('All products match the requested category', function () {",
+                  "  const category = 'amigurumi';",
+                  "  responseBodyJson.products.forEach(product => {",
+                  "    pm.expect(product.category).to.equal(category);",
+                  "  });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "f4ecc196-96da-4285-951f-9cb668e4cc93",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/products?category=amigurumi",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "amigurumi"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has product object', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('product');",
+                  "});",
+                  "",
+                  "pm.test('Product has required fields', function () {",
+                  "  const product = responseBodyJson.product;",
+                  "  pm.expect(product).to.have.property('id');",
+                  "  pm.expect(product).to.have.property('name');",
+                  "  pm.expect(product).to.have.property('price');",
+                  "  pm.expect(product).to.have.property('description');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "a39f1a51-3999-4ca9-a7f4-67881e047d0f",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/products/{{productId}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "products",
+                "{{productId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product (Seller)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has product object', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('product');",
+                  "});",
+                  "",
+                  "pm.test('Product has all required fields', function () {",
+                  "  const product = responseBodyJson.product;",
+                  "  pm.expect(product).to.have.property('id');",
+                  "  pm.expect(product).to.have.property('name').that.equals('New Crochet Pattern');",
+                  "  pm.expect(product).to.have.property('price').that.equals(29.99);",
+                  "  pm.expect(product).to.have.property('sellerId').that.equals(pm.environment.get('userId'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "281a5e4f-7d7e-4285-a073-a4a6f9f3725c",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Crochet Pattern\",\n  \"price\": 29.99,\n  \"description\": \"A beautiful crochet pattern for beginners\",\n  \"category\": \"patterns\",\n  \"sellerId\": \"{{userId}}\",\n  \"featured\": false,\n  \"images\": [\n    \"https://example.com/image1.jpg\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/products",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "07a3bf32-e3c5-4089-a255-bf7ec05f7315"
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Create Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response indicates success', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('success').that.equals(true);",
+                  "});",
+                  "",
+                  "pm.test('Response has order object', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('order');",
+                  "});",
+                  "",
+                  "pm.test('Order has required fields', function () {",
+                  "  const order = responseBodyJson.order;",
+                  "  pm.expect(order).to.have.property('id');",
+                  "  pm.expect(order).to.have.property('userId');",
+                  "  pm.expect(order).to.have.property('items').that.is.an('array');",
+                  "  pm.expect(order).to.have.property('status').that.equals('pending');",
+                  "  pm.expect(order).to.have.property('paymentStatus').that.equals('paid');",
+                  "});",
+                  "",
+                  "// Save order ID for tracking",
+                  "if (responseBodyJson.order && responseBodyJson.order.id) {",
+                  "  pm.environment.set('orderId', responseBodyJson.order.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "bce612b5-70f0-4d94-bdcd-97b03ae6dd91",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 2,\n      \"price\": 29.99\n    }\n  ],\n  \"shippingAddress\": {\n    \"street\": \"123 Main St\",\n    \"city\": \"Springfield\",\n    \"state\": \"IL\",\n    \"zipCode\": \"62701\",\n    \"country\": \"USA\"\n  },\n  \"billingAddress\": {\n    \"street\": \"123 Main St\",\n    \"city\": \"Springfield\",\n    \"state\": \"IL\",\n    \"zipCode\": \"62701\",\n    \"country\": \"USA\"\n  },\n  \"shippingMethod\": \"standard\",\n  \"totalAmount\": 59.98\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/orders",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "orders"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Orders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has orders array', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('orders');",
+                  "  pm.expect(responseBodyJson.orders).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Orders have required fields', function () {",
+                  "  if (responseBodyJson.orders.length > 0) {",
+                  "    const order = responseBodyJson.orders[0];",
+                  "    pm.expect(order).to.have.property('id');",
+                  "    pm.expect(order).to.have.property('status');",
+                  "    pm.expect(order).to.have.property('totalAmount');",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "564097d7-7d83-4de0-8d7d-8257307bc0e0",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3000/api/orders?userId={{userId}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has order object', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('order');",
+                  "});",
+                  "",
+                  "pm.test('Order has all required fields', function () {",
+                  "  const order = responseBodyJson.order;",
+                  "  pm.expect(order).to.have.property('id');",
+                  "  pm.expect(order).to.have.property('userId');",
+                  "  pm.expect(order).to.have.property('items');",
+                  "  pm.expect(order).to.have.property('status');",
+                  "  pm.expect(order).to.have.property('totalAmount');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "2f432af0-eed0-4957-a058-050760bf27bc",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/orders/{{orderId}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "b2a620e3-f9c0-4968-9ffe-e3d49e0e5b28"
+    },
+    {
+      "name": "Contact",
+      "item": [
+        {
+          "name": "Send Contact Message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has success message', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('message');",
+                  "  pm.expect(responseBodyJson.message).to.include('sent successfully');",
+                  "});",
+                  "",
+                  "pm.test('Response has message ID', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "688c5c1d-3082-4718-893a-f6efac6a278c",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"message\": \"I have a question about your crochet patterns and would love to know more about the advanced techniques you use.\",\n  \"subject\": \"Question about Crochet Patterns\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/contact",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "contact"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "fd780a19-f0e1-4abc-89d0-9528cb97ce06"
+    },
+    {
+      "name": "Payment",
+      "item": [
+        {
+          "name": "Process Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has payment object', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('payment');",
+                  "});",
+                  "",
+                  "pm.test('Payment has required fields', function () {",
+                  "  const payment = responseBodyJson.payment;",
+                  "  pm.expect(payment).to.have.property('id');",
+                  "  pm.expect(payment).to.have.property('transactionId');",
+                  "  pm.expect(payment).to.have.property('status').that.equals('completed');",
+                  "  pm.expect(payment).to.have.property('amount').that.equals(59.98);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "06831b23-0810-4399-b57a-4a41598350eb",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"amount\": 59.98,\n  \"paymentMethod\": \"credit_card\",\n  \"cardDetails\": {\n    \"number\": \"4111111111111111\",\n    \"expiry\": \"12/26\",\n    \"cvc\": \"123\"\n  }\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/payment/process",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "payment",
+                "process"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment Methods",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has paymentMethods array', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('paymentMethods');",
+                  "  pm.expect(responseBodyJson.paymentMethods).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Payment methods have required fields', function () {",
+                  "  if (responseBodyJson.paymentMethods.length > 0) {",
+                  "    const method = responseBodyJson.paymentMethods[0];",
+                  "    pm.expect(method).to.have.property('id');",
+                  "    pm.expect(method).to.have.property('type');",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "80ec96b1-f325-4bf1-9df2-8ddbfab07c4a",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/payment/methods?userId={{userId}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "payment",
+                "methods"
+              ],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "fe55669f-2a9e-4358-a3c3-584b43a07d7a"
+    },
+    {
+      "name": "Shipping",
+      "item": [
+        {
+          "name": "Calculate Shipping",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has shipping cost', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('shippingCost');",
+                  "  pm.expect(responseBodyJson.shippingCost).to.be.a('number');",
+                  "});",
+                  "",
+                  "pm.test('Response has estimated delivery date', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('estimatedDelivery');",
+                  "  pm.expect(responseBodyJson).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "49e40e99-a1c7-4d6d-90c6-def83500d3c9",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"id\": \"{{productId}}\",\n      \"quantity\": 2,\n      \"weight\": 0.5\n    }\n  ],\n  \"shippingMethod\": \"standard\",\n  \"address\": {\n    \"country\": \"US\",\n    \"postalCode\": \"62701\"\n  }\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/shipping/calculate",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "shipping",
+                "calculate"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Track Shipment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has order tracking information', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('id');",
+                  "  pm.expect(responseBodyJson).to.have.property('status');",
+                  "  pm.expect(responseBodyJson).to.have.property('estimatedDelivery');",
+                  "});",
+                  "",
+                  "pm.test('Has optional tracking details if shipped', function () {",
+                  "  if (responseBodyJson.status === 'shipped' || responseBodyJson.status === 'delivered') {",
+                  "    pm.expect(responseBodyJson).to.have.property('trackingNumber');",
+                  "    pm.expect(responseBodyJson).to.have.property('carrier');",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "2b66dd0d-8881-4e7e-8318-4e68b24a7b6e",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/orders/{{orderId}}/tracking",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}",
+                "tracking"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "80dbd420-8827-4f03-b0e2-01e530c3cebe"
+    },
+    {
+      "name": "Seller Management",
+      "item": [
+        {
+          "name": "Register as Seller",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has application object', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('application');",
+                  "});",
+                  "",
+                  "pm.test('Application has required fields', function () {",
+                  "  const app = responseBodyJson.application;",
+                  "  pm.expect(app).to.have.property('id');",
+                  "  pm.expect(app).to.have.property('userId');",
+                  "  pm.expect(app).to.have.property('name');",
+                  "  pm.expect(app).to.have.property('email');",
+                  "  pm.expect(app).to.have.property('bio');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "c6d4e96e-0e84-402e-a9f7-aa3a9dce1cab",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"name\": \"Cozy Crochet Creations\",\n  \"email\": \"seller@example.com\",\n  \"bio\": \"Handmade crochet items with love and care\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/seller/apply",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "seller",
+                "apply"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Seller Dashboard Stats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has dashboard stats', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('totalSales');",
+                  "  pm.expect(responseBodyJson).to.have.property('totalOrders');",
+                  "  pm.expect(responseBodyJson).to.have.property('totalProducts');",
+                  "  pm.expect(responseBodyJson).to.have.property('revenue');",
+                  "});",
+                  "",
+                  "pm.test('Stats are numbers', function () {",
+                  "  pm.expect(responseBodyJson.totalSales).to.be.a('number');",
+                  "  pm.expect(responseBodyJson.totalOrders).to.be.a('number');",
+                  "  pm.expect(responseBodyJson.revenue).to.be.a('number');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "79c5e16c-3fbc-448d-a2ff-3c56414ce925",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3000/api/seller/dashboard",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "seller",
+                "dashboard"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Seller Orders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseBodyJson = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is array of orders', function () {",
+                  "  pm.expect(responseBodyJson).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Orders have required fields', function () {",
+                  "  if (responseBodyJson.length > 0) {",
+                  "    const order = responseBodyJson[0];",
+                  "    pm.expect(order).to.have.property('id');",
+                  "    pm.expect(order).to.have.property('status');",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "e05b2baf-df7c-4642-9f50-057c5ace6678",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/orders?sellerId={{userId}}",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "sellerId",
+                  "value": "{{userId}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "9189272c-e190-45f9-99fe-0dbcb81a6085"
+    },
+    {
+      "name": "Error Handling Tests",
+      "item": [
+        {
+          "name": "Register - Missing Required Fields",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const responseBodyJson = pm.response.json();",
+                  "pm.test('Response has error message', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('error');",
+                  "  pm.expect(responseBodyJson.error).to.include('required');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "55e8afe7-5111-4301-9532-013a0ac15ba7",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/auth/register",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login - Invalid Email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "const responseBodyJson = pm.response.json();",
+                  "pm.test('Response has error message', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('error');",
+                  "  pm.expect(responseBodyJson.error).to.include('not found');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "eda0c392-101e-4626-a20b-77a51f56d9d4",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nonexistent@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/auth/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product - Missing Required Fields",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const responseBodyJson = pm.response.json();",
+                  "pm.test('Response has error message', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "4adfaf19-b92b-4d62-af91-e714d658bb48",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Product without price or seller\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/products",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order - Missing Required Fields",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const responseBodyJson = pm.response.json();",
+                  "pm.test('Response has error message', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "de9d9859-707d-4d57-adeb-53172ec97e86",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/orders",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "orders"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Process Payment - Missing Card Details",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const responseBodyJson = pm.response.json();",
+                  "pm.test('Response has error message about card details', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('error');",
+                  "  pm.expect(responseBodyJson.error).to.include('Card details');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "7f479da5-89e4-40ab-9c36-7eb75ffb68a3",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"amount\": 100,\n  \"paymentMethod\": \"credit_card\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/payment/process",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "payment",
+                "process"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate Shipping - Missing Required Fields",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const responseBodyJson = pm.response.json();",
+                  "pm.test('Response has error message', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "97d4a1f1-501b-422f-928a-796107662749",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [],\n  \"shippingMethod\": \"standard\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/shipping/calculate",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "shipping",
+                "calculate"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Non-Existent Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "const responseBodyJson = pm.response.json();",
+                  "pm.test('Response has error message', function () {",
+                  "  pm.expect(responseBodyJson).to.have.property('error');",
+                  "  pm.expect(responseBodyJson.error).to.include('not found');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "a5cb27ce-7ea3-4da9-856d-5371e6096123",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/products/nonexistent-id",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "products",
+                "nonexistent-id"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "16b414d0-2bd1-45aa-9000-79a2ed9dcea7"
+    }
+  ],
+  "variable": [
+    {
+      "id": "02cf8cc4-dbaa-4d16-8c78-893427d91c13",
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "id": "65a7c378-fd24-4896-90bf-3c7f05505ad8",
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "id": "275f6ece-e624-41fc-95f1-1cfa94e7eabe",
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "id": "09ec341e-c40d-4ce0-bbf5-7f397cde1611",
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

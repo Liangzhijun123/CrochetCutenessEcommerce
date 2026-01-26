@@ -4,7 +4,6 @@ import type React from "react"
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,7 +17,6 @@ export default function LoginPage() {
   const [role, setRole] = useState("customer")
   const [isLoading, setIsLoading] = useState(false)
   const { login } = useAuth()
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,18 +25,8 @@ export default function LoginPage() {
     try {
       // Map customer role to user for the backend
       const backendRole = role === "customer" ? "user" : role
-      const success = await login(email, password, backendRole)
-
-      if (success) {
-        // Redirect based on role
-        if (role === "seller") {
-          router.push("/seller-dashboard")
-        } else if (role === "admin") {
-          router.push("/admin-dashboard")
-        } else {
-          router.push("/profile")
-        }
-      }
+      await login(email, password, backendRole)
+      // Auth context handles the redirect based on role
     } catch (error) {
       console.error("Login error:", error)
     } finally {

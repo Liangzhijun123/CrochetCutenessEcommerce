@@ -1,0 +1,15 @@
+{
+  "workspace": {
+    "id": "bc8a62b9-ce54-4db9-8481-f6e29e214ec5"
+  },
+  "entities": {
+    "environments": [],
+    "flows": [],
+    "globals": [],
+    "mocks": [],
+    "specs": [],
+    "collections": [
+      "../Crochet-Ecommerce-API.postman_collection.json"
+    ]
+  }
+}
