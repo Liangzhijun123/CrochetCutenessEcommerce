@@ -16,6 +16,7 @@ interface ProductInfoProps {
     name: string
     price: number
     description: string
+    sellerId?: string
     colors?: string[]
     rating?: number
     reviewCount?: number
@@ -37,7 +38,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const { addToWishlist, isInWishlist, removeFromWishlist } = useWishlist()
 
   // Safely extract values with defaults
-  const { id = "", name = "", price = 0, description = "", colors = [], rating = 0, images = [] } = product || {}
+  const { id = "", name = "", price = 0, description = "", colors = [], rating = 0, images = [], sellerId } = product || {}
 
   const handleAddToCart = () => {
     addItem({
@@ -45,7 +46,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       name,
       price,
       image: images[0] || "/placeholder.svg",
-      sellerId: "seller-1", // Default seller ID
+      sellerId: sellerId || "unknown",
       color: selectedColor,
       patternOption,
       productType,

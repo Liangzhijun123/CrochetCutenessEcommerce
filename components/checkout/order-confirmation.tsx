@@ -57,7 +57,14 @@ export default function OrderConfirmation({ orderId, shippingInfo, shippingMetho
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium">Order Date</p>
-                <p className="text-sm">{new Date().toLocaleDateString()}</p>
+                <OrderDateToday />
+              function OrderDateToday() {
+                const [date, setDate] = useState("")
+                useEffect(() => {
+                  setDate(new Date().toLocaleDateString())
+                }, [])
+                return <p className="text-sm">{date || "..."}</p>
+              }
               </div>
             </div>
           </div>

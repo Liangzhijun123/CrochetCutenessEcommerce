@@ -67,9 +67,16 @@ export default function OrderTrackingTimeline({ order }: OrderTrackingTimelinePr
           <XCircle className="h-5 w-5 text-red-500 mr-2" />
           <div>
             <h3 className="font-medium text-red-800">Order Cancelled</h3>
-            <p className="text-sm text-red-700">
-              This order was cancelled on {new Date(order.cancelledAt || "").toLocaleDateString()}
-            </p>
+            <OrderCancelledDate cancelledAt={order.cancelledAt} />
+          // Avoid hydration mismatch for cancelled date
+          import { useEffect, useState } from "react"
+          function OrderCancelledDate({ cancelledAt }: { cancelledAt?: string }) {
+            const [date, setDate] = useState("")
+            useEffect(() => {
+              if (cancelledAt) setDate(new Date(cancelledAt).toLocaleDateString())
+            }, [cancelledAt])
+            return <p className="text-sm text-red-700">This order was cancelled on {date || "..."}</p>
+          }
           </div>
         </div>
       </div>
@@ -128,12 +135,19 @@ export default function OrderTrackingTimeline({ order }: OrderTrackingTimelinePr
                   </div>
                   <div className="whitespace-nowrap text-right text-sm text-gray-500">
                     {step.date ? (
-                      <time dateTime={step.date}>{new Date(step.date).toLocaleDateString()}</time>
+                      <TimelineDate date={step.date} />
                     ) : step.id === "delivered" && order.estimatedDelivery ? (
                       <span className="text-gray-400">
-                        Est. {new Date(order.estimatedDelivery).toLocaleDateString()}
+                        Est. <TimelineDate date={order.estimatedDelivery} />
                       </span>
                     ) : null}
+                  function TimelineDate({ date }: { date: string }) {
+                    const [dateStr, setDateStr] = useState("")
+                    useEffect(() => {
+                      setDateStr(new Date(date).toLocaleDateString())
+                    }, [date])
+                    return <time dateTime={date}>{dateStr || "..."}</time>
+                  }
                   </div>
                 </div>
               </div>

@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { RefreshCw, CheckCircle, XCircle, Clock, Home } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import AdminPatternTestingApplications from "@/components/admin-pattern-testing-applications"
+import type { PatternTestingApplication } from "@/lib/local-storage-db"
 
 // Types
 type SellerApplication = {
@@ -196,16 +196,27 @@ export default function AdminDashboardPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [applications, setApplications] = useState<SellerApplication[]>([])
+  const [ptApplications, setPTApplications] = useState<PatternTestingApplication[]>([])
+  // Fetch pattern testing applications from backend API
+  const fetchPTApplications = async () => {
+    try {
+      const res = await fetch("/api/admin/pattern-testing/list")
+      if (!res.ok) throw new Error("Failed to fetch pattern testing applications")
+      const data = await res.json()
+      console.log("[ADMIN-DASHBOARD] Loaded pattern testing applications:", data.applications)
+      setPTApplications(data.applications || [])
+    } catch (e) {
+      setPTApplications([])
+    }
+  }
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Initialize database and load seller applications
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Initialize the database
       initializeDatabase()
-
-      // Load applications
       loadApplications()
+      fetchPTApplications()
     }
   }, [])
 
@@ -327,7 +338,59 @@ export default function AdminDashboardPage() {
     )
   }
 
-  const pendingApplications = applications.filter((app) => app.status === "pending")
+  // Merge seller and pattern testing pending applications
+  const pendingSellerApps = applications.filter((app) => app.status === "pending")
+  const pendingPTApps = ptApplications.filter((app) => app.status === "pending")
+  const pendingApplications = [
+    ...pendingSellerApps.map((app) => ({
+      type: "seller" as const,
+      id: app.id,
+      name: app.name,
+      email: app.email,
+      bio: app.bio,
+      experience: app.experience,
+      socialMedia: app.socialMedia,
+      submittedAt: app.submittedAt,
+      userId: app.userId,
+    })),
+    ...pendingPTApps.map((app) => ({
+      type: "pattern-testing" as const,
+      id: app.id,
+      name: app.userName,
+      email: app.userEmail,
+      whyTesting: app.whyTesting,
+      experienceLevel: app.experienceLevel,
+      availability: app.availability,
+      createdAt: app.createdAt,
+      userId: app.userId,
+    })),
+  ]
+    // Approve/reject for pattern testing
+    // Approve/reject for pattern testing (call backend API, then reload)
+    const handleApprovePatternTesting = async (id: string) => {
+      await fetch("/api/admin/pattern-testing/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: id, adminId: user?.id }),
+      })
+      await fetchPTApplications()
+      toast({
+        title: "Pattern Testing Application Approved",
+        description: `Application has been approved.`,
+      })
+    }
+    const handleRejectPatternTesting = async (id: string) => {
+      await fetch("/api/admin/pattern-testing/disapprove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: id, adminId: user?.id, reason: "Not a fit" }),
+      })
+      await fetchPTApplications()
+      toast({
+        title: "Pattern Testing Application Rejected",
+        description: `Application has been rejected.`,
+      })
+    }
   const approvedApplications = applications.filter((app) => app.status === "approved")
   const rejectedApplications = applications.filter((app) => app.status === "rejected")
 
@@ -390,6 +453,12 @@ export default function AdminDashboardPage() {
                       <div>
                         <CardTitle>{application.name}</CardTitle>
                         <CardDescription>{application.email}</CardDescription>
+                        {application.type === "pattern-testing" && (
+                          <span className="text-xs text-blue-600">Pattern Testing Application</span>
+                        )}
+                        {application.type === "seller" && (
+                          <span className="text-xs text-green-600">Seller Application</span>
+                        )}
                       </div>
                       <Badge variant="outline" className="flex items-center">
                         <Clock className="h-3 w-3 mr-1" />
@@ -399,41 +468,82 @@ export default function AdminDashboardPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div>
-                        <h3 className="font-medium mb-1">Bio</h3>
-                        <p className="text-sm text-muted-foreground">{application.bio}</p>
-                      </div>
-                      <div>
-                        <h3 className="font-medium mb-1">Experience</h3>
-                        <p className="text-sm text-muted-foreground">{application.experience}</p>
-                      </div>
-                      {application.socialMedia && (
-                        <div>
-                          <h3 className="font-medium mb-1">Social Media</h3>
-                          <div className="text-sm text-muted-foreground">
-                            {application.socialMedia.instagram && <p>Instagram: {application.socialMedia.instagram}</p>}
-                            {application.socialMedia.pinterest && <p>Pinterest: {application.socialMedia.pinterest}</p>}
-                            {application.socialMedia.youtube && <p>YouTube: {application.socialMedia.youtube}</p>}
+                      {application.type === "seller" && (
+                        <>
+                          <div>
+                            <h3 className="font-medium mb-1">Bio</h3>
+                            <p className="text-sm text-muted-foreground">{application.bio}</p>
                           </div>
-                        </div>
+                          <div>
+                            <h3 className="font-medium mb-1">Experience</h3>
+                            <p className="text-sm text-muted-foreground">{application.experience}</p>
+                          </div>
+                          {application.socialMedia && (
+                            <div>
+                              <h3 className="font-medium mb-1">Social Media</h3>
+                              <div className="text-sm text-muted-foreground">
+                                {application.socialMedia.instagram && <p>Instagram: {application.socialMedia.instagram}</p>}
+                                {application.socialMedia.pinterest && <p>Pinterest: {application.socialMedia.pinterest}</p>}
+                                {application.socialMedia.youtube && <p>YouTube: {application.socialMedia.youtube}</p>}
+                              </div>
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="font-medium mb-1">Submitted</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {application.submittedAt?.replace('T', ' ').slice(0, 19)}
+                            </p>
+                          </div>
+                        </>
                       )}
-                      <div>
-                        <h3 className="font-medium mb-1">Submitted</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(application.submittedAt).toLocaleString()}
-                        </p>
-                      </div>
+                      {application.type === "pattern-testing" && (
+                        <>
+                          <div>
+                            <h3 className="font-medium mb-1">Why Testing</h3>
+                            <p className="text-sm text-muted-foreground">{application.whyTesting}</p>
+                          </div>
+                          <div>
+                            <h3 className="font-medium mb-1">Experience Level</h3>
+                            <p className="text-sm text-muted-foreground">{application.experienceLevel}</p>
+                          </div>
+                          <div>
+                            <h3 className="font-medium mb-1">Availability</h3>
+                            <p className="text-sm text-muted-foreground">{application.availability}</p>
+                          </div>
+                          <div>
+                            <h3 className="font-medium mb-1">Submitted</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {application.createdAt?.replace('T', ' ').slice(0, 19)}
+                            </p>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </CardContent>
                   <CardFooter className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
-                    <Button variant="outline" onClick={() => handleReject(application.id)} className="w-full sm:w-auto">
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Reject
-                    </Button>
-                    <Button onClick={() => handleApprove(application.id)} className="w-full sm:w-auto">
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Approve
-                    </Button>
+                    {application.type === "seller" ? (
+                      <>
+                        <Button variant="outline" onClick={() => handleReject(application.id)} className="w-full sm:w-auto">
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
+                        <Button onClick={() => handleApprove(application.id)} className="w-full sm:w-auto">
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Approve
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button variant="outline" onClick={() => handleRejectPatternTesting(application.id)} className="w-full sm:w-auto">
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
+                        <Button onClick={() => handleApprovePatternTesting(application.id)} className="w-full sm:w-auto">
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Approve
+                        </Button>
+                      </>
+                    )}
                   </CardFooter>
                 </Card>
               ))}
@@ -477,7 +587,7 @@ export default function AdminDashboardPage() {
                       <div>
                         <h3 className="font-medium mb-1">Approved On</h3>
                         <p className="text-sm text-muted-foreground">
-                          {application.updatedAt ? new Date(application.updatedAt).toLocaleString() : "Unknown"}
+                          {application.updatedAt ? application.updatedAt.replace('T', ' ').slice(0, 19) : "Unknown"}
                         </p>
                       </div>
                     </div>
@@ -524,7 +634,7 @@ export default function AdminDashboardPage() {
                       <div>
                         <h3 className="font-medium mb-1">Rejected On</h3>
                         <p className="text-sm text-muted-foreground">
-                          {application.updatedAt ? new Date(application.updatedAt).toLocaleString() : "Unknown"}
+                          {application.updatedAt ? application.updatedAt.replace('T', ' ').slice(0, 19) : "Unknown"}
                         </p>
                       </div>
                     </div>
@@ -536,7 +646,8 @@ export default function AdminDashboardPage() {
         </TabsContent>
 
         <TabsContent value="pattern-testing">
-          <AdminPatternTestingApplications />
+          {/* Pattern testing tab content is now merged into the pending tab. */}
+          <div className="text-muted-foreground text-center py-8">Pattern testing applications are managed in the Pending tab above.</div>
         </TabsContent>
       </Tabs>
     </div>

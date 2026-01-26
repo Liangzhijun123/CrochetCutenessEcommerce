@@ -205,14 +205,18 @@ export default function CrochetControlPanel() {
     const croppedImageUrl = cropCanvas.toDataURL("image/png")
 
     // Add the cropped image as a draggable item
-    const randomX = Math.floor(Math.random() * (window.innerWidth - 100))
-    const randomY = Math.floor(Math.random() * (window.innerHeight - 100))
+    // Only run on client
+    let randomX = 0, randomY = 0
+    if (typeof window !== "undefined") {
+      randomX = Math.floor(Math.random() * (window.innerWidth - 100))
+      randomY = Math.floor(Math.random() * (window.innerHeight - 100))
+    }
 
     addCrochetItem({
       image: croppedImageUrl,
       position: { x: randomX, y: randomY },
       size,
-      zIndex: 10 + Math.floor(Math.random() * 10),
+      zIndex: 10 + (typeof window !== "undefined" ? Math.floor(Math.random() * 10) : 0),
     })
 
     // Clean up

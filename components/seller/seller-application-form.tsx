@@ -45,12 +45,9 @@ export default function SellerApplicationForm() {
 
     try {
       // Generate a unique ID
+      // Use a deterministic ID for SSR safety (for demo only)
       function uuidv4() {
-        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-          const r = (Math.random() * 16) | 0,
-            v = c === "x" ? r : (r & 0x3) | 0x8
-          return v.toString(16)
-        })
+        return `app-${user.id}`
       }
 
       // Create the application object

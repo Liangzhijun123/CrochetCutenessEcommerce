@@ -1,5 +1,5 @@
-import { db } from "@/lib/db"
 import { ShopClientPage } from "./client-page"
+import { initializeDatabase, getProducts } from "@/lib/local-storage-db"
 import type { FilterState } from "@/components/product-filters"
 
 interface SearchParams {
@@ -24,8 +24,9 @@ export default async function ShopPage({
   const difficulty = searchParams.difficulty || ""
   const isPattern = searchParams.isPattern === "true" ? true : searchParams.isPattern === "false" ? false : null
 
-  // Get all products
-  let products = db.getProducts()
+  // Initialize file-backed DB and get products (seller uploads persist here)
+  initializeDatabase()
+  let products = getProducts()
 
   // Filter products based on search params
   if (query) {

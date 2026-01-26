@@ -152,7 +152,14 @@ export default function SellerDashboard() {
                 </li>
                 <li>
                   <span className="text-muted-foreground">Submitted:</span>{" "}
-                  {new Date(user.sellerApplication.submittedAt).toLocaleDateString()}
+                  <SellerAppDate date={user.sellerApplication.submittedAt} />
+                function SellerAppDate({ date }: { date: string }) {
+                  const [dateStr, setDateStr] = useState("")
+                  useEffect(() => {
+                    setDateStr(new Date(date).toLocaleDateString())
+                  }, [date])
+                  return <>{dateStr || "..."}</>
+                }
                 </li>
                 <li>
                   <span className="text-muted-foreground">Status:</span>{" "}

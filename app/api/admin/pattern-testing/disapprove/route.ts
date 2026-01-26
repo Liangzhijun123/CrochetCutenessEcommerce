@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { initializeDatabase, getItem, setItem, getUserById } from "@/lib/local-storage-db"
 import { PatternTestingApplication } from "@/lib/local-storage-db"
+import { sendEmail } from "@/lib/email-service"
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,6 +47,21 @@ export async function POST(request: NextRequest) {
     setItem("crochet_pattern_testing_applications", applications)
     console.log(`[ADMIN-DISAPPROVE] ✅ Application disapproved and saved`)
     console.log("[ADMIN-DISAPPROVE] ========== DISAPPROVE SUCCESSFUL ==========\n")
+
+      // Send notification email (stub)
+      try {
+        if (application && application.userEmail) {
+          await sendEmail(application.userEmail, "pattern-testing-disapproval", {
+            applicationId: application.id,
+            userName: application.userName,
+            reviewerId: adminId,
+            reason,
+          })
+          console.log("[ADMIN-DISAPPROVE] Notification email sent to user")
+        }
+      } catch (err) {
+        console.error("[ADMIN-DISAPPROVE] Failed to send notification email:", err)
+      }
 
     return NextResponse.json({
       message: "Application disapproved successfully",

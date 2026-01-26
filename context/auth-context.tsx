@@ -23,6 +23,7 @@ type AuthContextType = {
   register: (name: string, email: string, password: string, role: string) => Promise<boolean>
   logout: () => void
   updateUser: (updates: Partial<User>) => Promise<boolean>
+  refreshUser: (userId: string) => Promise<boolean>
 }
 
 // Create a default value for the context
@@ -34,6 +35,7 @@ const defaultAuthContext: AuthContextType = {
   register: async () => false,
   logout: () => {},
   updateUser: async () => false,
+  refreshUser: async () => false,
 }
 
 const AuthContext = createContext<AuthContextType>(defaultAuthContext)
@@ -43,6 +45,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
+  // Refresh user data from server
+  const refreshUser = async (userId: string): Promise<boolean> => {
+    try {
+      console.log("[AUTH-CONTEXT] Refreshing user from server...", userId)
+      const res = await fetch("/api/auth/user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      })
+      if (!res.ok) return false
+      const data = await res.json()
+      if (data?.user) {
+        setUser(data.user)
+        localStorage.setItem("crochet_user", JSON.stringify(data.user))
+        console.log("[AUTH-CONTEXT] User refreshed and stored locally")
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error("[AUTH-CONTEXT] refreshUser error:", error)
+      return false
+    }
+  }
+
   // Check if user is already logged in
   useEffect(() => {
     // Only run in browser environment
@@ -50,7 +76,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const storedUser = localStorage.getItem("crochet_user")
       if (storedUser) {
         try {
-          setUser(JSON.parse(storedUser))
+          const parsed = JSON.parse(storedUser)
+          setUser(parsed)
+          // Immediately try to refresh with authoritative server data
+          ;(async () => {
+            try {
+              await refreshUser(parsed.id)
+            } catch (e) {
+              console.warn("Failed to refresh stored user:", e)
+            }
+          })()
         } catch (error) {
           console.error("Failed to parse stored user:", error)
           localStorage.removeItem("crochet_user")
@@ -274,6 +309,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         register,
         logout,
         updateUser,
+        refreshUser,
       }}
     >
       {children}

@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,6 +14,7 @@ import { toast } from "@/hooks/use-toast"
 
 export default function PatternTestingApplicationForm() {
   const { user } = useAuth()
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [formData, setFormData] = useState({
@@ -56,6 +58,7 @@ export default function PatternTestingApplicationForm() {
 
     try {
       console.log("[APPLY-FORM] Submitting application...")
+
       const response = await fetch("/api/pattern-testing/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -70,11 +73,12 @@ export default function PatternTestingApplicationForm() {
 
       if (!response.ok) {
         const error = await response.json()
+        console.log("[APPLY-FORM] Application submission failed", error)
         throw new Error(error.error || "Failed to submit application")
       }
 
       const data = await response.json()
-      console.log("[APPLY-FORM] Application submitted successfully")
+      console.log("[APPLY-FORM] Application submitted successfully", data)
 
       toast({
         title: "Success!",
@@ -82,6 +86,12 @@ export default function PatternTestingApplicationForm() {
       })
 
       setSubmitted(true)
+      // Redirect to main pattern testing page so user sees pending status there
+      try {
+        router.push("/pattern-testing")
+      } catch (e) {
+        /* ignore navigation errors in case of server rendering */
+      }
     } catch (error) {
       console.error("[APPLY-FORM] Error:", error)
       toast({

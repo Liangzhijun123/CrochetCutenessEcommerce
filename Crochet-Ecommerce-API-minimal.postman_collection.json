@@ -1,0 +1,135 @@
+{
+  "info": {
+    "_postman_id": "crochet-ecommerce-api-minimal",
+    "name": "Crochet Cuteness API (Demo)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://demo.crochet.example"
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "applicationId",
+      "value": ""
+    },
+    {
+      "key": "recipientEmail",
+      "value": "seller@example.com"
+    },
+    {
+      "key": "productId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/products"
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/products/{{productId}}"
+          }
+        },
+        {
+          "name": "Create Product (Seller)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Crochet Pattern\",\n  \"price\": 29.99,\n  \"description\": \"A beautiful crochet pattern for beginners\",\n  \"category\": \"patterns\",\n  \"sellerId\": \"{{userId}}\",\n  \"featured\": false,\n  \"images\": [\"https://example.com/image1.jpg\"]\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Seller",
+      "item": [
+        {
+          "name": "Register as Seller",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"name\": \"Cozy Crochet Creations\",\n  \"email\": \"seller@example.com\",\n  \"bio\": \"Handmade crochet items with love and care\"\n}"
+            },
+            "url": "{{baseUrl}}/api/seller/apply"
+          }
+        },
+        {
+          "name": "Admin: Approve Seller Application",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}"
+            },
+            "url": "{{baseUrl}}/api/seller/applications/{{applicationId}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Replace {{applicationId}} with the application ID returned from 'Register as Seller' or list applications",
+                  "// This request will trigger the backend to set the application to 'approved' and send the seller approval email (demo flow)."
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Sent Emails For Recipient",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{recipientEmail}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/emails/recipient"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Use this to fetch emails sent to the applicant after approval.\n",
+                  "// If your server implements /api/emails/recipient, it will return persisted emails from the demo DB."
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

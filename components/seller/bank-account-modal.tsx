@@ -96,7 +96,7 @@ export default function BankAccountModal({ isOpen, onClose }: BankAccountModalPr
     } else {
       // Add new account
       const newAccount: BankAccount = {
-        id: Date.now().toString(),
+        id: Math.floor(Math.random() * 1000000000).toString(),
         ...formData,
         isDefault: bankAccounts.length === 0,
         isVerified: false,
@@ -270,7 +270,14 @@ export default function BankAccountModal({ isOpen, onClose }: BankAccountModalPr
                               </div>
                             )}
                             <p className="text-xs text-muted-foreground">
-                              Added on {new Date(account.addedDate).toLocaleDateString()}
+                              <BankAccountDate date={account.addedDate} />
+                            function BankAccountDate({ date }: { date: string }) {
+                              const [dateStr, setDateStr] = useState("")
+                              useEffect(() => {
+                                setDateStr(new Date(date).toLocaleDateString())
+                              }, [date])
+                              return <span>Added on {dateStr || "..."}</span>
+                            }
                             </p>
                           </div>
                         </div>

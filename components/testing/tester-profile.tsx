@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useAuth } from "@/context/auth-context"
 import { Label } from "@/components/ui/label"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 
@@ -135,6 +136,7 @@ export default function TesterProfile({ level, xp, nextLevelXP }: TesterProfileP
               <TabsTrigger value="badges">Badges & Achievements</TabsTrigger>
               <TabsTrigger value="certificates">Certificates</TabsTrigger>
               <TabsTrigger value="preferences">Testing Preferences</TabsTrigger>
+              <TabsTrigger value="emails">Emails</TabsTrigger>
             </TabsList>
 
             <TabsContent value="badges">
@@ -379,9 +381,70 @@ export default function TesterProfile({ level, xp, nextLevelXP }: TesterProfileP
                 <Button className="bg-rose-500 hover:bg-rose-600">Save Preferences</Button>
               </div>
             </TabsContent>
+
+            <TabsContent value="emails">
+              <div className="border rounded-lg p-4">
+                <h3 className="font-medium mb-4">Notifications & Emails</h3>
+                <UserEmails />
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
       </div>
+    </div>
+  )
+}
+
+function UserEmails() {
+  const { user } = useAuth()
+  const [emails, setEmails] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const loadEmails = async () => {
+    if (!user?.email) return
+    setLoading(true)
+    try {
+      const res = await fetch("/api/emails/recipient", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email }),
+      })
+      if (!res.ok) throw new Error("Failed to load emails")
+      const data = await res.json()
+      setEmails(data.emails || [])
+    } catch (err) {
+      console.error("Error loading emails:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // initial load and poll every 15s
+  useEffect(() => {
+    loadEmails()
+    const timer = setInterval(loadEmails, 15000)
+    return () => clearInterval(timer)
+  }, [user?.email])
+
+  if (!user?.email) return <p className="text-sm text-gray-600">No user email available.</p>
+  if (loading) return <p className="text-sm text-gray-600">Loading emails...</p>
+
+  if (emails.length === 0) return <p className="text-sm text-gray-600">No emails yet.</p>
+
+  return (
+    <div className="space-y-3">
+      {emails.map((e) => (
+        <div key={e.id} className="p-3 border rounded">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="font-medium">{e.subject}</p>
+              <TesterDate date={e.sentAt} />
+            </div>
+            <Badge>{e.template}</Badge>
+          </div>
+          <div className="mt-2 text-sm text-gray-700">{JSON.stringify(e.data)}</div>
+        </div>
+      ))}
     </div>
   )
 }

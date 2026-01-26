@@ -125,3 +125,32 @@ export function writePatternTestingApplicationsToFile(applications: any[]) {
     console.error("[DB] Error writing pattern testing applications to file:", error)
   }
 }
+
+// Read sent emails from file
+export function readSentEmailsFromFile(): any[] {
+  ensureDBDir()
+  const emailsFile = path.join(DB_DIR, "sent-emails.json")
+  try {
+    if (fs.existsSync(emailsFile)) {
+      const data = fs.readFileSync(emailsFile, "utf-8")
+      const emails = JSON.parse(data)
+      console.log(`[DB] Loaded ${emails.length} sent emails from file`)
+      return emails
+    }
+  } catch (error) {
+    console.error("[DB] Error reading sent emails from file:", error)
+  }
+  return []
+}
+
+// Write sent emails to file
+export function writeSentEmailsToFile(emails: any[]) {
+  ensureDBDir()
+  const emailsFile = path.join(DB_DIR, "sent-emails.json")
+  try {
+    fs.writeFileSync(emailsFile, JSON.stringify(emails, null, 2), "utf-8")
+    console.log(`[DB] Saved ${emails.length} sent emails to file`)
+  } catch (error) {
+    console.error("[DB] Error writing sent emails to file:", error)
+  }
+}

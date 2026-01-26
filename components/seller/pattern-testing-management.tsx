@@ -421,7 +421,14 @@ export default function PatternTestingManagement() {
                                 </div>
                                 <p className="text-sm text-muted-foreground mt-1">{application.experience}</p>
                                 <p className="text-xs text-muted-foreground mt-2">
-                                  Applied on {new Date(application.appliedAt).toLocaleDateString()}
+                                  <PatternAppDate date={application.appliedAt} />
+                                function PatternAppDate({ date }: { date: string }) {
+                                  const [dateStr, setDateStr] = useState("")
+                                  useEffect(() => {
+                                    setDateStr(new Date(date).toLocaleDateString())
+                                  }, [date])
+                                  return <span>Applied on {dateStr || "..."}</span>
+                                }
                                 </p>
                               </div>
                             </div>

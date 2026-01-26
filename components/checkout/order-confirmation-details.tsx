@@ -24,11 +24,16 @@ interface Order {
 
 export default function OrderConfirmationDetails({ order }: { order: Order }) {
   // Format the date
-  const orderDate = new Date(order.createdAt).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  })
+  const [orderDate, setOrderDate] = useState("")
+  useEffect(() => {
+    setOrderDate(
+      new Date(order.createdAt).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    )
+  }, [order.createdAt])
 
   return (
     <Card>

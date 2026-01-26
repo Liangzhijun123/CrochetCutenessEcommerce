@@ -1,43 +1,43 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Filter, MoreHorizontal, RefreshCw, Search, Truck, Package, CheckCircle, Clock, XCircle } from "lucide-react"
-import { formatDate, formatPrice } from "@/lib/utils"
-import { OrderStatusBadge } from "@/components/seller/order-status-badge"
-import { BulkActionBar } from "@/components/seller/bulk-action-bar"
-import { OrderFilters } from "@/components/seller/order-filters"
-
-type Order = {
-  id: string
-  createdAt: string
-  updatedAt: string
-  status: string
-  total: number
-  items: Array<{
-    productId: string
-    name: string
-    price: number
-    quantity: number
-  }>
-  customer: {
-    name: string
-    email: string
-  }
-  trackingNumber?: string
-}
-
-export function SellerOrdersDashboard() {
-  const router = useRouter()
-  const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
+        // Use deterministic mock data to avoid hydration mismatch
+        const statuses = ["pending", "processing", "shipped", "delivered", "cancelled"]
+        const status = i < 5 ? statuses[0] : statuses[(i % statuses.length)]
+        return {
+          id: `ORD-${1000 + i}`,
+          createdAt: new Date(Date.now() - (i + 1) * 24 * 60 * 60 * 1000).toISOString(),
+          updatedAt: new Date(Date.now() - (i + 1) * 12 * 60 * 60 * 1000).toISOString(),
+          status,
+          total: 100 + i,
+          items: [
+            {
+              productId: `PROD-${1000 + i}`,
+              name: [
+                "Cute Bunny Amigurumi",
+                "Cozy Baby Blanket",
+                "Crochet Plant Hanger",
+                "Crochet Hat",
+                "Crochet Scarf",
+              ][i % 5],
+              price: 20 + i,
+              quantity: 1 + (i % 3),
+            },
+          ],
+          customer: {
+            name: ["John Doe", "Jane Smith", "Alice Johnson", "Bob Brown", "Carol White"][i % 5],
+            email: [
+              "john@example.com",
+              "jane@example.com",
+              "alice@example.com",
+              "bob@example.com",
+              "carol@example.com",
+            ][i % 5],
+          },
+          trackingNumber:
+            status === "shipped" || status === "delivered"
+              ? `TRK${1000000 + i}`
+              : undefined,
+        }
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedOrders, setSelectedOrders] = useState<string[]>([])
@@ -128,10 +128,10 @@ export function SellerOrdersDashboard() {
                 ...order,
                 status: newStatus,
                 updatedAt: new Date().toISOString(),
-                trackingNumber:
-                  newStatus === "shipped" && !order.trackingNumber
-                    ? `TRK${Math.floor(Math.random() * 1000000)}`
-                    : order.trackingNumber,
+                  trackingNumber:
+                    newStatus === "shipped" && !order.trackingNumber
+                      ? `TRK${1000000 + Math.floor(Math.random() * 1000)}`
+                      : order.trackingNumber,
               }
             : order,
         ),
@@ -153,10 +153,10 @@ export function SellerOrdersDashboard() {
                 ...order,
                 status: newStatus,
                 updatedAt: new Date().toISOString(),
-                trackingNumber:
-                  newStatus === "shipped" && !order.trackingNumber
-                    ? `TRK${Math.floor(Math.random() * 1000000)}`
-                    : order.trackingNumber,
+                  trackingNumber:
+                    newStatus === "shipped" && !order.trackingNumber
+                      ? `TRK${1000000 + Math.floor(Math.random() * 1000)}`
+                      : order.trackingNumber,
               }
             : order,
         ),

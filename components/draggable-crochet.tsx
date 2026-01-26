@@ -23,7 +23,7 @@ const DraggableCrochet = ({ id, image, initialPosition, size, zIndex, onRemove }
 
   // Check if we're in the footer area and don't render if we are
   const isInFooterArea = () => {
-    if (typeof window === "undefined" || !dragRef.current) return false
+    if (typeof window === "undefined" || !dragRef.current) return false // This is safe, only used in effect
 
     const footerElement = document.querySelector("footer")
     if (!footerElement) return false

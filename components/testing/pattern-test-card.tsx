@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import { Clock, Calendar, Award, Lock, AlertCircle, Eye, FileText, Video, Star, Upload, X } from "lucide-react"
+import { Clock, Calendar, Award, Lock, AlertCircle, Eye, FileText, Video, Star, Upload, X, Heart, ShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,6 +19,8 @@ import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
+import { useCart } from "@/context/cart-context"
+import { useWishlist } from "@/context/wishlist-context"
 
 interface PatternTestCardProps {
   pattern: {
@@ -148,6 +150,89 @@ export default function PatternTestCard({
   }
 
   const isApplicationValid = applicationNote.length >= 20 && whyThisPattern.length >= 10 && materialsConfirmed
+
+  const { addItem } = useCart()
+  const { addToWishlist, isInWishlist, removeFromWishlist } = useWishlist()
+
+  const handleAddToCart = () => {
+    addItem({ id: pattern.id, name: pattern.title, price: pattern.reward || 0, image: pattern.image })
+  }
+
+  const handleWishlistToggle = () => {
+    if (isInWishlist(pattern.id)) removeFromWishlist(pattern.id)
+    else addToWishlist({ id: pattern.id, name: pattern.title, price: pattern.reward || 0, image: pattern.image })
+  }
+
+  // Compact layout for pattern-testing listing & application view
+  if (isApplication) {
+    return (
+      <div className="bg-[#FFF0F2] rounded-lg overflow-hidden">
+        <div className="p-4">
+          <div className="aspect-square overflow-hidden rounded-md bg-white">
+            <img src={pattern.image || "/placeholder.svg"} alt={pattern.title} className="w-full h-full object-contain" />
+          </div>
+
+          <div className="mt-3 text-sm text-muted-foreground">${pattern.reward?.toFixed ? pattern.reward.toFixed(2) : pattern.reward ?? "0"}</div>
+
+          <div className="mt-3 bg-white rounded-md p-3">
+            <div className="flex items-center justify-between mb-2 text-xs text-muted-foreground">Tags<div>plushie, amigurumi</div></div>
+
+            <div className="flex items-center justify-between">
+              <div className="font-medium">{pattern.title}</div>
+              <div className="font-semibold">${pattern.reward?.toFixed ? pattern.reward.toFixed(2) : pattern.reward ?? "0"}</div>
+            </div>
+
+            <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+              <Star className="h-4 w-4 text-yellow-500" />
+              <span>4.0</span>
+            </div>
+
+            <div className="mt-3 text-sm space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-xs">Difficulty:</span>
+                <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{pattern.difficulty}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-xs">Type:</span>
+                <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-800">Pattern</span>
+              </div>
+              {pattern.materials && pattern.materials.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground text-xs">Colors:</span>
+                  <div className="flex gap-1">
+                    {pattern.materials.slice(0, 4).map((m, i) => (
+                      <div key={i} className="w-3 h-3 rounded-full border" style={{ backgroundColor: m }} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                onClick={handleWishlistToggle}
+                aria-label="Favorite"
+                className="h-10 w-10 rounded-full bg-white flex items-center justify-center border border-gray-200 shadow-sm"
+              >
+                <Heart className={`h-5 w-5 ${isInWishlist(pattern.id) ? "fill-rose-500 text-rose-500" : ""}`} />
+              </button>
+
+              <Button size="sm" onClick={handleAddToCart} className="flex items-center">
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Add to Cart
+              </Button>
+            </div>
+
+            <div className="mt-3">
+              <Button className="w-full bg-rose-500 hover:bg-rose-600" disabled={isLocked} onClick={() => setIsApplicationModalOpen(true)}>
+                Apply to Test
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <Card className={`overflow-hidden transition-shadow hover:shadow-md ${isLocked ? "opacity-75" : ""}`}>

@@ -33,9 +33,9 @@ export function SellerOrderDetail({ orderId }: OrderDetailProps) {
       // For demo purposes, we'll create some mock data
       const mockOrder = {
         id: orderId,
-        createdAt: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString(),
-        updatedAt: new Date(Date.now() - Math.floor(Math.random() * 15) * 24 * 60 * 60 * 1000).toISOString(),
-        status: ["pending", "processing", "shipped", "delivered", "cancelled"][Math.floor(Math.random() * 5)],
+        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+        updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        status: "pending",
         items: [
           {
             id: "item1",

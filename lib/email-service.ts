@@ -7,6 +7,9 @@ export type EmailTemplate =
   | "order-shipped"
   | "order-delivered"
   | "order-cancelled"
+  | "pattern-testing-approval"
+  | "pattern-testing-disapproval"
+  | "seller-approval-login"
 
 export interface EmailData {
   id: string
@@ -18,9 +21,19 @@ export interface EmailData {
   status: "sent" | "failed"
 }
 
-// Store sent emails in localStorage for demo purposes
+import { readSentEmailsFromFile, writeSentEmailsToFile } from "./file-db"
+
+// Store sent emails in localStorage for demo purposes (or file on server)
 const getSentEmails = (): EmailData[] => {
-  if (typeof window === "undefined") return []
+  // If server-side, read from file persistence
+  if (typeof window === "undefined") {
+    try {
+      return readSentEmailsFromFile() as EmailData[]
+    } catch (err) {
+      console.error("Error reading sent emails from file:", err)
+      return []
+    }
+  }
 
   try {
     const emails = localStorage.getItem("crochet_sent_emails")
@@ -32,7 +45,18 @@ const getSentEmails = (): EmailData[] => {
 }
 
 const storeSentEmail = (email: EmailData): void => {
-  if (typeof window === "undefined") return
+  // If server-side, append to file persistence
+  if (typeof window === "undefined") {
+    try {
+      const emails = readSentEmailsFromFile()
+      emails.push(email)
+      writeSentEmailsToFile(emails)
+      return
+    } catch (err) {
+      console.error("Error storing sent email to file:", err)
+      return
+    }
+  }
 
   try {
     const emails = getSentEmails()
@@ -59,6 +83,12 @@ const getEmailSubject = (template: EmailTemplate, data: Record<string, any>): st
       return `Your Order #${shortOrderId} Has Been Delivered`
     case "order-cancelled":
       return `Your Order #${shortOrderId} Has Been Cancelled`
+    case "pattern-testing-approval":
+      return `Pattern Testing Application Approved`
+    case "pattern-testing-disapproval":
+      return `Pattern Testing Application Update`
+    case "seller-approval-login":
+      return `Your Seller Account Is Ready — Login Info`
     default:
       return `Update on Your Order #${shortOrderId}`
   }

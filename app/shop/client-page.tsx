@@ -201,8 +201,8 @@ export function ShopClientPage({ initialProducts, categories, initialFilters }: 
             </div>
           ) : products.length === 0 ? (
             <div className="text-center py-12">
-              <h2 className="text-2xl font-semibold mb-2">No products found</h2>
-              <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>
+              <h2 className="text-2xl font-semibold mb-2">None</h2>
+              <p className="text-muted-foreground">No products have been uploaded by sellers yet.</p>
             </div>
           ) : (
             <div

@@ -151,7 +151,7 @@ export default function CreatorProfile({ creator }: CreatorProfileProps) {
 
             <div className="mt-6 flex flex-wrap justify-center gap-4 sm:justify-start">
               <div className="text-center">
-                <p className="text-2xl font-bold">{creator.stats.followers.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{Number(creator.stats.followers).toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">Followers</p>
               </div>
               <div className="text-center">
@@ -163,7 +163,7 @@ export default function CreatorProfile({ creator }: CreatorProfileProps) {
                 <p className="text-xs text-muted-foreground">Patterns</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold">{creator.stats.sales.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{Number(creator.stats.sales).toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">Sales</p>
               </div>
             </div>

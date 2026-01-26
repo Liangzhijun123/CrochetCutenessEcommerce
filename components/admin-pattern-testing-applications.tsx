@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/context/auth-context"
+
+function AppDate({ date, className }: { date?: string, className?: string }) {
+  const [dateStr, setDateStr] = useState("")
+  useEffect(() => {
+    if (date) setDateStr(new Date(date).toLocaleDateString())
+  }, [date])
+  return <p className={className || "text-gray-600"}>{dateStr || "..."}</p>
+}
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,8 +30,11 @@ export default function AdminPatternTestingApplications() {
     try {
       setIsLoading(true)
       console.log("[ADMIN-APPS] Loading pattern testing applications...")
-      // In a real app, this would call an API endpoint
-      // For now, we'll fetch from localStorage/database in the next iteration
+      // Call the admin API to fetch applications
+      const res = await fetch("/api/admin/pattern-testing/list")
+      if (!res.ok) throw new Error("Failed to load applications")
+      const data = await res.json()
+      setApplications(data.applications || [])
       setIsLoading(false)
     } catch (error) {
       console.error("[ADMIN-APPS] Error loading applications:", error)
@@ -178,7 +189,13 @@ export default function AdminPatternTestingApplications() {
                     </div>
                     <div>
                       <p className="font-medium">Submitted</p>
-                      <p className="text-gray-600">{new Date(app.createdAt).toLocaleDateString()}</p>
+                        {(() => {
+                          const [dateStr, setDateStr] = useState("")
+                          useEffect(() => {
+                            if (app.createdAt) setDateStr(new Date(app.createdAt).toLocaleDateString())
+                          }, [app.createdAt])
+                          return <p className="text-gray-600">{dateStr || "..."}</p>
+                        })()}
                     </div>
                   </div>
 
@@ -235,9 +252,13 @@ export default function AdminPatternTestingApplications() {
                     <Badge variant={app.status === "approved" ? "default" : "destructive"}>
                       {app.status === "approved" ? "✓ Approved" : "✗ Disapproved"}
                     </Badge>
-                    <p className="text-xs text-gray-500">
-                      {new Date(app.reviewedAt || "").toLocaleDateString()}
-                    </p>
+                      {(() => {
+                        const [dateStr, setDateStr] = useState("")
+                        useEffect(() => {
+                          if (app.reviewedAt) setDateStr(new Date(app.reviewedAt).toLocaleDateString())
+                        }, [app.reviewedAt])
+                        return <p className="text-xs text-gray-500">{dateStr || "..."}</p>
+                      })()}
                   </div>
                 </div>
               ))}
