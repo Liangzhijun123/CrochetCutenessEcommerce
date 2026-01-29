@@ -54,9 +54,9 @@ export default function AuthStatus() {
                 <ShieldCheck className="mr-1 h-3 w-3" /> Admin
               </p>
             )}
-            {user.role === "seller" && (
+            {(user.role === "creator" || user.role === "seller") && (
               <p className="flex items-center text-xs font-medium text-blue-500">
-                <Store className="mr-1 h-3 w-3" /> Seller
+                <Store className="mr-1 h-3 w-3" /> Creator
               </p>
             )}
           </div>
@@ -75,11 +75,11 @@ export default function AuthStatus() {
               <span>My Orders</span>
             </Link>
           </DropdownMenuItem>
-          {user.role === "seller" && (
+          {(user.role === "creator" || user.role === "seller") && (
             <DropdownMenuItem asChild>
               <Link href="/seller-dashboard" className="w-full flex items-center">
                 <Store className="mr-2 h-4 w-4" />
-                <span>Seller Dashboard</span>
+                <span>Creator Dashboard</span>
               </Link>
             </DropdownMenuItem>
           )}

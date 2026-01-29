@@ -53,6 +53,20 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Crochet Community Platform Pink/White Theme
+        pink: {
+          50: "#fdf2f8",
+          100: "#fce7f3",
+          200: "#fbcfe8",
+          300: "#f9a8d4",
+          400: "#f472b6",
+          500: "#ec4899",
+          600: "#db2777",
+          700: "#be185d",
+          800: "#9d174d",
+          900: "#831843",
+          950: "#500724",
+        },
         rose: {
           50: "#fff1f2",
           100: "#ffe4e6",
@@ -65,6 +79,14 @@ const config = {
           800: "#9f1239",
           900: "#881337",
           950: "#4c0519",
+        },
+        // Custom brand colors for the platform
+        brand: {
+          primary: "#ec4899", // Pink 500
+          secondary: "#f9a8d4", // Pink 300
+          accent: "#fce7f3", // Pink 100
+          light: "#fdf2f8", // Pink 50
+          white: "#ffffff",
         },
       },
       borderRadius: {

@@ -17,18 +17,20 @@ type User = {
 
 type AuthContextType = {
   user: User | null
+  token: string | null
   isAuthenticated: boolean
   isLoading: boolean
   login: (email: string, password: string, role?: string) => Promise<boolean>
   register: (name: string, email: string, password: string, role: string) => Promise<boolean>
   logout: () => void
   updateUser: (updates: Partial<User>) => Promise<boolean>
-  refreshUser: (userId: string) => Promise<boolean>
+  refreshUser: () => Promise<boolean>
 }
 
 // Create a default value for the context
 const defaultAuthContext: AuthContextType = {
   user: null,
+  token: null,
   isAuthenticated: false,
   isLoading: true,
   login: async () => false,
@@ -42,19 +44,37 @@ const AuthContext = createContext<AuthContextType>(defaultAuthContext)
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
+  const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  // Refresh user data from server
-  const refreshUser = async (userId: string): Promise<boolean> => {
+  // Refresh user data from server using JWT token
+  const refreshUser = async (): Promise<boolean> => {
     try {
-      console.log("[AUTH-CONTEXT] Refreshing user from server...", userId)
+      const storedToken = localStorage.getItem("crochet_token")
+      if (!storedToken) {
+        console.log("[AUTH-CONTEXT] No token found for refresh")
+        return false
+      }
+
+      console.log("[AUTH-CONTEXT] Refreshing user from server with JWT...")
       const res = await fetch("/api/auth/user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        method: "GET",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${storedToken}`
+        },
       })
-      if (!res.ok) return false
+      
+      if (!res.ok) {
+        console.log("[AUTH-CONTEXT] Failed to refresh user, clearing stored data")
+        localStorage.removeItem("crochet_token")
+        localStorage.removeItem("crochet_user")
+        setToken(null)
+        setUser(null)
+        return false
+      }
+      
       const data = await res.json()
       if (data?.user) {
         setUser(data.user)
@@ -74,14 +94,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Only run in browser environment
     if (typeof window !== "undefined") {
       const storedUser = localStorage.getItem("crochet_user")
-      if (storedUser) {
+      const storedToken = localStorage.getItem("crochet_token")
+      
+      if (storedUser && storedToken) {
         try {
           const parsed = JSON.parse(storedUser)
           setUser(parsed)
+          setToken(storedToken)
+          
           // Immediately try to refresh with authoritative server data
           ;(async () => {
             try {
-              await refreshUser(parsed.id)
+              await refreshUser()
             } catch (e) {
               console.warn("Failed to refresh stored user:", e)
             }
@@ -89,6 +113,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } catch (error) {
           console.error("Failed to parse stored user:", error)
           localStorage.removeItem("crochet_user")
+          localStorage.removeItem("crochet_token")
         }
       }
       setIsLoading(false)
@@ -155,10 +180,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return false
       }
 
-      console.log("[AUTH-CONTEXT] Storing user in state and localStorage...")
+      console.log("[AUTH-CONTEXT] Storing user and token in state and localStorage...")
       setUser(data.user)
+      setToken(data.token)
       localStorage.setItem("crochet_user", JSON.stringify(data.user))
-      console.log("[AUTH-CONTEXT] ✅ User stored successfully")
+      localStorage.setItem("crochet_token", data.token)
+      console.log("[AUTH-CONTEXT] ✅ User and token stored successfully")
 
       toast({
         title: "Login successful",
@@ -167,7 +194,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Redirect based on role
       console.log(`[AUTH-CONTEXT] Redirecting based on role: ${data.user.role}`)
-      if (data.user.role === "seller") {
+      if (data.user.role === "creator" || data.user.role === "seller") {
         console.log("[AUTH-CONTEXT] Redirecting to /seller-dashboard")
         router.push("/seller-dashboard")
       } else if (data.user.role === "admin") {
@@ -242,10 +269,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const data = await response.json()
       console.log(`[AUTH-CONTEXT] ✅ API returned user: ${data.user.email}, Role: ${data.user.role}`)
 
-      console.log("[AUTH-CONTEXT] Storing user in state and localStorage...")
+      console.log("[AUTH-CONTEXT] Storing user and token in state and localStorage...")
       setUser(data.user)
+      setToken(data.token)
       localStorage.setItem("crochet_user", JSON.stringify(data.user))
-      console.log("[AUTH-CONTEXT] ✅ User stored successfully")
+      localStorage.setItem("crochet_token", data.token)
+      console.log("[AUTH-CONTEXT] ✅ User and token stored successfully")
 
       toast({
         title: "Registration successful",
@@ -273,8 +302,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     console.log(`[LOGOUT] Current user: ${user?.email || "None"}`)
     console.log("[LOGOUT] Clearing user state...")
     setUser(null)
-    console.log("[LOGOUT] Removing user from localStorage...")
+    setToken(null)
+    console.log("[LOGOUT] Removing user and token from localStorage...")
     localStorage.removeItem("crochet_user")
+    localStorage.removeItem("crochet_token")
     console.log("[LOGOUT] ✅ User data cleared")
     toast({
       title: "Logged out",
@@ -286,7 +317,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const updateUser = async (updates: Partial<User>): Promise<boolean> => {
     try {
-      if (!user) return false
+      if (!user || !token) return false
 
       // In a real app, you would make an API call to update the user
       const updatedUser = { ...user, ...updates }
@@ -303,7 +334,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user,
+        token,
+        isAuthenticated: !!user && !!token,
         isLoading,
         login,
         register,

@@ -22,6 +22,14 @@ export default function SellerApplicationForm() {
     instagram: "",
     pinterest: "",
     youtube: "",
+    etsy: "",
+    businessName: "",
+    businessType: "individual",
+    yearsExperience: "",
+    specialties: "",
+    whyJoin: "",
+    portfolioUrl: "",
+    expectedMonthlyListings: "",
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -44,52 +52,57 @@ export default function SellerApplicationForm() {
     setIsSubmitting(true)
 
     try {
-      // Generate a unique ID
-      // Use a deterministic ID for SSR safety (for demo only)
-      function uuidv4() {
-        return `app-${user.id}`
-      }
-
       // Create the application object
-      const application = {
-        id: uuidv4(),
+      const applicationData = {
         userId: user.id,
         name: user.name,
         email: user.email,
         bio: formData.bio,
         experience: formData.experience,
+        businessName: formData.businessName,
+        businessType: formData.businessType,
+        yearsExperience: formData.yearsExperience,
+        specialties: formData.specialties,
+        whyJoin: formData.whyJoin,
+        portfolioUrl: formData.portfolioUrl,
+        expectedMonthlyListings: formData.expectedMonthlyListings,
         socialMedia: {
           instagram: formData.instagram || undefined,
           pinterest: formData.pinterest || undefined,
           youtube: formData.youtube || undefined,
+          etsy: formData.etsy || undefined,
         },
-        status: "pending",
-        submittedAt: new Date().toISOString(),
       }
 
-      // Save to localStorage
-      const applications = JSON.parse(localStorage.getItem("crochet_seller_applications") || "[]")
-      applications.push(application)
-      localStorage.setItem("crochet_seller_applications", JSON.stringify(applications))
+      // Submit application via API
+      const response = await fetch("/api/seller/apply", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(applicationData),
+      })
 
-      // Update the user object
-      const currentUser = JSON.parse(localStorage.getItem("crochet_user") || "{}")
-      currentUser.sellerApplication = application
-      localStorage.setItem("crochet_user", JSON.stringify(currentUser))
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to submit application")
+      }
+
+      const result = await response.json()
 
       // Show success message
       toast({
         title: "Application Submitted",
-        description: "Your seller application has been submitted for review.",
+        description: "Your seller application has been submitted for review. You'll receive an email notification once it's reviewed.",
       })
 
-      // Redirect to profile
+      // Redirect to profile or seller dashboard
       router.push("/profile")
     } catch (error) {
       console.error("Error submitting application:", error)
       toast({
         title: "Error",
-        description: "There was an error submitting your application. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error submitting your application. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -108,6 +121,54 @@ export default function SellerApplicationForm() {
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
           <div className="space-y-2">
+            <Label htmlFor="businessName">Business/Shop Name</Label>
+            <Input
+              id="businessName"
+              name="businessName"
+              placeholder="Your business or shop name"
+              value={formData.businessName}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="businessType">Business Type</Label>
+            <select
+              id="businessType"
+              name="businessType"
+              value={formData.businessType}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+              required
+            >
+              <option value="individual">Individual/Sole Proprietor</option>
+              <option value="llc">LLC</option>
+              <option value="corporation">Corporation</option>
+              <option value="partnership">Partnership</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="yearsExperience">Years of Crochet Experience</Label>
+            <select
+              id="yearsExperience"
+              name="yearsExperience"
+              value={formData.yearsExperience}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+              required
+            >
+              <option value="">Select experience level</option>
+              <option value="less-than-1">Less than 1 year</option>
+              <option value="1-2">1-2 years</option>
+              <option value="3-5">3-5 years</option>
+              <option value="6-10">6-10 years</option>
+              <option value="more-than-10">More than 10 years</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="bio">Bio</Label>
             <Textarea
               id="bio"
@@ -121,11 +182,24 @@ export default function SellerApplicationForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="experience">Experience</Label>
+            <Label htmlFor="specialties">Specialties</Label>
+            <Textarea
+              id="specialties"
+              name="specialties"
+              placeholder="What types of crochet items do you specialize in? (e.g., amigurumi, blankets, clothing, home decor)"
+              value={formData.specialties}
+              onChange={handleChange}
+              required
+              className="min-h-[80px]"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="experience">Selling Experience</Label>
             <Textarea
               id="experience"
               name="experience"
-              placeholder="Describe your experience with crochet and selling handmade items"
+              placeholder="Describe your experience with selling handmade items (online platforms, craft fairs, etc.)"
               value={formData.experience}
               onChange={handleChange}
               required
@@ -134,7 +208,49 @@ export default function SellerApplicationForm() {
           </div>
 
           <div className="space-y-2">
-            <Label>Social Media (Optional)</Label>
+            <Label htmlFor="whyJoin">Why do you want to join our platform?</Label>
+            <Textarea
+              id="whyJoin"
+              name="whyJoin"
+              placeholder="Tell us why you're interested in selling on our crochet community platform"
+              value={formData.whyJoin}
+              onChange={handleChange}
+              required
+              className="min-h-[80px]"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="portfolioUrl">Portfolio/Website URL (Optional)</Label>
+            <Input
+              id="portfolioUrl"
+              name="portfolioUrl"
+              placeholder="https://your-portfolio-website.com"
+              value={formData.portfolioUrl}
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="expectedMonthlyListings">Expected Monthly Listings</Label>
+            <select
+              id="expectedMonthlyListings"
+              name="expectedMonthlyListings"
+              value={formData.expectedMonthlyListings}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+              required
+            >
+              <option value="">Select expected listings per month</option>
+              <option value="1-5">1-5 patterns</option>
+              <option value="6-10">6-10 patterns</option>
+              <option value="11-20">11-20 patterns</option>
+              <option value="more-than-20">More than 20 patterns</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Social Media & Online Presence (Optional)</Label>
             <div className="grid gap-2">
               <div className="grid grid-cols-12 gap-2">
                 <div className="col-span-3 flex items-center">
@@ -182,6 +298,23 @@ export default function SellerApplicationForm() {
                     name="youtube"
                     placeholder="https://youtube.com/yourchannel"
                     value={formData.youtube}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-3 flex items-center">
+                  <Label htmlFor="etsy" className="text-sm">
+                    Etsy
+                  </Label>
+                </div>
+                <div className="col-span-9">
+                  <Input
+                    id="etsy"
+                    name="etsy"
+                    placeholder="https://etsy.com/shop/yourshop"
+                    value={formData.etsy}
                     onChange={handleChange}
                   />
                 </div>

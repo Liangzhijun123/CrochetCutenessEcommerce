@@ -10,6 +10,9 @@ export type EmailTemplate =
   | "pattern-testing-approval"
   | "pattern-testing-disapproval"
   | "seller-approval-login"
+  | "seller-application-submitted"
+  | "seller-application-approved"
+  | "seller-application-rejected"
 
 export interface EmailData {
   id: string
@@ -89,6 +92,12 @@ const getEmailSubject = (template: EmailTemplate, data: Record<string, any>): st
       return `Pattern Testing Application Update`
     case "seller-approval-login":
       return `Your Seller Account Is Ready — Login Info`
+    case "seller-application-submitted":
+      return `Seller Application Received - We're Reviewing Your Submission`
+    case "seller-application-approved":
+      return `Congratulations! Your Seller Application Has Been Approved`
+    case "seller-application-rejected":
+      return `Update on Your Seller Application`
     default:
       return `Update on Your Order #${shortOrderId}`
   }

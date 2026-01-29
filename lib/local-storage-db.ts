@@ -3,6 +3,7 @@
 import { readUsersFromFile, writeUsersToFile, readProductsFromFile, writeProductsToFile, readOrdersFromFile, writeOrdersToFile, readPatternTestingApplicationsFromFile, writePatternTestingApplicationsToFile } from "./file-db"
 
 // In-memory cache (loaded from files on startup)
+import "./migrations" // Run migrations
 let inMemoryDB: {
   users: User[]
   products: Product[]
@@ -10,6 +11,13 @@ let inMemoryDB: {
   sellerApplications: SellerApplication[]
   patternTestingApplications: PatternTestingApplication[]
   paymentMethods: PaymentMethod[]
+  dailyCoinClaims: DailyCoinClaim[]
+  coinTransactions: CoinTransaction[]
+  pointsTransactions: PointsTransaction[]
+  patterns: any[]
+  patternPurchases: any[]
+  patternLibrary: any[]
+  patternReviews: any[]
 } = {
   users: [],
   products: [],
@@ -17,6 +25,13 @@ let inMemoryDB: {
   sellerApplications: [],
   patternTestingApplications: [],
   paymentMethods: [],
+  dailyCoinClaims: [],
+  coinTransactions: [],
+  pointsTransactions: [],
+  patterns: [],
+  patternPurchases: [],
+  patternLibrary: [],
+  patternReviews: [],
 }
 
 // Initialize database from files
@@ -46,6 +61,14 @@ export function initializeDatabase() {
   
   console.log(`[DB] ✅ Database initialized: ${users.length} users, ${products.length} products, ${orders.length} orders, ${patternTestingApplications.length} pattern testing apps`)
 
+  // Seed pattern data if needed
+  try {
+    const { seedPatternData } = require("./pattern-seed-data")
+    seedPatternData()
+  } catch (error) {
+    console.log("[DB] Pattern seeding skipped or failed:", error.message)
+  }
+
   console.log("[DB] ========== DATABASE READY ==========")
 }
 
@@ -55,7 +78,7 @@ export type User = {
   name: string
   email: string
   password: string
-  role: "user" | "seller" | "admin"
+  role: "user" | "creator" | "admin"
   createdAt: string
   avatar?: string
   loyaltyPoints: number
@@ -66,6 +89,13 @@ export type User = {
   testerLevel?: number
   testerXP?: number
   patternTestingApplicationId?: string
+  // Gamification fields
+  coins: number
+  points: number
+  loginStreak: number
+  lastLogin?: string
+  lastCoinClaim?: string
+  isActive: boolean
 }
 
 export type SellerProfile = {
@@ -162,6 +192,13 @@ export type SellerApplication = {
   email: string
   bio: string
   experience: string
+  businessName: string
+  businessType: "individual" | "llc" | "corporation" | "partnership"
+  yearsExperience: string
+  specialties: string
+  whyJoin: string
+  portfolioUrl?: string
+  expectedMonthlyListings: string
   socialMedia?: {
     instagram?: string
     pinterest?: string
@@ -171,6 +208,9 @@ export type SellerApplication = {
   status: "pending" | "approved" | "rejected"
   createdAt: string
   updatedAt: string
+  reviewedBy?: string
+  reviewedAt?: string
+  adminFeedback?: string
 }
 
 export type PatternTestingApplication = {
@@ -213,6 +253,33 @@ export type ShippingMethod = {
   isActive: boolean
 }
 
+export type DailyCoinClaim = {
+  id: string
+  userId: string
+  claimDate: string // YYYY-MM-DD format
+  coinsAwarded: number
+  claimedAt: string
+}
+
+export type CoinTransaction = {
+  id: string
+  userId: string
+  type: "daily_claim" | "purchase_bonus" | "streak_bonus" | "admin_adjustment"
+  amount: number
+  description: string
+  createdAt: string
+}
+
+export type PointsTransaction = {
+  id: string
+  userId: string
+  type: "purchase" | "review" | "referral" | "admin_adjustment"
+  amount: number
+  description: string
+  orderId?: string
+  createdAt: string
+}
+
 // Helper functions for storage (works on server and client)
 export function getItem(key: string, defaultValue: any): any {
   console.log(`[DB] getItem("${key}") called`)
@@ -250,6 +317,13 @@ export function getItem(key: string, defaultValue: any): any {
     return inMemoryDB.patternTestingApplications
   }
   if (key === "crochet_payment_methods") return inMemoryDB.paymentMethods
+  if (key === "crochet_daily_coin_claims") return inMemoryDB.dailyCoinClaims
+  if (key === "crochet_coin_transactions") return inMemoryDB.coinTransactions
+  if (key === "crochet_points_transactions") return inMemoryDB.pointsTransactions
+  if (key === "crochet_patterns") return inMemoryDB.patterns
+  if (key === "crochet_pattern_purchases") return inMemoryDB.patternPurchases
+  if (key === "crochet_pattern_library") return inMemoryDB.patternLibrary
+  if (key === "crochet_pattern_reviews") return inMemoryDB.patternReviews
 
   return defaultValue
 }
@@ -293,6 +367,13 @@ export function setItem(key: string, value: any): void {
     writePatternTestingApplicationsToFile(value) // Persist to file
   }
   if (key === "crochet_payment_methods") inMemoryDB.paymentMethods = value
+  if (key === "crochet_daily_coin_claims") inMemoryDB.dailyCoinClaims = value
+  if (key === "crochet_coin_transactions") inMemoryDB.coinTransactions = value
+  if (key === "crochet_points_transactions") inMemoryDB.pointsTransactions = value
+  if (key === "crochet_patterns") inMemoryDB.patterns = value
+  if (key === "crochet_pattern_purchases") inMemoryDB.patternPurchases = value
+  if (key === "crochet_pattern_library") inMemoryDB.patternLibrary = value
+  if (key === "crochet_pattern_reviews") inMemoryDB.patternReviews = value
 }
 
 // Database functions
@@ -325,7 +406,7 @@ export const getUserByEmail = (email: string): User | undefined => {
   return foundUser
 }
 
-export const createUser = (user: Omit<User, "id" | "createdAt" | "loyaltyPoints" | "loyaltyTier">): User => {
+export const createUser = (user: Omit<User, "id" | "createdAt" | "loyaltyPoints" | "loyaltyTier" | "coins" | "points" | "loginStreak" | "isActive">): User => {
   console.log(`\\n[DB] ========== CREATE USER CALLED ==========`)
   console.log(`[DB] Creating user for: ${user.email}`)
   const users = getUsers()
@@ -343,6 +424,10 @@ export const createUser = (user: Omit<User, "id" | "createdAt" | "loyaltyPoints"
     createdAt: new Date().toISOString(),
     loyaltyPoints: 0,
     loyaltyTier: "bronze",
+    coins: 0,
+    points: 0,
+    loginStreak: 0,
+    isActive: true,
   }
 
   console.log(`[DB] ✅ New user object created - ID: ${newUser.id}, Email: ${newUser.email}`)
@@ -657,13 +742,13 @@ export const updateSellerApplication = (id: string, updates: Partial<SellerAppli
   applications[appIndex] = updatedApp
   setItem("crochet_seller_applications", applications)
 
-  // If application is approved, update user role to seller
+  // If application is approved, update user role to creator
   if (updates.status === "approved") {
     try {
       const user = getUserById(updatedApp.userId)
       if (user) {
         updateUser(user.id, {
-          role: "seller",
+          role: "creator",
           sellerProfile: {
             approved: true,
             bio: updatedApp.bio,
@@ -680,5 +765,198 @@ export const updateSellerApplication = (id: string, updates: Partial<SellerAppli
   }
 
   return updatedApp
+}
+
+// Daily coin claim functions
+export const getDailyCoinClaims = (): DailyCoinClaim[] => {
+  return getItem("crochet_daily_coin_claims", []) as DailyCoinClaim[]
+}
+
+export const getDailyCoinClaimsByUser = (userId: string): DailyCoinClaim[] => {
+  const claims = getDailyCoinClaims()
+  return claims.filter((claim) => claim.userId === userId)
+}
+
+export const getDailyCoinClaimByUserAndDate = (userId: string, date: string): DailyCoinClaim | undefined => {
+  const claims = getDailyCoinClaims()
+  return claims.find((claim) => claim.userId === userId && claim.claimDate === date)
+}
+
+export const createDailyCoinClaim = (claim: Omit<DailyCoinClaim, "id" | "claimedAt">): DailyCoinClaim => {
+  const claims = getDailyCoinClaims()
+  
+  const newClaim: DailyCoinClaim = {
+    id: crypto.randomUUID(),
+    ...claim,
+    claimedAt: new Date().toISOString(),
+  }
+
+  claims.push(newClaim)
+  setItem("crochet_daily_coin_claims", claims)
+
+  return newClaim
+}
+
+// Coin transaction functions
+export const getCoinTransactions = (): CoinTransaction[] => {
+  return getItem("crochet_coin_transactions", []) as CoinTransaction[]
+}
+
+export const getCoinTransactionsByUser = (userId: string): CoinTransaction[] => {
+  const transactions = getCoinTransactions()
+  return transactions.filter((transaction) => transaction.userId === userId)
+}
+
+export const createCoinTransaction = (transaction: Omit<CoinTransaction, "id" | "createdAt">): CoinTransaction => {
+  const transactions = getCoinTransactions()
+  
+  const newTransaction: CoinTransaction = {
+    id: crypto.randomUUID(),
+    ...transaction,
+    createdAt: new Date().toISOString(),
+  }
+
+  transactions.push(newTransaction)
+  setItem("crochet_coin_transactions", transactions)
+
+  return newTransaction
+}
+
+// Points transaction functions
+export const getPointsTransactions = (): PointsTransaction[] => {
+  return getItem("crochet_points_transactions", []) as PointsTransaction[]
+}
+
+export const getPointsTransactionsByUser = (userId: string): PointsTransaction[] => {
+  const transactions = getPointsTransactions()
+  return transactions.filter((transaction) => transaction.userId === userId)
+}
+
+export const createPointsTransaction = (transaction: Omit<PointsTransaction, "id" | "createdAt">): PointsTransaction => {
+  const transactions = getPointsTransactions()
+  
+  const newTransaction: PointsTransaction = {
+    id: crypto.randomUUID(),
+    ...transaction,
+    createdAt: new Date().toISOString(),
+  }
+
+  transactions.push(newTransaction)
+  setItem("crochet_points_transactions", transactions)
+
+  return newTransaction
+}
+
+// Helper functions for gamification
+export const updateUserLoginStreak = (userId: string): User => {
+  const user = getUserById(userId)
+  if (!user) {
+    throw new Error("User not found")
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+  const lastLogin = user.lastLogin ? user.lastLogin.split('T')[0] : null
+  
+  let newStreak = user.loginStreak || 0
+  
+  if (lastLogin) {
+    const lastLoginDate = new Date(lastLogin)
+    const todayDate = new Date(today)
+    const daysDiff = Math.floor((todayDate.getTime() - lastLoginDate.getTime()) / (1000 * 60 * 60 * 24))
+    
+    if (daysDiff === 1) {
+      // Consecutive day login
+      newStreak += 1
+    } else if (daysDiff > 1) {
+      // Streak broken
+      newStreak = 1
+    }
+    // If daysDiff === 0, it's the same day, don't change streak
+  } else {
+    // First login
+    newStreak = 1
+  }
+
+  return updateUser(userId, {
+    lastLogin: new Date().toISOString(),
+    loginStreak: newStreak,
+  })
+}
+
+export const claimDailyCoins = (userId: string): { success: boolean; coins: number; message: string } => {
+  const user = getUserById(userId)
+  if (!user) {
+    return { success: false, coins: 0, message: "User not found" }
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+  const existingClaim = getDailyCoinClaimByUserAndDate(userId, today)
+  
+  if (existingClaim) {
+    return { success: false, coins: 0, message: "Daily coins already claimed today" }
+  }
+
+  // Calculate coins based on login streak
+  let coinsToAward = 3 // Base daily coins
+  const streak = user.loginStreak || 0
+  
+  if (streak >= 7) {
+    coinsToAward += 2 // Bonus for 7+ day streak
+  } else if (streak >= 3) {
+    coinsToAward += 1 // Bonus for 3+ day streak
+  }
+
+  // Create the claim record
+  createDailyCoinClaim({
+    userId,
+    claimDate: today,
+    coinsAwarded: coinsToAward,
+  })
+
+  // Create transaction record
+  createCoinTransaction({
+    userId,
+    type: "daily_claim",
+    amount: coinsToAward,
+    description: `Daily coin claim (${streak} day streak)`,
+  })
+
+  // Update user's coin balance
+  const updatedUser = updateUser(userId, {
+    coins: (user.coins || 0) + coinsToAward,
+    lastCoinClaim: new Date().toISOString(),
+  })
+
+  return { 
+    success: true, 
+    coins: coinsToAward, 
+    message: `Claimed ${coinsToAward} coins! ${streak >= 3 ? `Streak bonus included!` : ''}` 
+  }
+}
+
+export const addPointsForPurchase = (userId: string, purchaseAmount: number, orderId?: string): PointsTransaction => {
+  const user = getUserById(userId)
+  if (!user) {
+    throw new Error("User not found")
+  }
+
+  // Calculate points (1 point per dollar spent)
+  const pointsToAward = Math.floor(purchaseAmount)
+
+  // Create transaction record
+  const transaction = createPointsTransaction({
+    userId,
+    type: "purchase",
+    amount: pointsToAward,
+    description: `Purchase points for order ${orderId || 'unknown'}`,
+    orderId,
+  })
+
+  // Update user's points balance
+  updateUser(userId, {
+    points: (user.points || 0) + pointsToAward,
+  })
+
+  return transaction
 }
 

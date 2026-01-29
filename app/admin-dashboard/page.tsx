@@ -20,14 +20,25 @@ type SellerApplication = {
   email: string
   bio: string
   experience: string
+  businessName: string
+  businessType: "individual" | "llc" | "corporation" | "partnership"
+  yearsExperience: string
+  specialties: string
+  whyJoin: string
+  portfolioUrl?: string
+  expectedMonthlyListings: string
   socialMedia?: {
     instagram?: string
     pinterest?: string
+    etsy?: string
     youtube?: string
   }
   status: "pending" | "approved" | "rejected"
   submittedAt: string
   updatedAt?: string
+  reviewedBy?: string
+  reviewedAt?: string
+  adminFeedback?: string
 }
 
 // Helper function to generate UUID
