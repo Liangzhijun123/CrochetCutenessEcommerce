@@ -47,13 +47,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
           // Update the user's password (demo only) — in real apps use proper password reset flows
           updateUser(user.id, { password: tempPassword })
 
-          // Send approval email with login credentials
+          // Send approval email with login credentials and onboarding link
           await sendEmail(user.email, "seller-application-approved", {
             name: user.name,
             businessName: updatedApplication.businessName || "your business",
             email: user.email,
             temporaryPassword: tempPassword,
             loginUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/auth/login`,
+            onboardingUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/seller-onboarding`,
             dashboardUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/seller-dashboard`,
             adminFeedback: updatedApplication.adminFeedback,
           })

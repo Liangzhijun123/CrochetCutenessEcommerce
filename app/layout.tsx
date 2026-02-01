@@ -7,6 +7,7 @@ import Footer from "@/components/footer"
 import { AuthProvider } from "@/context/auth-context"
 import { CartProvider } from "@/context/cart-context"
 import { WishlistProvider } from "@/context/wishlist-context"
+import { MessagingProvider } from "@/context/messaging-context"
 import { Toaster } from "@/components/ui/toaster"
 import { DraggableCrochetProvider } from "@/context/draggable-crochet-context"
 import DraggableCrochetContainer from "@/components/draggable-crochet-container"
@@ -34,17 +35,19 @@ export default function RootLayout({
           <AuthProvider>
             <CartProvider>
               <WishlistProvider>
-                <DraggableCrochetProvider>
-                  <div className="flex min-h-screen flex-col">
-                    <Header />
-                    <main className="flex-1">{children}</main>
-                    <Footer />
-                  </div>
-                  <DraggableCrochetContainer />
-                  <CrochetControlPanel />
-                  <CrochetWelcomeTooltip />
-                  <Toaster />
-                </DraggableCrochetProvider>
+                <MessagingProvider>
+                  <DraggableCrochetProvider>
+                    <div className="flex min-h-screen flex-col">
+                      <Header />
+                      <main className="flex-1">{children}</main>
+                      <Footer />
+                    </div>
+                    <DraggableCrochetContainer />
+                    <CrochetControlPanel />
+                    <CrochetWelcomeTooltip />
+                    <Toaster />
+                  </DraggableCrochetProvider>
+                </MessagingProvider>
               </WishlistProvider>
             </CartProvider>
           </AuthProvider>

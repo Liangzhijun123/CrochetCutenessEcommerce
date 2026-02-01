@@ -1,43 +1,114 @@
 "use client"
 
-        // Use deterministic mock data to avoid hydration mismatch
-        const statuses = ["pending", "processing", "shipped", "delivered", "cancelled"]
-        const status = i < 5 ? statuses[0] : statuses[(i % statuses.length)]
-        return {
-          id: `ORD-${1000 + i}`,
-          createdAt: new Date(Date.now() - (i + 1) * 24 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - (i + 1) * 12 * 60 * 60 * 1000).toISOString(),
-          status,
-          total: 100 + i,
-          items: [
-            {
-              productId: `PROD-${1000 + i}`,
-              name: [
-                "Cute Bunny Amigurumi",
-                "Cozy Baby Blanket",
-                "Crochet Plant Hanger",
-                "Crochet Hat",
-                "Crochet Scarf",
-              ][i % 5],
-              price: 20 + i,
-              quantity: 1 + (i % 3),
-            },
-          ],
-          customer: {
-            name: ["John Doe", "Jane Smith", "Alice Johnson", "Bob Brown", "Carol White"][i % 5],
-            email: [
-              "john@example.com",
-              "jane@example.com",
-              "alice@example.com",
-              "bob@example.com",
-              "carol@example.com",
-            ][i % 5],
-          },
-          trackingNumber:
-            status === "shipped" || status === "delivered"
-              ? `TRK${1000000 + i}`
-              : undefined,
-        }
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Clock,
+  Package,
+  Truck,
+  CheckCircle,
+  XCircle,
+  Search,
+  Filter,
+  RefreshCw,
+  MoreHorizontal,
+} from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+
+type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled"
+
+type Order = {
+  id: string
+  createdAt: string
+  updatedAt: string
+  status: OrderStatus
+  total: number
+  items: Array<{
+    productId: string
+    name: string
+    price: number
+    quantity: number
+  }>
+  customer: {
+    name: string
+    email: string
+  }
+  trackingNumber?: string
+}
+
+// Mock data generator
+const generateMockOrders = (count: number): Order[] => {
+  return Array.from({ length: count }, (_, i) => {
+    // Use deterministic mock data to avoid hydration mismatch
+    const statuses: OrderStatus[] = ["pending", "processing", "shipped", "delivered", "cancelled"]
+    const status = i < 5 ? statuses[0] : statuses[(i % statuses.length)]
+    return {
+      id: `ORD-${1000 + i}`,
+      createdAt: new Date(Date.now() - (i + 1) * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: new Date(Date.now() - (i + 1) * 12 * 60 * 60 * 1000).toISOString(),
+      status,
+      total: 100 + i,
+      items: [
+        {
+          productId: `PROD-${1000 + i}`,
+          name: [
+            "Cute Bunny Amigurumi",
+            "Cozy Baby Blanket",
+            "Crochet Plant Hanger",
+            "Crochet Hat",
+            "Crochet Scarf",
+          ][i % 5],
+          price: 20 + i,
+          quantity: 1 + (i % 3),
+        },
+      ],
+      customer: {
+        name: ["John Doe", "Jane Smith", "Alice Johnson", "Bob Brown", "Carol White"][i % 5],
+        email: [
+          "john@example.com",
+          "jane@example.com",
+          "alice@example.com",
+          "bob@example.com",
+          "carol@example.com",
+        ][i % 5],
+      },
+      trackingNumber:
+        status === "shipped" || status === "delivered"
+          ? `TRK${1000000 + i}`
+          : undefined,
+    }
+  })
+}
+
+export default function OrdersDashboard() {
+  const { toast } = useToast()
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedOrders, setSelectedOrders] = useState<string[]>([])

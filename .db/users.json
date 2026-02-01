@@ -7,6 +7,64 @@
     "role": "user",
     "createdAt": "2026-01-26T16:42:17.266Z",
     "loyaltyPoints": 0,
-    "loyaltyTier": "bronze"
+    "loyaltyTier": "bronze",
+    "coins": 0,
+    "points": 0,
+    "loginStreak": 0,
+    "isActive": true
+  },
+  {
+    "id": "f322bca5-3df9-498d-a631-36fc286cbb76",
+    "name": "Sarah Johnson",
+    "email": "creator@example.com",
+    "password": "password123",
+    "role": "creator",
+    "avatar": "/placeholder.svg?height=200&width=200",
+    "createdAt": "2026-02-01T23:08:21.241Z",
+    "loyaltyPoints": 0,
+    "loyaltyTier": "bronze",
+    "coins": 0,
+    "points": 0,
+    "loginStreak": 0,
+    "isActive": true,
+    "sellerProfile": {
+      "approved": true,
+      "bio": "Passionate crochet designer with 10+ years of experience creating beautiful patterns for all skill levels.",
+      "storeDescription": "Welcome to my pattern shop! I specialize in amigurumi, baby items, and home decor.",
+      "socialMedia": {
+        "instagram": "https://instagram.com/sarahcrochets",
+        "pinterest": "https://pinterest.com/sarahcrochets"
+      },
+      "salesCount": 245,
+      "rating": 4.9,
+      "joinedDate": "2026-02-01T23:08:21.252Z"
+    }
+  },
+  {
+    "id": "56851604-daa7-4509-a1c4-42a5a982fb57",
+    "name": "Emma Wilson",
+    "email": "creator2@example.com",
+    "password": "password123",
+    "role": "creator",
+    "avatar": "/placeholder.svg?height=200&width=200",
+    "createdAt": "2026-02-01T23:08:21.260Z",
+    "loyaltyPoints": 0,
+    "loyaltyTier": "bronze",
+    "coins": 0,
+    "points": 0,
+    "loginStreak": 0,
+    "isActive": true,
+    "sellerProfile": {
+      "approved": true,
+      "bio": "Modern crochet designer focusing on contemporary patterns and sustainable materials.",
+      "storeDescription": "Eco-friendly crochet patterns for the modern maker.",
+      "socialMedia": {
+        "instagram": "https://instagram.com/emmacrochets",
+        "etsy": "https://etsy.com/shop/emmacrochets"
+      },
+      "salesCount": 156,
+      "rating": 4.7,
+      "joinedDate": "2026-02-01T23:08:21.261Z"
+    }
   }
 ]

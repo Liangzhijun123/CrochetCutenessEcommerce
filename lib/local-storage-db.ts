@@ -18,6 +18,16 @@ let inMemoryDB: {
   patternPurchases: any[]
   patternLibrary: any[]
   patternReviews: any[]
+  messages: Message[]
+  conversations: Conversation[]
+  competitions: any[]
+  competitionEntries: any[]
+  competitionVotes: any[]
+  competitionParticipation: any[]
+  patternTestAssignments: any[]
+  patternTestFeedback: any[]
+  patternTestMetrics: any[]
+  testerStats: any[]
 } = {
   users: [],
   products: [],
@@ -32,6 +42,16 @@ let inMemoryDB: {
   patternPurchases: [],
   patternLibrary: [],
   patternReviews: [],
+  messages: [],
+  conversations: [],
+  competitions: [],
+  competitionEntries: [],
+  competitionVotes: [],
+  competitionParticipation: [],
+  patternTestAssignments: [],
+  patternTestFeedback: [],
+  patternTestMetrics: [],
+  testerStats: [],
 }
 
 // Initialize database from files
@@ -67,6 +87,22 @@ export function initializeDatabase() {
     seedPatternData()
   } catch (error) {
     console.log("[DB] Pattern seeding skipped or failed:", error.message)
+  }
+
+  // Seed messaging data if needed
+  try {
+    const { seedMessagingData } = require("./messaging-seed-data")
+    setTimeout(() => seedMessagingData(), 500) // Delay to ensure users/products are loaded
+  } catch (error) {
+    console.log("[DB] Messaging seeding skipped or failed:", error.message)
+  }
+
+  // Seed competition data if needed
+  try {
+    const { seedCompetitionData } = require("./competition-seed-data")
+    setTimeout(() => seedCompetitionData(), 600) // Delay to ensure users are loaded
+  } catch (error) {
+    console.log("[DB] Competition seeding skipped or failed:", error.message)
   }
 
   console.log("[DB] ========== DATABASE READY ==========")
@@ -280,6 +316,32 @@ export type PointsTransaction = {
   createdAt: string
 }
 
+export type Message = {
+  id: string
+  conversationId: string
+  senderId: string
+  recipientId: string
+  content: string
+  attachmentUrl?: string
+  attachmentType?: "image" | "file"
+  attachmentName?: string
+  isRead: boolean
+  sentAt: string
+  readAt?: string
+}
+
+export type Conversation = {
+  id: string
+  patternId?: string
+  participantIds: string[]
+  lastMessageId?: string
+  lastMessageAt?: string
+  createdAt: string
+  updatedAt: string
+  title?: string
+  isActive: boolean
+}
+
 // Helper functions for storage (works on server and client)
 export function getItem(key: string, defaultValue: any): any {
   console.log(`[DB] getItem("${key}") called`)
@@ -324,6 +386,16 @@ export function getItem(key: string, defaultValue: any): any {
   if (key === "crochet_pattern_purchases") return inMemoryDB.patternPurchases
   if (key === "crochet_pattern_library") return inMemoryDB.patternLibrary
   if (key === "crochet_pattern_reviews") return inMemoryDB.patternReviews
+  if (key === "crochet_messages") return inMemoryDB.messages
+  if (key === "crochet_conversations") return inMemoryDB.conversations
+  if (key === "crochet_competitions") return inMemoryDB.competitions
+  if (key === "crochet_competition_entries") return inMemoryDB.competitionEntries
+  if (key === "crochet_competition_votes") return inMemoryDB.competitionVotes
+  if (key === "crochet_competition_participation") return inMemoryDB.competitionParticipation
+  if (key === "crochet_pattern_test_assignments") return inMemoryDB.patternTestAssignments
+  if (key === "crochet_pattern_test_feedback") return inMemoryDB.patternTestFeedback
+  if (key === "crochet_pattern_test_metrics") return inMemoryDB.patternTestMetrics
+  if (key === "crochet_tester_stats") return inMemoryDB.testerStats
 
   return defaultValue
 }
@@ -374,6 +446,16 @@ export function setItem(key: string, value: any): void {
   if (key === "crochet_pattern_purchases") inMemoryDB.patternPurchases = value
   if (key === "crochet_pattern_library") inMemoryDB.patternLibrary = value
   if (key === "crochet_pattern_reviews") inMemoryDB.patternReviews = value
+  if (key === "crochet_messages") inMemoryDB.messages = value
+  if (key === "crochet_conversations") inMemoryDB.conversations = value
+  if (key === "crochet_competitions") inMemoryDB.competitions = value
+  if (key === "crochet_competition_entries") inMemoryDB.competitionEntries = value
+  if (key === "crochet_competition_votes") inMemoryDB.competitionVotes = value
+  if (key === "crochet_competition_participation") inMemoryDB.competitionParticipation = value
+  if (key === "crochet_pattern_test_assignments") inMemoryDB.patternTestAssignments = value
+  if (key === "crochet_pattern_test_feedback") inMemoryDB.patternTestFeedback = value
+  if (key === "crochet_pattern_test_metrics") inMemoryDB.patternTestMetrics = value
+  if (key === "crochet_tester_stats") inMemoryDB.testerStats = value
 }
 
 // Database functions
@@ -960,3 +1042,294 @@ export const addPointsForPurchase = (userId: string, purchaseAmount: number, ord
   return transaction
 }
 
+// Message and Conversation functions
+export const getMessages = (): Message[] => {
+  return getItem("crochet_messages", []) as Message[]
+}
+
+export const getMessageById = (id: string): Message | undefined => {
+  const messages = getMessages()
+  return messages.find((message) => message.id === id)
+}
+
+export const getMessagesByConversation = (conversationId: string): Message[] => {
+  const messages = getMessages()
+  return messages.filter((message) => message.conversationId === conversationId)
+    .sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime())
+}
+
+export const getMessagesByUser = (userId: string): Message[] => {
+  const messages = getMessages()
+  return messages.filter((message) => message.senderId === userId || message.recipientId === userId)
+}
+
+export const createMessage = (message: Omit<Message, "id" | "sentAt" | "isRead">): Message => {
+  const messages = getMessages()
+  
+  const newMessage: Message = {
+    id: crypto.randomUUID(),
+    ...message,
+    isRead: false,
+    sentAt: new Date().toISOString(),
+  }
+
+  messages.push(newMessage)
+  setItem("crochet_messages", messages)
+
+  // Update conversation's last message
+  updateConversationLastMessage(message.conversationId, newMessage.id)
+
+  return newMessage
+}
+
+export const markMessageAsRead = (messageId: string): Message | undefined => {
+  const messages = getMessages()
+  const messageIndex = messages.findIndex((message) => message.id === messageId)
+
+  if (messageIndex === -1) {
+    return undefined
+  }
+
+  const updatedMessage = {
+    ...messages[messageIndex],
+    isRead: true,
+    readAt: new Date().toISOString(),
+  }
+
+  messages[messageIndex] = updatedMessage
+  setItem("crochet_messages", messages)
+
+  return updatedMessage
+}
+
+export const markConversationMessagesAsRead = (conversationId: string, userId: string): number => {
+  const messages = getMessages()
+  let updatedCount = 0
+
+  const updatedMessages = messages.map((message) => {
+    if (message.conversationId === conversationId && 
+        message.recipientId === userId && 
+        !message.isRead) {
+      updatedCount++
+      return {
+        ...message,
+        isRead: true,
+        readAt: new Date().toISOString(),
+      }
+    }
+    return message
+  })
+
+  if (updatedCount > 0) {
+    setItem("crochet_messages", updatedMessages)
+  }
+
+  return updatedCount
+}
+
+export const getConversations = (): Conversation[] => {
+  return getItem("crochet_conversations", []) as Conversation[]
+}
+
+export const getConversationById = (id: string): Conversation | undefined => {
+  const conversations = getConversations()
+  return conversations.find((conversation) => conversation.id === id)
+}
+
+export const getConversationsByUser = (userId: string): Conversation[] => {
+  const conversations = getConversations()
+  return conversations.filter((conversation) => 
+    conversation.participantIds.includes(userId) && conversation.isActive
+  ).sort((a, b) => {
+    const aTime = a.lastMessageAt || a.createdAt
+    const bTime = b.lastMessageAt || b.createdAt
+    return new Date(bTime).getTime() - new Date(aTime).getTime()
+  })
+}
+
+export const getConversationByPatternAndUsers = (patternId: string, userId1: string, userId2: string): Conversation | undefined => {
+  const conversations = getConversations()
+  return conversations.find((conversation) => 
+    conversation.patternId === patternId &&
+    conversation.participantIds.includes(userId1) &&
+    conversation.participantIds.includes(userId2) &&
+    conversation.isActive
+  )
+}
+
+export const createConversation = (conversation: Omit<Conversation, "id" | "createdAt" | "updatedAt" | "isActive">): Conversation => {
+  const conversations = getConversations()
+  
+  const newConversation: Conversation = {
+    id: crypto.randomUUID(),
+    ...conversation,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+
+  conversations.push(newConversation)
+  setItem("crochet_conversations", conversations)
+
+  return newConversation
+}
+
+export const updateConversation = (id: string, updates: Partial<Conversation>): Conversation | undefined => {
+  const conversations = getConversations()
+  const conversationIndex = conversations.findIndex((conversation) => conversation.id === id)
+
+  if (conversationIndex === -1) {
+    return undefined
+  }
+
+  const updatedConversation = {
+    ...conversations[conversationIndex],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  }
+
+  conversations[conversationIndex] = updatedConversation
+  setItem("crochet_conversations", conversations)
+
+  return updatedConversation
+}
+
+const updateConversationLastMessage = (conversationId: string, messageId: string): void => {
+  updateConversation(conversationId, {
+    lastMessageId: messageId,
+    lastMessageAt: new Date().toISOString(),
+  })
+}
+
+export const getUnreadMessageCount = (userId: string): number => {
+  const messages = getMessages()
+  return messages.filter((message) => 
+    message.recipientId === userId && !message.isRead
+  ).length
+}
+
+export const getConversationWithDetails = (conversationId: string, userId: string) => {
+  const conversation = getConversationById(conversationId)
+  if (!conversation || !conversation.participantIds.includes(userId)) {
+    return null
+  }
+
+  const messages = getMessagesByConversation(conversationId)
+  const participants = conversation.participantIds.map(id => getUserById(id)).filter(Boolean)
+  const otherParticipant = participants.find(p => p!.id !== userId)
+  
+  let pattern = null
+  if (conversation.patternId) {
+    pattern = getProductById(conversation.patternId)
+  }
+
+  return {
+    conversation,
+    messages,
+    participants,
+    otherParticipant,
+    pattern,
+    unreadCount: messages.filter(m => m.recipientId === userId && !m.isRead).length
+  }
+}
+
+
+// Re-export competition functions from competition-db
+export {
+  getCompetitions,
+  getCompetitionById,
+  getActiveCompetitions,
+  getCompetitionsByStatus,
+  createCompetition,
+  updateCompetition,
+  deleteCompetition,
+  getCompetitionEntries,
+  getCompetitionEntryById,
+  getEntriesByCompetition,
+  getEntriesByUser,
+  getUserEntryForCompetition,
+  createCompetitionEntry,
+  updateCompetitionEntry,
+  deleteCompetitionEntry,
+  getCompetitionVotes,
+  getVotesByCompetition,
+  getVotesByEntry,
+  getUserVoteForCompetition,
+  createCompetitionVote,
+  getCompetitionParticipations,
+  getParticipationsByUser,
+  getParticipationsByCompetition,
+  createCompetitionParticipation,
+  updateCompetitionParticipation,
+  selectCompetitionWinner,
+  markPrizeAsDistributed,
+  getCompetitionWithDetails,
+  getCompetitionStats,
+  getUserCompetitionHistory,
+  type Competition,
+  type CompetitionEntry,
+  type CompetitionVote,
+  type CompetitionParticipation,
+} from "./competition-db"
+
+// Re-export pattern functions from pattern-db
+export {
+  getPatterns,
+  getPatternById,
+  getPatternsByCreator,
+  getPatternsByCategory,
+  getPatternsByDifficulty,
+  searchPatterns,
+  createPattern,
+  updatePattern,
+  deletePattern,
+  getPurchases,
+  getPurchaseById,
+  getPurchasesByUser,
+  getPurchasesByPattern,
+  createPurchase,
+  getUserPatternLibrary,
+  hasUserPurchasedPattern,
+  getPatternReviews,
+  createPatternReview,
+  getPatternStats,
+  type Pattern,
+  type PatternPurchase,
+  type PatternReview,
+} from "./pattern-db"
+
+// Re-export pattern testing functions from pattern-testing-db
+export {
+  getPatternTestingApplications,
+  getPatternTestingApplicationById,
+  getPatternTestingApplicationByUserId,
+  createPatternTestingApplication,
+  updatePatternTestingApplication,
+  getPatternTestAssignments,
+  getPatternTestAssignmentById,
+  getPatternTestAssignmentsByTester,
+  getPatternTestAssignmentsByPattern,
+  getPatternTestAssignmentsByCreator,
+  createPatternTestAssignment,
+  updatePatternTestAssignment,
+  getPatternTestFeedback,
+  getPatternTestFeedbackById,
+  getPatternTestFeedbackByAssignment,
+  getPatternTestFeedbackByPattern,
+  createPatternTestFeedback,
+  updatePatternTestFeedback,
+  getPatternTestMetrics,
+  getPatternTestMetricsByPattern,
+  updatePatternTestMetrics,
+  getTesterStats,
+  getTesterStatsByUser,
+  createTesterStats,
+  updateTesterStats,
+  completePatternTest,
+  getTesterLeaderboard,
+  getTestingAnalytics,
+  type PatternTestAssignment,
+  type PatternTestFeedback,
+  type PatternTestMetrics,
+  type TesterStats,
+} from "./pattern-testing-db"

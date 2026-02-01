@@ -9,6 +9,7 @@ import { Search, Menu, X } from "lucide-react"
 import CartButton from "./cart/cart-button"
 import CartDrawer from "./cart/cart-drawer"
 import AuthStatus from "./auth/auth-status"
+import { MessageNotifications } from "./messaging/message-notifications"
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -112,13 +113,14 @@ export default function Header() {
               )}
             </nav>
 
-            {/* Search, Cart, and Auth */}
+            {/* Search, Messages, Cart, and Auth */}
             <div className="flex items-center space-x-4">
               <div className="hidden md:flex relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input type="search" placeholder="Search..." className="w-[200px] pl-8 rounded-full bg-background" />
               </div>
 
+              {isAuthenticated && <MessageNotifications />}
               <CartButton onClick={() => setIsCartOpen(true)} />
               <AuthStatus />
 

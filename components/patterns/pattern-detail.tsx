@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import { useAuth } from "@/context/auth-context"
+import { MessageCreatorButton } from "@/components/messaging/message-creator-button"
 
 interface Pattern {
   id: string
@@ -334,19 +335,40 @@ export default function PatternDetail({ patternId }: PatternDetailProps) {
               </div>
 
               {userOwnsPattern ? (
-                <div className="text-center py-4">
-                  <p className="text-green-600 font-semibold mb-2">✓ You own this pattern</p>
-                  <p className="text-sm text-gray-600">Access your downloads above</p>
+                <div className="space-y-3">
+                  <div className="text-center py-2">
+                    <p className="text-green-600 font-semibold mb-1">✓ You own this pattern</p>
+                    <p className="text-sm text-gray-600">Access your downloads above</p>
+                  </div>
+                  <MessageCreatorButton
+                    patternId={pattern.id}
+                    creatorId={pattern.creator.id}
+                    creatorName={pattern.creator.name}
+                    patternName={pattern.title}
+                    variant="outline"
+                    className="w-full"
+                  />
                 </div>
               ) : (
-                <Button 
-                  className="w-full" 
-                  size="lg"
-                  onClick={handlePurchase}
-                  disabled={purchasing}
-                >
-                  {purchasing ? "Processing..." : "Purchase Pattern"}
-                </Button>
+                <div className="space-y-3">
+                  <Button 
+                    className="w-full" 
+                    size="lg"
+                    onClick={handlePurchase}
+                    disabled={purchasing}
+                  >
+                    {purchasing ? "Processing..." : "Purchase Pattern"}
+                  </Button>
+                  <MessageCreatorButton
+                    patternId={pattern.id}
+                    creatorId={pattern.creator.id}
+                    creatorName={pattern.creator.name}
+                    patternName={pattern.title}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                  />
+                </div>
               )}
             </CardContent>
           </Card>
@@ -413,7 +435,16 @@ export default function PatternDetail({ patternId }: PatternDetailProps) {
               <p className="text-gray-700 mb-4">
                 Passionate crochet designer creating beautiful patterns for crafters of all skill levels.
               </p>
-              <Button variant="outline">View All Patterns</Button>
+              <div className="flex gap-2">
+                <Button variant="outline">View All Patterns</Button>
+                <MessageCreatorButton
+                  patternId={pattern.id}
+                  creatorId={pattern.creator.id}
+                  creatorName={pattern.creator.name}
+                  patternName={pattern.title}
+                  variant="outline"
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -22,6 +22,12 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import PatternTestingManagement from "./pattern-testing-management"
 import BankAccountModal from "./bank-account-modal"
+import SellerNotificationCenter from "./seller-notification-center"
+import SellerAnalyticsDashboard from "./seller-analytics-dashboard"
+import PatternManagementDashboard from "./pattern-management-dashboard"
+import SalesReportingDashboard from "./sales-reporting-dashboard"
+import InventoryManagementDashboard from "./inventory-management-dashboard"
+import CreatorProfileManagement from "./creator-profile-management"
 
 export default function SellerDashboard() {
   const { user, isAuthenticated, logout, updateUser, refreshUserData } = useAuth()
@@ -39,8 +45,14 @@ export default function SellerDashboard() {
     }
 
     // If user is not a seller and doesn't have a pending application, redirect to become-seller
-    if (user?.role !== "seller" && !user?.sellerApplication) {
+    if (user?.role !== "seller" && user?.role !== "creator" && !user?.sellerApplication) {
       router.push("/become-seller")
+      return
+    }
+
+    // If user is a seller but hasn't completed onboarding, redirect to onboarding
+    if ((user?.role === "seller" || user?.role === "creator") && !user?.sellerProfile?.onboardingCompleted) {
+      router.push("/seller-onboarding")
       return
     }
 
@@ -319,79 +331,42 @@ export default function SellerDashboard() {
         </Button>
       </div>
 
-      <Tabs defaultValue="products" onValueChange={setActiveTab} value={activeTab}>
+      {/* Add notification center at the top */}
+      <div className="mb-8">
+        <SellerNotificationCenter />
+      </div>
+
+      <Tabs defaultValue="analytics" onValueChange={setActiveTab} value={activeTab}>
         <TabsList className="mb-8 flex flex-wrap">
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="orders">Orders</TabsTrigger>
-          <TabsTrigger value="earnings">Earnings</TabsTrigger>
-          <TabsTrigger value="pattern-testing">Pattern Testing</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="patterns">Pattern Management</TabsTrigger>
+          <TabsTrigger value="inventory">Inventory</TabsTrigger>
+          <TabsTrigger value="reports">Sales Reports</TabsTrigger>
+          <TabsTrigger value="earnings">Earnings</TabsTrigger>
+          <TabsTrigger value="orders">Orders</TabsTrigger>
+          <TabsTrigger value="profile">Creator Profile</TabsTrigger>
+          <TabsTrigger value="pattern-testing">Pattern Testing</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="products" className="space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h2 className="text-2xl font-bold">Your Products</h2>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" asChild>
-                <Link href="/seller-dashboard/products/new-pattern">Add Pattern</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/seller-dashboard/products/new">Add Product</Link>
-              </Button>
-            </div>
-          </div>
+        <TabsContent value="analytics" className="space-y-6">
+          <SellerAnalyticsDashboard sellerId={user?.id || ''} />
+        </TabsContent>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {/* Sample product cards */}
-            <Card>
-              <CardHeader className="p-4">
-                <img src="/crochet-bunny.png" alt="Product" className="h-40 w-full rounded-md object-cover" />
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <h3 className="font-medium">Cute Bunny Amigurumi</h3>
-                <p className="text-sm text-muted-foreground">$24.99</p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Stock: 10</span>
-                  <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                    Active
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+        <TabsContent value="patterns" className="space-y-6">
+          <PatternManagementDashboard sellerId={user?.id || ''} />
+        </TabsContent>
 
-            <Card>
-              <CardHeader className="p-4">
-                <img src="/cozy-crochet-blanket.png" alt="Product" className="h-40 w-full rounded-md object-cover" />
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <h3 className="font-medium">Cozy Baby Blanket</h3>
-                <p className="text-sm text-muted-foreground">$39.99</p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Stock: 5</span>
-                  <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                    Active
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+        <TabsContent value="inventory" className="space-y-6">
+          <InventoryManagementDashboard sellerId={user?.id || ''} />
+        </TabsContent>
 
-            <Card>
-              <CardHeader className="p-4">
-                <img src="/crochet-plant-hanger.png" alt="Product" className="h-40 w-full rounded-md object-cover" />
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <h3 className="font-medium">Crochet Plant Hanger</h3>
-                <p className="text-sm text-muted-foreground">$19.99</p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Stock: 8</span>
-                  <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                    Active
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="reports" className="space-y-6">
+          <SalesReportingDashboard sellerId={user?.id || ''} />
+        </TabsContent>
+
+        <TabsContent value="profile" className="space-y-6">
+          <CreatorProfileManagement sellerId={user?.id || ''} />
         </TabsContent>
 
         <TabsContent value="orders" className="space-y-6">
@@ -661,6 +636,11 @@ export default function SellerDashboard() {
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold">3.2%</p>
+                <p className="text-sm text-red-600">↓ 0.5% from last month</p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
                 <p className="text-sm text-red-600">↓ 0.5% from last month</p>
               </CardContent>
             </Card>

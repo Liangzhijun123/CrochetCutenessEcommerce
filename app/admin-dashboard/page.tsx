@@ -8,8 +8,20 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { RefreshCw, CheckCircle, XCircle, Clock, Home } from "lucide-react"
+import { RefreshCw, CheckCircle, XCircle, Clock, Home, Eye } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import SellerApplicationReview from "@/components/admin/seller-application-review"
+import SellerStatusManagement from "@/components/admin/seller-status-management"
+import GamificationManagement from "@/components/admin/gamification-management"
+import AdminDashboardOverview from "@/components/admin/admin-dashboard-overview"
+import ContentModeration from "@/components/admin/content-moderation"
+import PlatformAnalytics from "@/components/admin/platform-analytics"
+import SystemConfiguration from "@/components/admin/system-configuration"
+import UserManagement from "@/components/admin/user-management"
+import { CompetitionManagement } from "@/components/admin/competition-management"
+import AdvertisementManagement from "@/components/admin/advertisement-management"
+import AdvertisementAnalytics from "@/components/admin/advertisement-analytics"
+import AdvertiserManagement from "@/components/admin/advertiser-management"
 import type { PatternTestingApplication } from "@/lib/local-storage-db"
 
 // Types
@@ -208,6 +220,9 @@ export default function AdminDashboardPage() {
   const { toast } = useToast()
   const [applications, setApplications] = useState<SellerApplication[]>([])
   const [ptApplications, setPTApplications] = useState<PatternTestingApplication[]>([])
+  const [selectedApplication, setSelectedApplication] = useState<SellerApplication | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
   // Fetch pattern testing applications from backend API
   const fetchPTApplications = async () => {
     try {
@@ -220,7 +235,6 @@ export default function AdminDashboardPage() {
       setPTApplications([])
     }
   }
-  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Initialize database and load seller applications
   useEffect(() => {
@@ -256,88 +270,77 @@ export default function AdminDashboardPage() {
     setTimeout(() => setIsRefreshing(false), 500)
   }
 
-  const handleApprove = (id: string) => {
-    if (typeof window !== "undefined") {
-      const application = applications.find((app) => app.id === id)
-      if (!application) {
-        toast({
-          title: "Error",
-          description: "Application not found",
-          variant: "destructive",
-        })
-        return
+  const handleApprove = async (id: string, feedback?: string) => {
+    try {
+      const response = await fetch(`/api/seller/applications/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: "approved",
+          adminFeedback: feedback,
+          reviewedBy: user?.id,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to approve application")
       }
 
-      // Update the application status
-      const updatedApp = updateSellerApplication(id, { status: "approved" })
-
-      if (updatedApp) {
-        // Explicitly update the user's role to ensure it's set correctly
-        const roleUpdated = updateUserRole(updatedApp.userId, "seller", updatedApp)
-
-        if (roleUpdated) {
-          toast({
-            title: "Application Approved",
-            description: `${updatedApp.name}'s application has been approved and their role has been updated to seller.`,
-          })
-        } else {
-          toast({
-            title: "Partial Update",
-            description:
-              "Application approved but user role update may have failed. User may need to log out and back in.",
-            variant: "destructive",
-          })
-        }
-      }
+      const result = await response.json()
+      
+      toast({
+        title: "Application Approved",
+        description: `${result.application.name}'s seller application has been approved.`,
+      })
 
       refreshApplications()
+      setSelectedApplication(null)
+    } catch (error) {
+      console.error("Error approving application:", error)
+      toast({
+        title: "Error",
+        description: "Failed to approve application. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
-  const handleReject = (id: string) => {
-    if (typeof window !== "undefined") {
-      const application = applications.find((app) => app.id === id)
-      if (!application) {
-        toast({
-          title: "Error",
-          description: "Application not found",
-          variant: "destructive",
-        })
-        return
+  const handleReject = async (id: string, feedback: string) => {
+    try {
+      const response = await fetch(`/api/seller/applications/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: "rejected",
+          adminFeedback: feedback,
+          reviewedBy: user?.id,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to reject application")
       }
 
-      // Update the application status
-      const updatedApp = updateSellerApplication(id, { status: "rejected" })
-
-      if (updatedApp) {
-        // Update the user's application status
-        const users = getItem("crochet_users", [])
-        const userIndex = users.findIndex((u: any) => u.id === updatedApp.userId)
-
-        if (userIndex !== -1) {
-          users[userIndex] = {
-            ...users[userIndex],
-            sellerApplication: updatedApp,
-          }
-          setItem("crochet_users", users)
-
-          // If this is the current user, update them too
-          const currentUser = getItem("crochet_user", null)
-          if (currentUser && currentUser.id === updatedApp.userId) {
-            setItem("crochet_user", {
-              ...currentUser,
-              sellerApplication: updatedApp,
-            })
-          }
-        }
-
-        toast({
-          title: "Application Rejected",
-          description: `${updatedApp.name}'s application has been rejected.`,
-        })
-      }
+      const result = await response.json()
+      
+      toast({
+        title: "Application Rejected",
+        description: `${result.application.name}'s seller application has been rejected.`,
+      })
 
       refreshApplications()
+      setSelectedApplication(null)
+    } catch (error) {
+      console.error("Error rejecting application:", error)
+      toast({
+        title: "Error",
+        description: "Failed to reject application. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -345,6 +348,36 @@ export default function AdminDashboardPage() {
     return (
       <div className="container mx-auto py-10">
         <h1 className="text-2xl font-bold mb-6">Loading...</h1>
+      </div>
+    )
+  }
+
+  // If viewing a specific application, show the detailed review interface
+  if (selectedApplication) {
+    return (
+      <div className="container mx-auto py-10 px-4">
+        <div className="flex items-center gap-4 mb-6">
+          <Button 
+            variant="outline" 
+            onClick={() => setSelectedApplication(null)}
+            className="flex items-center gap-2"
+          >
+            ← Back to Applications
+          </Button>
+          <h1 className="text-2xl font-bold">Review Seller Application</h1>
+        </div>
+        
+        <SellerApplicationReview
+          application={{
+            ...selectedApplication,
+            submittedAt: selectedApplication.submittedAt,
+            createdAt: selectedApplication.submittedAt,
+            updatedAt: selectedApplication.updatedAt,
+          }}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          adminId={user.id}
+        />
       </div>
     )
   }
@@ -433,20 +466,31 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="pending">
+      <Tabs defaultValue="overview">
         <TabsList className="mb-4 flex flex-wrap">
+          <TabsTrigger value="overview">Dashboard</TabsTrigger>
           <TabsTrigger value="pending">
-            Pending Applications
+            Applications
             {pendingApplications.length > 0 && (
               <Badge variant="destructive" className="ml-2">
                 {pendingApplications.length}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="approved">Approved</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-          <TabsTrigger value="pattern-testing">Pattern Testing</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="content">Content</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="competitions">Competitions</TabsTrigger>
+          <TabsTrigger value="advertisements">Advertisements</TabsTrigger>
+          <TabsTrigger value="advertisers">Advertisers</TabsTrigger>
+          <TabsTrigger value="ad-analytics">Ad Analytics</TabsTrigger>
+          <TabsTrigger value="gamification">Gamification</TabsTrigger>
+          <TabsTrigger value="config">Configuration</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview">
+          <AdminDashboardOverview />
+        </TabsContent>
 
         <TabsContent value="pending">
           {pendingApplications.length === 0 ? (
@@ -534,13 +578,24 @@ export default function AdminDashboardPage() {
                   <CardFooter className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
                     {application.type === "seller" ? (
                       <>
-                        <Button variant="outline" onClick={() => handleReject(application.id)} className="w-full sm:w-auto">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {
+                            const fullApp = applications.find(app => app.id === application.id)
+                            if (fullApp) setSelectedApplication(fullApp)
+                          }}
+                          className="w-full sm:w-auto"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Review Details
+                        </Button>
+                        <Button variant="outline" onClick={() => handleReject(application.id, "Application rejected")} className="w-full sm:w-auto">
                           <XCircle className="h-4 w-4 mr-2" />
-                          Reject
+                          Quick Reject
                         </Button>
                         <Button onClick={() => handleApprove(application.id)} className="w-full sm:w-auto">
                           <CheckCircle className="h-4 w-4 mr-2" />
-                          Approve
+                          Quick Approve
                         </Button>
                       </>
                     ) : (
@@ -560,6 +615,34 @@ export default function AdminDashboardPage() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="users">
+          <UserManagement />
+        </TabsContent>
+
+        <TabsContent value="content">
+          <ContentModeration />
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <PlatformAnalytics />
+        </TabsContent>
+
+        <TabsContent value="competitions">
+          <CompetitionManagement />
+        </TabsContent>
+
+        <TabsContent value="advertisements">
+          <AdvertisementManagement />
+        </TabsContent>
+
+        <TabsContent value="advertisers">
+          <AdvertiserManagement />
+        </TabsContent>
+
+        <TabsContent value="ad-analytics">
+          <AdvertisementAnalytics />
         </TabsContent>
 
         <TabsContent value="approved">
@@ -609,56 +692,12 @@ export default function AdminDashboardPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="rejected">
-          {rejectedApplications.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <p className="text-center text-muted-foreground">No rejected applications</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {rejectedApplications.map((application) => (
-                <Card key={application.id}>
-                  <CardHeader>
-                    <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-                      <div>
-                        <CardTitle>{application.name}</CardTitle>
-                        <CardDescription>{application.email}</CardDescription>
-                      </div>
-                      <Badge variant="destructive" className="flex items-center">
-                        <XCircle className="h-3 w-3 mr-1" />
-                        Rejected
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="font-medium mb-1">Bio</h3>
-                        <p className="text-sm text-muted-foreground">{application.bio}</p>
-                      </div>
-                      <div>
-                        <h3 className="font-medium mb-1">Experience</h3>
-                        <p className="text-sm text-muted-foreground">{application.experience}</p>
-                      </div>
-                      <div>
-                        <h3 className="font-medium mb-1">Rejected On</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {application.updatedAt ? application.updatedAt.replace('T', ' ').slice(0, 19) : "Unknown"}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+        <TabsContent value="config">
+          <SystemConfiguration />
         </TabsContent>
 
-        <TabsContent value="pattern-testing">
-          {/* Pattern testing tab content is now merged into the pending tab. */}
-          <div className="text-muted-foreground text-center py-8">Pattern testing applications are managed in the Pending tab above.</div>
+        <TabsContent value="gamification">
+          <GamificationManagement />
         </TabsContent>
       </Tabs>
     </div>
