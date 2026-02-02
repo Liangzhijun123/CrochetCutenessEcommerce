@@ -22,12 +22,21 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import PatternTestingManagement from "./pattern-testing-management"
 import BankAccountModal from "./bank-account-modal"
-import SellerNotificationCenter from "./seller-notification-center"
 import SellerAnalyticsDashboard from "./seller-analytics-dashboard"
 import PatternManagementDashboard from "./pattern-management-dashboard"
 import SalesReportingDashboard from "./sales-reporting-dashboard"
 import InventoryManagementDashboard from "./inventory-management-dashboard"
 import CreatorProfileManagement from "./creator-profile-management"
+import ProductUploadForm from "./product-upload-form"
+
+// Helper component for displaying dates
+function SellerAppDate({ date }: { date: string }) {
+  const [dateStr, setDateStr] = useState("")
+  useEffect(() => {
+    setDateStr(new Date(date).toLocaleDateString())
+  }, [date])
+  return <>{dateStr || "..."}</>
+}
 
 export default function SellerDashboard() {
   const { user, isAuthenticated, logout, updateUser, refreshUserData } = useAuth()
@@ -165,13 +174,6 @@ export default function SellerDashboard() {
                 <li>
                   <span className="text-muted-foreground">Submitted:</span>{" "}
                   <SellerAppDate date={user.sellerApplication.submittedAt} />
-                function SellerAppDate({ date }: { date: string }) {
-                  const [dateStr, setDateStr] = useState("")
-                  useEffect(() => {
-                    setDateStr(new Date(date).toLocaleDateString())
-                  }, [date])
-                  return <>{dateStr || "..."}</>
-                }
                 </li>
                 <li>
                   <span className="text-muted-foreground">Status:</span>{" "}
@@ -332,13 +334,11 @@ export default function SellerDashboard() {
       </div>
 
       {/* Add notification center at the top */}
-      <div className="mb-8">
-        <SellerNotificationCenter />
-      </div>
 
       <Tabs defaultValue="analytics" onValueChange={setActiveTab} value={activeTab}>
         <TabsList className="mb-8 flex flex-wrap">
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="patterns">Pattern Management</TabsTrigger>
           <TabsTrigger value="inventory">Inventory</TabsTrigger>
           <TabsTrigger value="reports">Sales Reports</TabsTrigger>
@@ -351,6 +351,12 @@ export default function SellerDashboard() {
 
         <TabsContent value="analytics" className="space-y-6">
           <SellerAnalyticsDashboard sellerId={user?.id || ''} />
+        </TabsContent>
+
+        <TabsContent value="products" className="space-y-6">
+          <h2 className="text-2xl font-bold">Upload Products</h2>
+          <p className="text-muted-foreground">Add new products to your shop</p>
+          <ProductUploadForm />
         </TabsContent>
 
         <TabsContent value="patterns" className="space-y-6">
@@ -641,11 +647,6 @@ export default function SellerDashboard() {
             </Card>
           </div>
         </TabsContent>
-                <p className="text-sm text-red-600">↓ 0.5% from last month</p>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
           <h2 className="text-2xl font-bold">Seller Settings</h2>
@@ -682,7 +683,7 @@ export default function SellerDashboard() {
                 <div>
                   <label htmlFor="store-policies" className="block text-sm font-medium">
                     Store Policies
-                  </label>
+                  </label>l>
                   <textarea
                     id="store-policies"
                     rows={4}

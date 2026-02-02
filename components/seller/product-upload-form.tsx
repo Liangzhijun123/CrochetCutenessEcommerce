@@ -24,10 +24,12 @@ export default function ProductUploadForm() {
     category: "",
     stock: "1",
     difficulty: "beginner",
-    images: ["/placeholder.svg?height=400&width=400"],
+    images: [] as string[],
     colors: [],
     tags: "",
     featured: false,
+    youtubeLink: "",
+    writtenInstructions: "",
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -42,6 +44,23 @@ export default function ProductUploadForm() {
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target
     setFormData((prev) => ({ ...prev, [name]: checked }))
+  }
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (files) {
+      // In a real app, you would upload these to a server/CDN
+      // For now, we'll create object URLs for preview
+      const newImages = Array.from(files).map(file => URL.createObjectURL(file))
+      setFormData((prev) => ({ ...prev, images: [...prev.images, ...newImages] }))
+    }
+  }
+
+  const removeImage = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,6 +86,7 @@ export default function ProductUploadForm() {
         sellerId: user.id,
         tags: formData.tags.split(",").map((tag) => tag.trim()),
         colors: formData.colors.length ? formData.colors : undefined,
+        images: formData.images.length ? formData.images : ["/placeholder.svg?height=400&width=400"],
       }
 
       // Submit to API
@@ -130,6 +150,63 @@ export default function ProductUploadForm() {
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="writtenInstructions">Written Instructions</Label>
+            <Textarea
+              id="writtenInstructions"
+              name="writtenInstructions"
+              value={formData.writtenInstructions}
+              onChange={handleChange}
+              rows={6}
+              placeholder="Provide detailed step-by-step instructions for creating this item..."
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="youtubeLink">YouTube Tutorial Link (Optional)</Label>
+            <Input
+              id="youtubeLink"
+              name="youtubeLink"
+              type="url"
+              value={formData.youtubeLink}
+              onChange={handleChange}
+              placeholder="https://youtube.com/watch?v=..."
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="images">Product Images</Label>
+            <Input
+              id="images"
+              name="images"
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleImageUpload}
+              className="cursor-pointer"
+            />
+            {formData.images.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                {formData.images.map((image, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={image}
+                      alt={`Product ${index + 1}`}
+                      className="w-full h-24 object-cover rounded border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="price">Price ($)</Label>
@@ -162,7 +239,7 @@ export default function ProductUploadForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select value={formData.category} onValueChange={(value) => handleSelectChange("category", value)}>
+              <Select value={formData.category || undefined} onValueChange={(value) => handleSelectChange("category", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -178,7 +255,7 @@ export default function ProductUploadForm() {
 
             <div className="space-y-2">
               <Label htmlFor="difficulty">Difficulty Level</Label>
-              <Select value={formData.difficulty} onValueChange={(value) => handleSelectChange("difficulty", value)}>
+              <Select value={formData.difficulty || undefined} onValueChange={(value) => handleSelectChange("difficulty", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select difficulty" />
                 </SelectTrigger>

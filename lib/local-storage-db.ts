@@ -114,12 +114,13 @@ export type User = {
   name: string
   email: string
   password: string
-  role: "user" | "creator" | "admin"
+  role: "user" | "creator" | "admin" | "seller"
   createdAt: string
   avatar?: string
   loyaltyPoints: number
   loyaltyTier: "bronze" | "silver" | "gold" | "platinum"
   sellerProfile?: SellerProfile
+  sellerApplication?: SellerApplication
   // Pattern Testing fields
   patternTestingApproved?: boolean
   testerLevel?: number
@@ -138,6 +139,13 @@ export type SellerProfile = {
   approved: boolean
   bio: string
   storeDescription?: string
+  storeName?: string
+  storeSlogan?: string
+  specialties?: string
+  targetAudience?: string
+  onboardingCompleted?: boolean
+  onboardingCompletedAt?: string
+  status?: "active" | "inactive" | "suspended"
   socialMedia?: {
     instagram?: string
     pinterest?: string
@@ -148,6 +156,8 @@ export type SellerProfile = {
     accountName: string
     accountNumber: string
     bankName: string
+    routingNumber?: string
+    accountType?: string
   }
   salesCount: number
   rating: number

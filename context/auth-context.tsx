@@ -5,15 +5,7 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-
-// Define User type
-type User = {
-  id: string
-  name: string
-  email: string
-  role: string
-  createdAt: string
-}
+import { type User } from "@/lib/local-storage-db"
 
 type AuthContextType = {
   user: User | null
@@ -319,10 +311,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       if (!user || !token) return false
 
-      // In a real app, you would make an API call to update the user
-      const updatedUser = { ...user, ...updates }
+      // Deep merge for nested objects like sellerProfile
+      const updatedUser = {
+        ...user,
+        ...updates,
+        // Merge sellerProfile if it exists in updates
+        ...(updates.sellerProfile && {
+          sellerProfile: {
+            ...user.sellerProfile,
+            ...updates.sellerProfile,
+          },
+        }),
+      }
+      
+      console.log("🔄 Updating user in localStorage:", updatedUser)
       setUser(updatedUser)
       localStorage.setItem("crochet_user", JSON.stringify(updatedUser))
+      
+      // Also update in the users array in localStorage
+      const usersJson = localStorage.getItem("crochet_users")
+      if (usersJson) {
+        const users = JSON.parse(usersJson)
+        const userIndex = users.findIndex((u: User) => u.id === user.id)
+        if (userIndex !== -1) {
+          users[userIndex] = updatedUser
+          localStorage.setItem("crochet_users", JSON.stringify(users))
+          console.log("✅ User updated in crochet_users array")
+        }
+      }
+      
       return true
     } catch (error) {
       console.error("Update user error:", error)

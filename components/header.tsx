@@ -5,11 +5,12 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
 import { Input } from "@/components/ui/input"
-import { Search, Menu, X } from "lucide-react"
+import { Search, Menu, X, Bell } from "lucide-react"
 import CartButton from "./cart/cart-button"
 import CartDrawer from "./cart/cart-drawer"
 import AuthStatus from "./auth/auth-status"
 import { MessageNotifications } from "./messaging/message-notifications"
+import SellerNotificationsDropdown from "./seller/seller-notifications-dropdown"
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -121,6 +122,7 @@ export default function Header() {
               </div>
 
               {isAuthenticated && <MessageNotifications />}
+              {isAuthenticated && user?.role === "seller" && <SellerNotificationsDropdown />}
               <CartButton onClick={() => setIsCartOpen(true)} />
               <AuthStatus />
 

@@ -66,5 +66,106 @@
       "rating": 4.7,
       "joinedDate": "2026-02-01T23:08:21.261Z"
     }
+  },
+  {
+    "id": "1ab6dfb9-4eb7-4ba2-8f2c-365f48ce3747",
+    "name": "n2",
+    "email": "n2@example.com",
+    "password": "$2a$12$oscrZvxv7MlKErOA2nCdX.PbiCA1qg1UFHDmxOYZHCdAjNNdsRzVu",
+    "role": "user",
+    "createdAt": "2026-02-01T23:09:29.584Z",
+    "loyaltyPoints": 0,
+    "loyaltyTier": "bronze",
+    "coins": 0,
+    "points": 0,
+    "loginStreak": 0,
+    "isActive": true
+  },
+  {
+    "id": "890d511e-82a3-4fef-b48b-2fbd62dabf8b",
+    "name": "n3",
+    "email": "n3@example.com",
+    "password": "$2a$12$B1i9JFeJLgu02IecumU4LuwCqnO7/dnYcl5PEgdLIHD42243jFbLK",
+    "role": "creator",
+    "createdAt": "2026-02-01T23:10:12.740Z",
+    "loyaltyPoints": 0,
+    "loyaltyTier": "bronze",
+    "coins": 0,
+    "points": 0,
+    "loginStreak": 0,
+    "isActive": true
+  },
+  {
+    "id": "cb52f5b6-f653-4c39-9305-d1ee71e24e78",
+    "name": "n3",
+    "email": "n4@example.com",
+    "password": "$2a$12$qKJX.0ZO9Zui2xG7lJGZhesED7I3UE6HN15x.RPoJ8ep8mc/Gt/ku",
+    "role": "creator",
+    "createdAt": "2026-02-01T23:16:31.127Z",
+    "loyaltyPoints": 0,
+    "loyaltyTier": "bronze",
+    "coins": 0,
+    "points": 0,
+    "loginStreak": 0,
+    "isActive": true
+  },
+  {
+    "id": "c4b4adf7-8792-4922-a585-44911921b7f2",
+    "name": "n4",
+    "email": "n5@example.com",
+    "password": "$2a$12$27CEUkILBZWusk0HcsOYB.Wgf.pc/W/BfVh3sGB5lZwUCQKrOcNg.",
+    "role": "creator",
+    "createdAt": "2026-02-01T23:24:54.156Z",
+    "loyaltyPoints": 0,
+    "loyaltyTier": "bronze",
+    "coins": 0,
+    "points": 0,
+    "loginStreak": 0,
+    "isActive": true
+  },
+  {
+    "id": "98145fd3-d4fe-4783-a15d-4da2ac5a2b65",
+    "name": "n6",
+    "email": "n6@example.com",
+    "password": "$2a$12$15phcpo30d.u8QrtEXnf1eJFE6C1WNBV51AnID2UTBdV7.4IVF82m",
+    "role": "creator",
+    "createdAt": "2026-02-01T23:32:54.159Z",
+    "loyaltyPoints": 0,
+    "loyaltyTier": "bronze",
+    "coins": 0,
+    "points": 0,
+    "loginStreak": 0,
+    "isActive": true,
+    "sellerProfile": {
+      "storeDescription": "",
+      "storeName": "",
+      "storeSlogan": "",
+      "specialties": "",
+      "targetAudience": "",
+      "bankInfo": {
+        "accountName": "n6@example.com",
+        "accountNumber": "Testpassword12!",
+        "bankName": "",
+        "routingNumber": "",
+        "accountType": "checking"
+      },
+      "onboardingCompleted": true,
+      "onboardingCompletedAt": "2026-02-01T23:33:45.288Z",
+      "status": "active"
+    }
+  },
+  {
+    "id": "521efdb1-568c-458a-a9b9-5ffe98198ebf",
+    "name": "n5",
+    "email": "n7@example.com",
+    "password": "$2a$12$nRzq4fNAkJtmMytLMO/BSON7rCwoySluUbArmAlg8nm1Jzm/cUPBC",
+    "role": "creator",
+    "createdAt": "2026-02-01T23:39:06.682Z",
+    "loyaltyPoints": 0,
+    "loyaltyTier": "bronze",
+    "coins": 0,
+    "points": 0,
+    "loginStreak": 0,
+    "isActive": true
   }
 ]

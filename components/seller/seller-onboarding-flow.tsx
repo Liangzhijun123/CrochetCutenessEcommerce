@@ -120,6 +120,11 @@ export default function SellerOnboardingFlow() {
         },
       }
 
+      console.log("🚀 Starting onboarding completion...")
+      console.log("📦 Onboarding data:", onboardingData)
+      console.log("👤 User ID:", user?.id)
+      console.log("👤 User object:", user)
+
       // Call API to complete onboarding
       const response = await fetch("/api/seller/onboarding/complete", {
         method: "POST",
@@ -128,19 +133,27 @@ export default function SellerOnboardingFlow() {
         },
         body: JSON.stringify({
           userId: user?.id,
+          user: user, // Send the full user object
           onboardingData,
         }),
       })
 
+      console.log("📡 Response status:", response.status)
+      console.log("📡 Response ok:", response.ok)
+
       if (!response.ok) {
-        throw new Error("Failed to complete onboarding")
+        const errorText = await response.text()
+        console.error("❌ API Error response:", errorText)
+        throw new Error(`Failed to complete onboarding: ${response.status} ${errorText}`)
       }
 
       const result = await response.json()
+      console.log("✅ Onboarding result:", result)
 
       // Update local user context
       if (user && updateUser) {
-        updateUser(result.user)
+        await updateUser(result.user)
+        console.log("✅ User context updated")
       }
 
       toast({
@@ -149,12 +162,13 @@ export default function SellerOnboardingFlow() {
       })
 
       // Redirect to seller dashboard
+      console.log("🔄 Redirecting to seller dashboard...")
       router.push("/seller-dashboard")
     } catch (error) {
-      console.error("Error completing onboarding:", error)
+      console.error("❌ Error completing onboarding:", error)
       toast({
         title: "Error",
-        description: "Failed to complete onboarding. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to complete onboarding. Please try again.",
         variant: "destructive",
       })
     } finally {

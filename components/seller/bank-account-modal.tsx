@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,6 +30,15 @@ interface BankAccount {
 interface BankAccountModalProps {
   isOpen: boolean
   onClose: () => void
+}
+
+// Helper component for displaying dates
+function BankAccountDate({ date }: { date: string }) {
+  const [dateStr, setDateStr] = useState("")
+  useEffect(() => {
+    setDateStr(new Date(date).toLocaleDateString())
+  }, [date])
+  return <span>Added on {dateStr || "..."}</span>
 }
 
 export default function BankAccountModal({ isOpen, onClose }: BankAccountModalProps) {
@@ -271,13 +280,6 @@ export default function BankAccountModal({ isOpen, onClose }: BankAccountModalPr
                             )}
                             <p className="text-xs text-muted-foreground">
                               <BankAccountDate date={account.addedDate} />
-                            function BankAccountDate({ date }: { date: string }) {
-                              const [dateStr, setDateStr] = useState("")
-                              useEffect(() => {
-                                setDateStr(new Date(date).toLocaleDateString())
-                              }, [date])
-                              return <span>Added on {dateStr || "..."}</span>
-                            }
                             </p>
                           </div>
                         </div>

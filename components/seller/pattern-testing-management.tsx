@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +21,15 @@ import { Star, CheckCircle, XCircle, MessageSquare, Plus, Send } from "lucide-re
 import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+// Helper component for displaying dates
+function PatternAppDate({ date }: { date: string }) {
+  const [dateStr, setDateStr] = useState("")
+  useEffect(() => {
+    setDateStr(new Date(date).toLocaleDateString())
+  }, [date])
+  return <span>Applied on {dateStr || "..."}</span>
+}
 
 // Mock data for pattern testing
 const mockPatterns = [
@@ -169,10 +178,12 @@ export default function PatternTestingManagement() {
           <p className="text-muted-foreground">Manage your pattern testers and provide feedback</p>
         </div>
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <Button className="bg-rose-500 hover:bg-rose-600" onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Pattern for Testing
-          </Button>
+          <DialogTrigger asChild>
+            <Button className="bg-rose-500 hover:bg-rose-600">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Pattern for Testing
+            </Button>
+          </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Add Pattern for Community Testing</DialogTitle>
@@ -422,13 +433,6 @@ export default function PatternTestingManagement() {
                                 <p className="text-sm text-muted-foreground mt-1">{application.experience}</p>
                                 <p className="text-xs text-muted-foreground mt-2">
                                   <PatternAppDate date={application.appliedAt} />
-                                function PatternAppDate({ date }: { date: string }) {
-                                  const [dateStr, setDateStr] = useState("")
-                                  useEffect(() => {
-                                    setDateStr(new Date(date).toLocaleDateString())
-                                  }, [date])
-                                  return <span>Applied on {dateStr || "..."}</span>
-                                }
                                 </p>
                               </div>
                             </div>
