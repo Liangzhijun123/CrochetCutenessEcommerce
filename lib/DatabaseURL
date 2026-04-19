@@ -1,8 +1,0 @@
-DATABASE_URL="postgresql://postgres:A$LwMhummr9a#6K@db.dclqjocayqfxthzvtfar.supabase.co:5432/postgres"
-DB_HOST=db.dclqjocayqfxthzvtfar.supabase.co
-DB_PORT=5432
-DB_NAME=postgres
-DB_USER=postgres
-DB_PASSWORD="A$LwMhummr9a#6K"
-NEXT_PUBLIC_API_URL=http://localhost:3001
-JWT_SECRET=your-super-secret-jwt-key-change-this
