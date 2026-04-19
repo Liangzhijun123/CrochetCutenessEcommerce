@@ -1,12 +1,49 @@
 import Link from "next/link"
+import { Package } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import ProductCard from "@/components/product-card"
 import Newsletter from "@/components/newsletter"
 import AboutUs from "@/components/about-us"
 import LoyaltyProgram from "@/components/loyalty-program"
+import { initializeDatabase, getProducts } from "@/lib/local-storage-db"
+
+/**
+ * Best Selling algorithm:
+ * 1. Sort by averageRating descending (highest rated first)
+ * 2. If ratings are equal, sort by number of reviews descending
+ * 3. If still equal, sort by most recently uploaded (createdAt descending)
+ * 4. Take top 4 products
+ * 5. If no products exist, show empty state
+ * 6. If no rated products, fall back to most recently uploaded
+ */
+function getBestSellingProducts() {
+  initializeDatabase()
+  const products = getProducts()
+
+  if (products.length === 0) return []
+
+  const sorted = [...products].sort((a, b) => {
+    // Primary: highest average rating first
+    const ratingA = a.averageRating ?? 0
+    const ratingB = b.averageRating ?? 0
+    if (ratingB !== ratingA) return ratingB - ratingA
+
+    // Secondary: most reviews first
+    const reviewsA = a.reviews?.length ?? 0
+    const reviewsB = b.reviews?.length ?? 0
+    if (reviewsB !== reviewsA) return reviewsB - reviewsA
+
+    // Tertiary: most recently uploaded first
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  })
+
+  return sorted.slice(0, 4)
+}
 
 export default function Home() {
+  const bestSelling = getBestSellingProducts()
+
   return (
     <>
       <main className="flex-1">
@@ -51,27 +88,40 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
-              <ProductCard
-                title="Bunny Amigurumi"
-                price={24.99}
-                image="/placeholder.svg?height=300&width=300"
-                rating={5}
-              />
-              <ProductCard
-                title="Crochet Plant Hanger"
-                price={18.5}
-                image="/placeholder.svg?height=300&width=300"
-                rating={4}
-              />
-              <ProductCard title="Baby Blanket" price={45.0} image="/placeholder.svg?height=300&width=300" rating={5} />
-              <ProductCard
-                title="Crochet Coasters (Set of 4)"
-                price={16.99}
-                image="/placeholder.svg?height=300&width=300"
-                rating={4}
-              />
-            </div>
+
+            {bestSelling.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
+                {bestSelling.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    id={product.id}
+                    name={product.name}
+                    price={product.price}
+                    image={product.images?.[0] || "/placeholder.svg?height=300&width=300"}
+                    category={product.category}
+                    sellerId={product.sellerId}
+                    difficulty={product.difficulty}
+                    materials={product.colors}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center mt-12 py-16 bg-white rounded-xl border border-rose-100">
+                <Package className="h-16 w-16 text-rose-300 mb-4" />
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">No products yet</h3>
+                <p className="text-muted-foreground text-center max-w-md mb-6">
+                  Our sellers are crafting amazing crochet creations. Check back soon or become a seller to list your own products!
+                </p>
+                <div className="flex gap-3">
+                  <Button className="bg-rose-500 hover:bg-rose-600" asChild>
+                    <Link href="/shop">Browse Shop</Link>
+                  </Button>
+                  <Button variant="outline" className="border-rose-200 text-rose-700 hover:bg-rose-100" asChild>
+                    <Link href="/become-seller">Become a Seller</Link>
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 

@@ -167,5 +167,21 @@
     "points": 0,
     "loginStreak": 0,
     "isActive": true
+  },
+  {
+    "id": "59897f6e-98bb-4bc4-a259-15789e814e5c",
+    "name": "aregag",
+    "email": "srehsrg@gmail.com",
+    "password": "$2a$12$pduwHlISLkOJ81i3RKRzg.fVaIh3WdevQv0iLGmHGz6g6FzTYBoiy",
+    "role": "user",
+    "createdAt": "2026-04-19T19:49:28.759Z",
+    "loyaltyPoints": 0,
+    "loyaltyTier": "bronze",
+    "coins": 3,
+    "points": 0,
+    "loginStreak": 1,
+    "isActive": true,
+    "lastLogin": "2026-04-19T19:50:01.708Z",
+    "lastCoinClaim": "2026-04-19T19:50:01.710Z"
   }
 ]

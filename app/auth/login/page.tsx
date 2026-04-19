@@ -2,35 +2,82 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { supabase } from "@/lib/supabase"
+import { GoogleIcon } from "@/components/icons/google"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState("customer")
   const [isLoading, setIsLoading] = useState(false)
-  const { login } = useAuth()
+  const [oauthLoading, setOAuthLoading] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const lastSubmitTime = useRef(0)
+  const { signIn } = useAuth()
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Prevent double submit
+    if (isLoading) return
+
+    // Debounce: block rapid re-submissions (5s window)
+    const now = Date.now()
+    if (now - lastSubmitTime.current < 5000) {
+      setError('Please wait a few seconds before trying again.')
+      return
+    }
+    lastSubmitTime.current = now
+
     setIsLoading(true)
+    setError(null)
 
     try {
-      // Map customer role to user for the backend
-      const backendRole = role === "customer" ? "user" : role
-      await login(email, password, backendRole)
-      // Auth context handles the redirect based on role
+      await signIn(email, password)
+      // Redirect to home page after successful login
+      router.push("/")
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Login failed. Please check your credentials."
+      setError(errorMessage)
       console.error("Login error:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // ✅ OAuth Login Handler
+  const handleOAuthLogin = async (provider: "google" | "github") => {
+    try {
+      setOAuthLoading(provider)
+      setError(null)
+      console.log(`🔐 Starting ${provider} OAuth login...`)
+
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (oauthError) {
+        console.error(`❌ ${provider} OAuth error:`, oauthError)
+        throw oauthError
+      }
+
+      console.log(`✅ ${provider} OAuth initiated`)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : `${provider} login failed`
+      setError(errorMessage)
+      console.error(`❌ ${provider} OAuth failed:`, err)
+      setOAuthLoading(null)
     }
   }
 
@@ -44,6 +91,36 @@ export default function LoginPage() {
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
+              {error && (
+                <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
+              {/* ✅ OAuth Login Buttons */}
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => handleOAuthLogin("google")}
+                  disabled={oauthLoading !== null || isLoading}
+                >
+                  <GoogleIcon className="mr-2 h-4 w-4" />
+                  {oauthLoading === "google" ? "Connecting to Google..." : "Login with Google"}
+                </Button>
+              </div>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-gray-500">Or continue with email</span>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -53,6 +130,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -63,24 +141,8 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  disabled={isLoading}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Account Type</Label>
-                <RadioGroup value={role} onValueChange={setRole} className="flex space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="customer" id="customer" />
-                    <Label htmlFor="customer">Customer</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="seller" id="seller" />
-                    <Label htmlFor="seller">Seller</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="admin" id="admin" />
-                    <Label htmlFor="admin">Admin</Label>
-                  </div>
-                </RadioGroup>
               </div>
               <div className="text-sm">
                 <Link href="/auth/forgot-password" className="text-blue-600 hover:underline">

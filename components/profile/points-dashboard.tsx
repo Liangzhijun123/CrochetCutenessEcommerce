@@ -25,16 +25,16 @@ interface PointsData {
 
 const tierInfo = {
   bronze: { name: "Bronze", color: "bg-amber-600", nextTier: "silver", threshold: 200 },
-  silver: { name: "Silver", color: "bg-gray-400", nextTier: "gold", threshold: 500 },
-  gold: { name: "Gold", color: "bg-yellow-500", nextTier: "platinum", threshold: 1000 },
+  silver: { name: "Silver", color: "bg-gray-400", nextTier: "gold", threshold: 1000 },
+  gold: { name: "Gold", color: "bg-yellow-500", nextTier: "platinum", threshold: 3000 },
   platinum: { name: "Platinum", color: "bg-purple-600", nextTier: null, threshold: null },
 }
 
 const tierBenefits = {
-  bronze: ["1 point per $1 spent", "Birthday discount: 10%"],
-  silver: ["1 point per $1 spent", "Free shipping on orders $35+", "Birthday discount: 15%", "Early access to sales"],
-  gold: ["1 point per $1 spent", "Free shipping on all orders", "Birthday discount: 20%", "VIP customer support", "Exclusive monthly patterns"],
-  platinum: ["1.5 points per $1 spent", "Free shipping on all orders", "Birthday discount: 25%", "VIP customer support", "Exclusive monthly patterns", "Priority pattern testing access"],
+  bronze: ["4 XP per pattern PDF", "10 XP per plushie", "Birthday discount: 10%"],
+  silver: ["4 XP per pattern PDF", "10 XP per plushie", "Free shipping on orders $35+", "Birthday discount: 15%", "Early access to sales"],
+  gold: ["4 XP per pattern PDF", "10 XP per plushie", "Free shipping on all orders", "Birthday discount: 20%", "VIP customer support", "Exclusive monthly patterns"],
+  platinum: ["4 XP per pattern PDF", "10 XP per plushie", "Free shipping on all orders", "Birthday discount: 25%", "VIP customer support", "Exclusive monthly patterns", "Priority pattern testing access"],
 }
 
 export default function PointsDashboard() {

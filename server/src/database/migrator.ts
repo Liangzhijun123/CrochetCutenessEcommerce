@@ -63,7 +63,20 @@ export class DatabaseMigrator {
     const client = await pool.connect();
     
     try {
+      // Check if migration already executed
+      const alreadyRun = await client.query(
+        'SELECT id FROM migrations WHERE filename = $1',
+        [migration.filename]
+      );
+      
+      if (alreadyRun.rows.length > 0) {
+        console.log(`⏭️  Skipping migration (already executed): ${migration.filename}`);
+        return;
+      }
+      
       await client.query('BEGIN');
+      
+      console.log(`🔄 Executing migration: ${migration.filename}`);
       
       // Execute migration SQL
       await client.query(migration.sql);

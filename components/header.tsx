@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
 import { Input } from "@/components/ui/input"
-import { Search, Menu, X, Bell } from "lucide-react"
+import { Search, Menu, X, Bell, Trophy } from "lucide-react"
 import CartButton from "./cart/cart-button"
 import CartDrawer from "./cart/cart-drawer"
 import AuthStatus from "./auth/auth-status"
@@ -17,7 +17,7 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
   const pathname = usePathname()
-  const { user, isAuthenticated } = useAuth()
+  const { user, isAuthenticated, isPendingSeller } = useAuth()
 
   // Handle scroll event to change header style
   useEffect(() => {
@@ -82,6 +82,17 @@ export default function Header() {
               >
                 Contact
               </Link>
+              {isAuthenticated && (
+                <Link
+                  href="/leaderboard"
+                  className={`text-sm font-medium transition-colors hover:text-rose-500 flex items-center gap-1 ${
+                    pathname === "/leaderboard" ? "text-rose-500" : "text-foreground"
+                  }`}
+                >
+                  <Trophy className="h-4 w-4" />
+                  Leaderboard
+                </Link>
+              )}
               {isAuthenticated && user?.role === "seller" && (
                 <Link
                   href="/seller-dashboard"
@@ -102,7 +113,17 @@ export default function Header() {
                   Admin Dashboard
                 </Link>
               )}
-              {isAuthenticated && user?.role === "user" && !user?.sellerApplication && (
+              {isAuthenticated && isPendingSeller && (
+                <Link
+                  href="/seller-pending"
+                  className={`text-sm font-medium transition-colors hover:text-amber-500 ${
+                    pathname === "/seller-pending" ? "text-amber-500" : "text-amber-600"
+                  }`}
+                >
+                  Application Pending
+                </Link>
+              )}
+              {isAuthenticated && user?.role === "user" && !isPendingSeller && (
                 <Link
                   href="/become-seller"
                   className={`text-sm font-medium transition-colors hover:text-rose-500 ${
@@ -180,6 +201,17 @@ export default function Header() {
                 >
                   Contact
                 </Link>
+                {isAuthenticated && (
+                  <Link
+                    href="/leaderboard"
+                    className={`text-sm font-medium transition-colors hover:text-rose-500 flex items-center gap-1 ${
+                      pathname === "/leaderboard" ? "text-rose-500" : "text-foreground"
+                    }`}
+                  >
+                    <Trophy className="h-4 w-4" />
+                    Leaderboard
+                  </Link>
+                )}
                 {isAuthenticated && user?.role === "seller" && (
                   <Link
                     href="/seller-dashboard"
@@ -200,7 +232,17 @@ export default function Header() {
                     Admin Dashboard
                   </Link>
                 )}
-                {isAuthenticated && user?.role === "user" && !user?.sellerApplication && (
+                {isAuthenticated && isPendingSeller && (
+                  <Link
+                    href="/seller-pending"
+                    className={`text-sm font-medium transition-colors hover:text-amber-500 ${
+                      pathname === "/seller-pending" ? "text-amber-500" : "text-amber-600"
+                    }`}
+                  >
+                    Application Pending
+                  </Link>
+                )}
+                {isAuthenticated && user?.role === "user" && !isPendingSeller && (
                   <Link
                     href="/become-seller"
                     className={`text-sm font-medium transition-colors hover:text-rose-500 ${

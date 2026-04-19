@@ -3,6 +3,7 @@
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { LogOut, ShieldCheck, Store, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -17,9 +18,10 @@ import {
 import { useAuth } from "@/context/auth-context"
 
 export default function AuthStatus() {
-  const { user, isAuthenticated, logout } = useAuth()
+  const { user, isAuthenticated, signOut } = useAuth()
+  const router = useRouter()
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" asChild>
@@ -93,7 +95,10 @@ export default function AuthStatus() {
           )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={logout} className="cursor-pointer">
+        <DropdownMenuItem onSelect={async () => {
+          try { await signOut() } catch (e) { console.error(e) }
+          router.push("/")
+        }} className="cursor-pointer">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>

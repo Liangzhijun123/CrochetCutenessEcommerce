@@ -1,4 +1,9 @@
+import dotenv from 'dotenv';
 import { Pool, PoolConfig } from 'pg';
+
+dotenv.config();
+
+console.log("DATABASE_URL:", process.env["DATABASE_URL"])
 
 let pool: Pool | null = null;
 

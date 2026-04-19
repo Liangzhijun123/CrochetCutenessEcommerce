@@ -384,3 +384,57 @@ export const getPatternsWithCreators = (patterns: Pattern[]): (Pattern & { creat
     }
   })
 }
+
+// Additional pattern functions to match exports
+export const getPatternsByDifficulty = (difficulty: 'beginner' | 'intermediate' | 'advanced'): Pattern[] => {
+  const patterns = getPatterns()
+  return patterns.filter(p => p.difficultyLevel === difficulty && p.isActive)
+}
+
+export const getPurchases = (): PatternPurchase[] => {
+  return getPatternPurchases()
+}
+
+export const getPurchaseById = (purchaseId: string): PatternPurchase | undefined => {
+  const purchases = getPatternPurchases()
+  return purchases.find(p => p.id === purchaseId)
+}
+
+export const getPurchasesByPattern = (patternId: string): PatternPurchase[] => {
+  const purchases = getPatternPurchases()
+  return purchases.filter(p => p.patternId === patternId)
+}
+
+export const hasUserPurchasedPattern = (userId: string, patternId: string): boolean => {
+  return userOwnsPattern(userId, patternId)
+}
+
+export const getPatternStats = (patternId: string): {
+  totalSales: number
+  totalRevenue: number
+  averageRating: number
+  reviewCount: number
+  purchasesByMonth: { [month: string]: number }
+} => {
+  const pattern = getPatternById(patternId)
+  if (!pattern) {
+    throw new Error('Pattern not found')
+  }
+
+  const purchases = getPurchasesByPattern(patternId)
+  const reviews = getPatternReviewsByPattern(patternId)
+  
+  const purchasesByMonth: { [month: string]: number } = {}
+  purchases.forEach(purchase => {
+    const month = purchase.purchasedAt.substring(0, 7) // YYYY-MM
+    purchasesByMonth[month] = (purchasesByMonth[month] || 0) + 1
+  })
+
+  return {
+    totalSales: purchases.length,
+    totalRevenue: purchases.reduce((sum, p) => sum + p.amountPaid, 0),
+    averageRating: pattern.averageRating || 0,
+    reviewCount: reviews.length,
+    purchasesByMonth,
+  }
+}

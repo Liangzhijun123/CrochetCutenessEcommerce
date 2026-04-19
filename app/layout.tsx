@@ -9,11 +9,7 @@ import { CartProvider } from "@/context/cart-context"
 import { WishlistProvider } from "@/context/wishlist-context"
 import { MessagingProvider } from "@/context/messaging-context"
 import { Toaster } from "@/components/ui/toaster"
-import { DraggableCrochetProvider } from "@/context/draggable-crochet-context"
-import DraggableCrochetContainer from "@/components/draggable-crochet-container"
-import CrochetControlPanel from "@/components/crochet-control-panel"
 import { ThemeProvider } from "@/components/theme-provider"
-import CrochetWelcomeTooltip from "@/components/crochet-welcome-tooltip"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -29,24 +25,19 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light">
           <AuthProvider>
             <CartProvider>
               <WishlistProvider>
                 <MessagingProvider>
-                  <DraggableCrochetProvider>
                     <div className="flex min-h-screen flex-col">
                       <Header />
                       <main className="flex-1">{children}</main>
                       <Footer />
                     </div>
-                    <DraggableCrochetContainer />
-                    <CrochetControlPanel />
-                    <CrochetWelcomeTooltip />
                     <Toaster />
-                  </DraggableCrochetProvider>
                 </MessagingProvider>
               </WishlistProvider>
             </CartProvider>

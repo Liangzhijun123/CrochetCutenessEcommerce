@@ -6,7 +6,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Users table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE users (
 );
 
 -- Seller applications table
-CREATE TABLE seller_applications (
+CREATE TABLE IF NOT EXISTS seller_applications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     application_details TEXT NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE seller_applications (
 );
 
 -- Patterns table
-CREATE TABLE patterns (
+CREATE TABLE IF NOT EXISTS patterns (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     creator_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE patterns (
 );
 
 -- Purchases table
-CREATE TABLE purchases (
+CREATE TABLE IF NOT EXISTS purchases (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     pattern_id UUID NOT NULL REFERENCES patterns(id) ON DELETE CASCADE,
@@ -68,7 +68,7 @@ CREATE TABLE purchases (
 );
 
 -- Messages table
-CREATE TABLE messages (
+CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     recipient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -80,7 +80,7 @@ CREATE TABLE messages (
 );
 
 -- Competitions table
-CREATE TABLE competitions (
+CREATE TABLE IF NOT EXISTS competitions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
@@ -97,7 +97,7 @@ CREATE TABLE competitions (
 );
 
 -- Competition entries table
-CREATE TABLE competition_entries (
+CREATE TABLE IF NOT EXISTS competition_entries (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     competition_id UUID NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -111,7 +111,7 @@ CREATE TABLE competition_entries (
 );
 
 -- Daily coins table
-CREATE TABLE daily_coins (
+CREATE TABLE IF NOT EXISTS daily_coins (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     claim_date DATE NOT NULL,
@@ -123,27 +123,27 @@ CREATE TABLE daily_coins (
 );
 
 -- Create indexes for better performance
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_seller_applications_user_id ON seller_applications(user_id);
-CREATE INDEX idx_seller_applications_status ON seller_applications(status);
-CREATE INDEX idx_patterns_creator_id ON patterns(creator_id);
-CREATE INDEX idx_patterns_is_active ON patterns(is_active);
-CREATE INDEX idx_patterns_difficulty_level ON patterns(difficulty_level);
-CREATE INDEX idx_purchases_user_id ON purchases(user_id);
-CREATE INDEX idx_purchases_pattern_id ON purchases(pattern_id);
-CREATE INDEX idx_purchases_purchased_at ON purchases(purchased_at);
-CREATE INDEX idx_messages_sender_id ON messages(sender_id);
-CREATE INDEX idx_messages_recipient_id ON messages(recipient_id);
-CREATE INDEX idx_messages_pattern_id ON messages(pattern_id);
-CREATE INDEX idx_messages_is_read ON messages(is_read);
-CREATE INDEX idx_competitions_status ON competitions(status);
-CREATE INDEX idx_competitions_start_date ON competitions(start_date);
-CREATE INDEX idx_competitions_end_date ON competitions(end_date);
-CREATE INDEX idx_competition_entries_competition_id ON competition_entries(competition_id);
-CREATE INDEX idx_competition_entries_user_id ON competition_entries(user_id);
-CREATE INDEX idx_daily_coins_user_id ON daily_coins(user_id);
-CREATE INDEX idx_daily_coins_claim_date ON daily_coins(claim_date);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_seller_applications_user_id ON seller_applications(user_id);
+CREATE INDEX IF NOT EXISTS idx_seller_applications_status ON seller_applications(status);
+CREATE INDEX IF NOT EXISTS idx_patterns_creator_id ON patterns(creator_id);
+CREATE INDEX IF NOT EXISTS idx_patterns_is_active ON patterns(is_active);
+CREATE INDEX IF NOT EXISTS idx_patterns_difficulty_level ON patterns(difficulty_level);
+CREATE INDEX IF NOT EXISTS idx_purchases_user_id ON purchases(user_id);
+CREATE INDEX IF NOT EXISTS idx_purchases_pattern_id ON purchases(pattern_id);
+CREATE INDEX IF NOT EXISTS idx_purchases_purchased_at ON purchases(purchased_at);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON messages(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_messages_pattern_id ON messages(pattern_id);
+CREATE INDEX IF NOT EXISTS idx_messages_is_read ON messages(is_read);
+CREATE INDEX IF NOT EXISTS idx_competitions_status ON competitions(status);
+CREATE INDEX IF NOT EXISTS idx_competitions_start_date ON competitions(start_date);
+CREATE INDEX IF NOT EXISTS idx_competitions_end_date ON competitions(end_date);
+CREATE INDEX IF NOT EXISTS idx_competition_entries_competition_id ON competition_entries(competition_id);
+CREATE INDEX IF NOT EXISTS idx_competition_entries_user_id ON competition_entries(user_id);
+CREATE INDEX IF NOT EXISTS idx_daily_coins_user_id ON daily_coins(user_id);
+CREATE INDEX IF NOT EXISTS idx_daily_coins_claim_date ON daily_coins(claim_date);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -154,9 +154,11 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create triggers for updated_at columns
+-- Create triggers for updated_at columns (drop if exists first for idempotency)
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_patterns_updated_at ON patterns;
 CREATE TRIGGER update_patterns_updated_at BEFORE UPDATE ON patterns
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

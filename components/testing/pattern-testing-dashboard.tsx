@@ -126,7 +126,10 @@ export default function PatternTestingDashboard() {
       return (
         <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
           <h3 className="text-lg font-semibold mb-2">Application Pending</h3>
-          <p className="mb-4">Your pattern testing application is under review. Please allow up to 3-7 business days for review.</p>
+          <p className="mb-2">Your pattern testing application is currently under review by our admin team.</p>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Please allow 3-7 business days for the admin to review your information. Once accepted, you will be able to access the full Pattern Testing Program.
+          </p>
           <Button variant="outline" onClick={() => setShowApplication(true)}>
             View / Edit Application
           </Button>

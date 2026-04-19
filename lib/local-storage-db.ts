@@ -319,7 +319,7 @@ export type CoinTransaction = {
 export type PointsTransaction = {
   id: string
   userId: string
-  type: "purchase" | "review" | "referral" | "admin_adjustment"
+  type: "purchase" | "review" | "referral" | "admin_adjustment" | "pattern_pdf" | "plushie" | "pattern_testing" | "signup_bonus"
   amount: number
   description: string
   orderId?: string
@@ -1052,6 +1052,48 @@ export const addPointsForPurchase = (userId: string, purchaseAmount: number, ord
   return transaction
 }
 
+// XP earning rates
+const XP_RATES: Record<string, { amount: number; type: PointsTransaction["type"]; description: string }> = {
+  pattern_pdf: { amount: 4, type: "pattern_pdf", description: "Pattern PDF purchase" },
+  plushie: { amount: 10, type: "plushie", description: "Plushie purchase" },
+  pattern_testing: { amount: 2, type: "pattern_testing", description: "Pattern testing task completed" },
+  signup_bonus: { amount: 50, type: "signup_bonus", description: "Sign up bonus" },
+}
+
+export const addXPForActivity = (userId: string, activity: keyof typeof XP_RATES, orderId?: string): PointsTransaction => {
+  const user = getUserById(userId)
+  if (!user) {
+    throw new Error("User not found")
+  }
+
+  const rate = XP_RATES[activity]
+  if (!rate) {
+    throw new Error(`Unknown XP activity: ${activity}`)
+  }
+
+  const transaction = createPointsTransaction({
+    userId,
+    type: rate.type,
+    amount: rate.amount,
+    description: rate.description,
+    orderId,
+  })
+
+  // Update user's points (XP) balance
+  updateUser(userId, {
+    points: (user.points || 0) + rate.amount,
+  })
+
+  return transaction
+}
+
+export const getUserXPTier = (xp: number): string => {
+  if (xp >= 3000) return "platinum"
+  if (xp >= 1000) return "gold"
+  if (xp >= 200) return "silver"
+  return "bronze"
+}
+
 // Message and Conversation functions
 export const getMessages = (): Message[] => {
   return getItem("crochet_messages", []) as Message[]
@@ -1293,11 +1335,12 @@ export {
   createPattern,
   updatePattern,
   deletePattern,
+  getPatternPurchases,
   getPurchases,
   getPurchaseById,
-  getPurchasesByUser,
+  getPatternPurchasesByUser,
   getPurchasesByPattern,
-  createPurchase,
+  createPatternPurchase,
   getUserPatternLibrary,
   hasUserPurchasedPattern,
   getPatternReviews,

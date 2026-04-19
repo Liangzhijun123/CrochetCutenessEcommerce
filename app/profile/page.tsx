@@ -110,9 +110,10 @@ const wishlist = [
 ]
 
 export default function ProfilePage() {
-  const { user, profile, isAuthenticated, isLoading, updateUser, updateProfile, logout } = useAuth()
+  const { user, profile, isAuthenticated, isLoading, updateUser, updateProfile, signOut } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [loggingOut, setLoggingOut] = useState(false)
   const tabParam = searchParams.get("tab")
   const [activeTab, setActiveTab] = useState("account")
 
@@ -125,10 +126,10 @@ export default function ProfilePage() {
 
   // Redirect if not authenticated
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!isLoading && !isAuthenticated && !loggingOut) {
       router.push("/auth/login")
     }
-  }, [isLoading, isAuthenticated, router])
+  }, [isLoading, isAuthenticated, loggingOut, router])
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -255,8 +256,13 @@ export default function ProfilePage() {
     }
   }
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    try {
+      await signOut()
+    } catch (err) {
+      console.error("Logout failed:", err)
+    }
     router.push("/")
     toast({
       title: "Logged out",

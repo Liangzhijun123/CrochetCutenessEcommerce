@@ -16,13 +16,13 @@ async function getBalance(request: NextRequest, user: any) {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 10) // Get last 10 transactions
 
-    // Calculate loyalty tier based on points
+    // Calculate loyalty tier based on XP
     let loyaltyTier = "bronze"
     const points = currentUser.points || 0
     
-    if (points >= 1000) {
+    if (points >= 3000) {
       loyaltyTier = "platinum"
-    } else if (points >= 500) {
+    } else if (points >= 1000) {
       loyaltyTier = "gold"
     } else if (points >= 200) {
       loyaltyTier = "silver"

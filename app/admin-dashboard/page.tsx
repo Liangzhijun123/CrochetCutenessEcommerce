@@ -219,9 +219,22 @@ export default function AdminDashboardPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [applications, setApplications] = useState<SellerApplication[]>([])
+  const [supabaseApplications, setSupabaseApplications] = useState<any[]>([])
   const [ptApplications, setPTApplications] = useState<PatternTestingApplication[]>([])
   const [selectedApplication, setSelectedApplication] = useState<SellerApplication | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Fetch Supabase-based seller applications
+  const fetchSupabaseApplications = async () => {
+    try {
+      const res = await fetch("/api/seller/application/review")
+      if (!res.ok) return
+      const data = await res.json()
+      setSupabaseApplications(data.applications || [])
+    } catch {
+      setSupabaseApplications([])
+    }
+  }
 
   // Fetch pattern testing applications from backend API
   const fetchPTApplications = async () => {
@@ -242,6 +255,7 @@ export default function AdminDashboardPage() {
       initializeDatabase()
       loadApplications()
       fetchPTApplications()
+      fetchSupabaseApplications()
     }
   }, [])
 
@@ -267,7 +281,38 @@ export default function AdminDashboardPage() {
   const refreshApplications = () => {
     setIsRefreshing(true)
     loadApplications()
+    fetchSupabaseApplications()
     setTimeout(() => setIsRefreshing(false), 500)
+  }
+
+  const handleSupabaseApprove = async (applicationId: string) => {
+    try {
+      const res = await fetch("/api/seller/application/review", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ application_id: applicationId, action: "approve" }),
+      })
+      if (!res.ok) throw new Error("Failed to approve")
+      toast({ title: "Application Approved", description: "Seller application has been approved." })
+      fetchSupabaseApplications()
+    } catch {
+      toast({ title: "Error", description: "Failed to approve application.", variant: "destructive" })
+    }
+  }
+
+  const handleSupabaseReject = async (applicationId: string, feedback?: string) => {
+    try {
+      const res = await fetch("/api/seller/application/review", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ application_id: applicationId, action: "reject", admin_feedback: feedback || "Application rejected" }),
+      })
+      if (!res.ok) throw new Error("Failed to reject")
+      toast({ title: "Application Rejected", description: "Seller application has been rejected." })
+      fetchSupabaseApplications()
+    } catch {
+      toast({ title: "Error", description: "Failed to reject application.", variant: "destructive" })
+    }
   }
 
   const handleApprove = async (id: string, feedback?: string) => {
@@ -385,7 +430,19 @@ export default function AdminDashboardPage() {
   // Merge seller and pattern testing pending applications
   const pendingSellerApps = applications.filter((app) => app.status === "pending")
   const pendingPTApps = ptApplications.filter((app) => app.status === "pending")
+  const pendingSupabaseApps = supabaseApplications.filter((app) => app.status === "pending")
   const pendingApplications = [
+    ...pendingSupabaseApps.map((app) => ({
+      type: "supabase-seller" as const,
+      id: app.id,
+      name: app.users?.full_name || app.users?.email || "Unknown",
+      email: app.users?.email || "",
+      experience: app.experience,
+      reason: app.reason,
+      introduction: app.introduction,
+      createdAt: app.created_at,
+      userId: app.user_id,
+    })),
     ...pendingSellerApps.map((app) => ({
       type: "seller" as const,
       id: app.id,
@@ -514,6 +571,9 @@ export default function AdminDashboardPage() {
                         {application.type === "seller" && (
                           <span className="text-xs text-green-600">Seller Application</span>
                         )}
+                        {application.type === "supabase-seller" && (
+                          <span className="text-xs text-rose-600">Seller Application (New)</span>
+                        )}
                       </div>
                       <Badge variant="outline" className="flex items-center">
                         <Clock className="h-3 w-3 mr-1" />
@@ -573,10 +633,43 @@ export default function AdminDashboardPage() {
                           </div>
                         </>
                       )}
+                      {application.type === "supabase-seller" && (
+                        <>
+                          <div>
+                            <h3 className="font-medium mb-1">Experience</h3>
+                            <p className="text-sm text-muted-foreground">{application.experience}</p>
+                          </div>
+                          <div>
+                            <h3 className="font-medium mb-1">Why They Want to Sell</h3>
+                            <p className="text-sm text-muted-foreground">{application.reason}</p>
+                          </div>
+                          <div>
+                            <h3 className="font-medium mb-1">Introduction</h3>
+                            <p className="text-sm text-muted-foreground">{application.introduction}</p>
+                          </div>
+                          <div>
+                            <h3 className="font-medium mb-1">Submitted</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {application.createdAt?.replace('T', ' ').slice(0, 19)}
+                            </p>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </CardContent>
                   <CardFooter className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
-                    {application.type === "seller" ? (
+                    {application.type === "supabase-seller" ? (
+                      <>
+                        <Button variant="outline" onClick={() => handleSupabaseReject(application.id, "Application rejected")} className="w-full sm:w-auto">
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
+                        <Button onClick={() => handleSupabaseApprove(application.id)} className="w-full sm:w-auto">
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Approve
+                        </Button>
+                      </>
+                    ) : application.type === "seller" ? (
                       <>
                         <Button 
                           variant="outline" 

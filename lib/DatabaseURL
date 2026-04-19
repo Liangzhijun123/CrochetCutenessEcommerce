@@ -1,0 +1,8 @@
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/crochet_community
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=crochet_community
+DB_USER=postgres
+DB_PASSWORD=postgres
+NEXT_PUBLIC_API_URL=http://localhost:3001
+JWT_SECRET=your-super-secret-jwt-key-change-this

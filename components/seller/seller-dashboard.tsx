@@ -39,7 +39,7 @@ function SellerAppDate({ date }: { date: string }) {
 }
 
 export default function SellerDashboard() {
-  const { user, isAuthenticated, logout, updateUser, refreshUserData } = useAuth()
+  const { user, isAuthenticated, signOut, updateUser, refreshUserData } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("products")
@@ -53,9 +53,9 @@ export default function SellerDashboard() {
       return
     }
 
-    // If user is not a seller and doesn't have a pending application, redirect to become-seller
-    if (user?.role !== "seller" && user?.role !== "creator" && !user?.sellerApplication) {
-      router.push("/become-seller")
+    // Only approved sellers can access the dashboard
+    if (user?.role !== "seller" && user?.role !== "creator") {
+      router.push("/seller-pending")
       return
     }
 
@@ -126,8 +126,8 @@ export default function SellerDashboard() {
     }
   }
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    try { await signOut() } catch (e) { console.error(e) }
     router.push("/")
   }
 

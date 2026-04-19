@@ -11,11 +11,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/hooks/use-toast"
+import { Clock, CheckCircle2, Mail } from "lucide-react"
 
 export default function SellerApplicationForm() {
   const { user } = useAuth()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
   const [formData, setFormData] = useState({
     bio: "",
     experience: "",
@@ -93,11 +95,11 @@ export default function SellerApplicationForm() {
       // Show success message
       toast({
         title: "Application Submitted",
-        description: "Your seller application has been submitted for review. You'll receive an email notification once it's reviewed.",
+        description: "Your seller application has been submitted for review.",
       })
 
-      // Redirect to profile or seller dashboard
-      router.push("/profile")
+      // Show the pending confirmation view
+      setSubmitted(true)
     } catch (error) {
       console.error("Error submitting application:", error)
       toast({
@@ -111,11 +113,52 @@ export default function SellerApplicationForm() {
   }
 
   return (
+    <>
+      {submitted ? (
+        <Card className="w-full max-w-2xl mx-auto">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
+              <Clock className="h-8 w-8 text-amber-600" />
+            </div>
+            <CardTitle className="text-2xl">Application Under Review</CardTitle>
+            <CardDescription className="text-base mt-2">
+              Thank you for applying to become a seller on our platform!
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 space-y-3">
+              <h3 className="font-semibold text-amber-900 flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5" />
+                What happens next?
+              </h3>
+              <ol className="list-decimal list-inside space-y-2 text-sm text-amber-800">
+                <li>Our admin team will review your application (typically 3-5 business days).</li>
+                <li>Once approved, <span className="font-semibold">the admin will provide you with your own dedicated seller login credentials</span> (email &amp; password) via email.</li>
+                <li>Use those credentials to sign into the Seller Dashboard and start listing your products.</li>
+              </ol>
+            </div>
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+              <p className="text-sm text-blue-800 flex items-center gap-2">
+                <Mail className="h-4 w-4 flex-shrink-0" />
+                <span>Please keep an eye on your email (<span className="font-medium">{user?.email}</span>) for your seller access details.</span>
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter className="flex gap-3 justify-center">
+            <Button variant="outline" onClick={() => router.push("/")}>
+              Back to Home
+            </Button>
+            <Button variant="outline" onClick={() => router.push("/shop")}>
+              Continue Shopping
+            </Button>
+          </CardFooter>
+        </Card>
+      ) : (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle>Become a Seller</CardTitle>
         <CardDescription>
-          Fill out this form to apply as a seller on our platform. We'll review your application and get back to you.
+          Fill out this form to apply as a seller on our platform. Once approved, the admin will provide you with dedicated seller login credentials to access the Seller Dashboard.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -329,5 +372,7 @@ export default function SellerApplicationForm() {
         </CardFooter>
       </form>
     </Card>
+      )}
+    </>
   )
 }
