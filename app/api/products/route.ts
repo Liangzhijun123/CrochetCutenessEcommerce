@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const productData = await request.json()
 
     // Validate required fields
-    if (!productData.name || !productData.price || !productData.sellerId) {
+    if (!productData.name || productData.price === undefined || productData.price === null || productData.price === '' || !productData.sellerId) {
       return NextResponse.json({ error: "Name, price, and sellerId are required" }, { status: 400 })
     }
 

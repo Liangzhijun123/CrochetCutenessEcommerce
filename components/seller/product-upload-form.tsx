@@ -271,7 +271,8 @@ export default function ProductUploadForm() {
                 name="price"
                 type="number"
                 step="0.01"
-                min="0.01"
+                min="0"
+                placeholder="0.00 for free"
                 value={formData.price}
                 onChange={handleChange}
                 required
