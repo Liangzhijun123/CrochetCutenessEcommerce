@@ -155,8 +155,9 @@ export default function ProductUploadForm() {
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Failed to create product")
+        const errJson = await response.json()
+        const detail = errJson.details ?? errJson.hint ?? ""
+        throw new Error(detail ? `${errJson.error} — ${detail}` : (errJson.error || "Failed to create product"))
       }
 
       const result = await response.json()

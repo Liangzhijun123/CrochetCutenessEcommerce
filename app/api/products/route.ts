@@ -141,31 +141,53 @@ export async function POST(request: NextRequest) {
 
     const uploadOrder = (maxOrder?.upload_order || 0) + 1
 
-    const imageUrls = productData.images || []
-    const price = Number(productData.price)
+    // Helper: trim string, return null if empty
+    const ns = (v: unknown): string | null => {
+      const s = String(v ?? "").trim()
+      return s === "" ? null : s
+    }
 
-    // Validate before insert
+    const imageUrls: string[] = (productData.images || [])
+      .map((u: string) => String(u).trim())
+      .filter(Boolean)
+
+    const price = Number(productData.price)
     if (isNaN(price)) {
       return NextResponse.json({ error: "Invalid price" }, { status: 400 })
     }
-    const imageUrl = imageUrls[0] || "/placeholder.svg?height=400&width=400"
+
+    // Validate difficulty_level against DB CHECK constraint
+    const VALID_DIFFICULTY = ["beginner", "intermediate", "advanced"] as const
+    const difficulty = (productData.difficulty || "beginner").trim().toLowerCase()
+    if (!VALID_DIFFICULTY.includes(difficulty as any)) {
+      return NextResponse.json({ error: `Invalid difficulty: "${difficulty}". Must be beginner, intermediate, or advanced.` }, { status: 400 })
+    }
+
+    // Validate product_type against DB CHECK constraint
+    const VALID_PRODUCT_TYPE = ["plushie", "pdf_pattern", "both"] as const
+    const productType = (productData.productType || "plushie").trim()
+    if (!VALID_PRODUCT_TYPE.includes(productType as any)) {
+      return NextResponse.json({ error: `Invalid product_type: "${productType}". Must be plushie, pdf_pattern, or both.` }, { status: 400 })
+    }
+
+    const imageUrl = imageUrls[0] ?? null
 
     const insertRow = {
-      title: String(productData.name || "").trim(),
-      description: String(productData.description || "").trim(),
+      title: ns(productData.name) ?? "",
+      description: ns(productData.description) ?? "",
       price,
-      category: String(productData.category || "general").trim(),
+      category: ns(productData.category) ?? "general",
       seller_id: sellerDbId,
       image_url: imageUrl,
       image_urls: imageUrls,
-      difficulty_level: productData.difficulty || "beginner",
-      tags: productData.tags || [],
+      difficulty_level: difficulty,
+      tags: Array.isArray(productData.tags) ? productData.tags : [],
       upload_order: uploadOrder,
-      youtube_link: productData.youtubeLink || null,
-      written_instructions: productData.writtenInstructions || null,
-      product_type: productData.productType || "plushie",
-      pdf_password: productData.pdfPassword || null,
-      pdf_file_url: productData.pdfFileUrl || null,
+      youtube_link: ns(productData.youtubeLink),
+      written_instructions: ns(productData.writtenInstructions),
+      product_type: productType,
+      pdf_password: ns(productData.pdfPassword),
+      pdf_file_url: ns(productData.pdfFileUrl),
     }
 
     console.log("PRODUCT INSERT ROW:", JSON.stringify(insertRow, null, 2))
@@ -178,7 +200,13 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2))
-      return NextResponse.json({ error: error.message || "Failed to create product" }, { status: 500 })
+      // Return full error details to aid debugging
+      return NextResponse.json({
+        error: error.message || "Failed to create product",
+        details: (error as any).details ?? null,
+        hint: (error as any).hint ?? null,
+        code: (error as any).code ?? null,
+      }, { status: 500 })
     }
 
     // Map back to frontend shape
