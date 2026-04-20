@@ -66,14 +66,16 @@ export default function Header() {
               >
                 Shop
               </Link>
-              <Link
-                href="/pattern-testing"
-                className={`text-sm font-medium transition-colors hover:text-rose-500 ${
-                  pathname === "/pattern-testing" ? "text-rose-500" : "text-foreground"
-                }`}
-              >
-                Pattern Testing
-              </Link>
+              {(!isAuthenticated || user?.role !== "admin") && (
+                <Link
+                  href="/pattern-testing"
+                  className={`text-sm font-medium transition-colors hover:text-rose-500 ${
+                    pathname === "/pattern-testing" ? "text-rose-500" : "text-foreground"
+                  }`}
+                >
+                  Pattern Testing
+                </Link>
+              )}
               <Link
                 href="/contact"
                 className={`text-sm font-medium transition-colors hover:text-rose-500 ${
@@ -185,14 +187,16 @@ export default function Header() {
                 >
                   Shop
                 </Link>
-                <Link
-                  href="/pattern-testing"
-                  className={`text-sm font-medium transition-colors hover:text-rose-500 ${
-                    pathname === "/pattern-testing" ? "text-rose-500" : "text-foreground"
-                  }`}
-                >
-                  Pattern Testing
-                </Link>
+                {(!isAuthenticated || user?.role !== "admin") && (
+                  <Link
+                    href="/pattern-testing"
+                    className={`text-sm font-medium transition-colors hover:text-rose-500 ${
+                      pathname === "/pattern-testing" ? "text-rose-500" : "text-foreground"
+                    }`}
+                  >
+                    Pattern Testing
+                  </Link>
+                )}
                 <Link
                   href="/contact"
                   className={`text-sm font-medium transition-colors hover:text-rose-500 ${

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/context/auth-context"
@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { RefreshCw, CheckCircle, XCircle, Clock, Home, Eye } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { RefreshCw, CheckCircle, XCircle, Clock, Home, Eye, Users, ShoppingBag, TestTube, Store } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import SellerApplicationReview from "@/components/admin/seller-application-review"
-import SellerStatusManagement from "@/components/admin/seller-status-management"
 import GamificationManagement from "@/components/admin/gamification-management"
 import AdminDashboardOverview from "@/components/admin/admin-dashboard-overview"
 import ContentModeration from "@/components/admin/content-moderation"
@@ -22,242 +22,109 @@ import { CompetitionManagement } from "@/components/admin/competition-management
 import AdvertisementManagement from "@/components/admin/advertisement-management"
 import AdvertisementAnalytics from "@/components/admin/advertisement-analytics"
 import AdvertiserManagement from "@/components/admin/advertiser-management"
-import type { PatternTestingApplication } from "@/lib/local-storage-db"
 
-// Types
-type SellerApplication = {
+// Types for Supabase-backed applications
+type SellerAppRow = {
+  id: string
+  user_id: string
+  experience: string
+  reason: string
+  introduction: string
+  status: "pending" | "approved" | "rejected"
+  admin_feedback: string | null
+  reviewed_at: string | null
+  created_at: string
+  users?: { full_name: string | null; email: string }
+}
+
+type PatternTestingAppRow = {
+  id: string
+  userId: string
+  userName: string
+  userEmail: string
+  whyTesting: string
+  experienceLevel: string
+  availability: string
+  comments: string | null
+  status: "pending" | "approved" | "disapproved"
+  createdAt: string
+  reviewedAt: string | null
+  reviewedBy: string | null
+}
+
+type OrderRow = {
+  id: string
+  user_id: string
+  items: any[]
+  total: number
+  status: string
+  created_at: string
+  users?: { full_name: string | null; email: string }
+}
+
+// Unified pending application type for display
+type PendingApplication = {
+  type: "seller" | "pattern-testing"
   id: string
   userId: string
   name: string
   email: string
-  bio: string
-  experience: string
-  businessName: string
-  businessType: "individual" | "llc" | "corporation" | "partnership"
-  yearsExperience: string
-  specialties: string
-  whyJoin: string
-  portfolioUrl?: string
-  expectedMonthlyListings: string
-  socialMedia?: {
-    instagram?: string
-    pinterest?: string
-    etsy?: string
-    youtube?: string
-  }
-  status: "pending" | "approved" | "rejected"
-  submittedAt: string
-  updatedAt?: string
-  reviewedBy?: string
-  reviewedAt?: string
-  adminFeedback?: string
-}
-
-// Helper function to generate UUID
-function uuidv4() {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0,
-      v = c === "x" ? r : (r & 0x3) | 0x8
-    return v.toString(16)
-  })
-}
-
-// Helper functions for localStorage
-function getItem<ItemType>(key: string, defaultValue: ItemType): ItemType {
-  if (typeof window === "undefined") {
-    return defaultValue
-  }
-
-  try {
-    const item = localStorage.getItem(key)
-    return item ? JSON.parse(item) : defaultValue
-  } catch (error) {
-    console.error(`Error retrieving ${key} from localStorage:`, error)
-    return defaultValue
-  }
-}
-
-function setItem<ItemType>(key: string, value: ItemType): void {
-  if (typeof window === "undefined") {
-    return
-  }
-
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch (error) {
-    console.error(`Error storing ${key} in localStorage:`, error)
-  }
-}
-
-// Seller application methods
-function getSellerApplications(): SellerApplication[] {
-  return getItem<SellerApplication[]>("crochet_seller_applications", [])
-}
-
-function updateSellerApplication(id: string, updates: Partial<SellerApplication>): SellerApplication | null {
-  const applications = getSellerApplications()
-  const applicationIndex = applications.findIndex((app) => app.id === id)
-
-  if (applicationIndex === -1) return null
-
-  const updatedApplication: SellerApplication = {
-    ...applications[applicationIndex],
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  }
-
-  applications[applicationIndex] = updatedApplication
-  setItem<SellerApplication[]>("crochet_seller_applications", applications)
-
-  return updatedApplication
-}
-
-// Function to update a user's role directly in localStorage
-function updateUserRole(userId: string, role: string, sellerApplication: SellerApplication): boolean {
-  try {
-    // Update in users array
-    const users = getItem("crochet_users", [])
-    const userIndex = users.findIndex((u: any) => u.id === userId)
-
-    if (userIndex !== -1) {
-      // Create a deep copy of the user object
-      const updatedUser = JSON.parse(JSON.stringify(users[userIndex]))
-
-      // Update the role and seller profile
-      updatedUser.role = role
-      updatedUser.sellerProfile = {
-        approved: true,
-        bio: sellerApplication.bio,
-        socialMedia: sellerApplication.socialMedia,
-        salesCount: 0,
-        rating: 0,
-        joinedDate: new Date().toISOString(),
-      }
-      updatedUser.sellerApplication = sellerApplication
-
-      // Update the user in the users array
-      users[userIndex] = updatedUser
-      setItem("crochet_users", JSON.stringify(users))
-
-      // Also update if this is the current user
-      const currentUser = getItem("crochet_user", null)
-      if (currentUser && currentUser.id === userId) {
-        setItem("crochet_user", JSON.stringify(updatedUser))
-      }
-
-      return true
-    }
-    return false
-  } catch (error) {
-    console.error("Error updating user role:", error)
-    return false
-  }
-}
-
-// Initialize the database with some data if it doesn't exist
-function initializeDatabase() {
-  // Only run in browser environment
-  if (typeof window === "undefined") return
-
-  // Check if seller applications exist
-  const applications = getSellerApplications()
-  if (applications.length === 0) {
-    // Add some sample applications for testing
-    const sampleApplications: SellerApplication[] = [
-      {
-        id: uuidv4(),
-        userId: "sample-user-1",
-        name: "Jane Doe",
-        email: "jane@example.com",
-        bio: "I've been crocheting for 5 years and love creating unique designs.",
-        experience: "5 years of crocheting experience, specializing in amigurumi and home decor items.",
-        socialMedia: {
-          instagram: "https://instagram.com/janecrochet",
-        },
-        status: "pending",
-        submittedAt: new Date().toISOString(),
-      },
-      {
-        id: uuidv4(),
-        userId: "sample-user-2",
-        name: "John Smith",
-        email: "john@example.com",
-        bio: "I create modern crochet patterns for home decor.",
-        experience: "3 years of professional pattern design experience.",
-        socialMedia: {
-          instagram: "https://instagram.com/johncrochet",
-          pinterest: "https://pinterest.com/johncrochet",
-        },
-        status: "approved",
-        submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
-        updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
-      },
-      {
-        id: uuidv4(),
-        userId: "sample-user-3",
-        name: "Alice Johnson",
-        email: "alice@example.com",
-        bio: "I specialize in crochet toys and gifts.",
-        experience: "7 years of experience selling on Etsy.",
-        socialMedia: {
-          instagram: "https://instagram.com/alicecrochet",
-          pinterest: "https://pinterest.com/alicecrochet",
-          youtube: "https://youtube.com/alicecrochet",
-        },
-        status: "rejected",
-        submittedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago
-        updatedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), // 8 days ago
-      },
-    ]
-
-    setItem("crochet_seller_applications", sampleApplications)
-  }
+  details: Record<string, string>
+  createdAt: string
 }
 
 export default function AdminDashboardPage() {
   const { user, isLoading, logout } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
-  const [applications, setApplications] = useState<SellerApplication[]>([])
-  const [supabaseApplications, setSupabaseApplications] = useState<any[]>([])
-  const [ptApplications, setPTApplications] = useState<PatternTestingApplication[]>([])
-  const [selectedApplication, setSelectedApplication] = useState<SellerApplication | null>(null)
-  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Fetch Supabase-based seller applications
-  const fetchSupabaseApplications = async () => {
+  const [sellerApps, setSellerApps] = useState<SellerAppRow[]>([])
+  const [ptApps, setPtApps] = useState<PatternTestingAppRow[]>([])
+  const [orders, setOrders] = useState<OrderRow[]>([])
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [rejectFeedback, setRejectFeedback] = useState<Record<string, string>>({})
+
+  // ── Data fetchers ──────────────────────────────────────────
+  const fetchSellerApps = useCallback(async () => {
     try {
       const res = await fetch("/api/seller/application/review")
       if (!res.ok) return
       const data = await res.json()
-      setSupabaseApplications(data.applications || [])
+      setSellerApps(data.applications || [])
     } catch {
-      setSupabaseApplications([])
-    }
-  }
-
-  // Fetch pattern testing applications from backend API
-  const fetchPTApplications = async () => {
-    try {
-      const res = await fetch("/api/admin/pattern-testing/list")
-      if (!res.ok) throw new Error("Failed to fetch pattern testing applications")
-      const data = await res.json()
-      console.log("[ADMIN-DASHBOARD] Loaded pattern testing applications:", data.applications)
-      setPTApplications(data.applications || [])
-    } catch (e) {
-      setPTApplications([])
-    }
-  }
-
-  // Initialize database and load seller applications
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      initializeDatabase()
-      loadApplications()
-      fetchPTApplications()
-      fetchSupabaseApplications()
+      setSellerApps([])
     }
   }, [])
+
+  const fetchPTApps = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/pattern-testing/list")
+      if (!res.ok) return
+      const data = await res.json()
+      setPtApps(data.applications || [])
+    } catch {
+      setPtApps([])
+    }
+  }, [])
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/orders")
+      if (!res.ok) return
+      const data = await res.json()
+      setOrders(data.orders || [])
+    } catch {
+      setOrders([])
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      fetchSellerApps()
+      fetchPTApps()
+      fetchOrders()
+    }
+  }, [fetchSellerApps, fetchPTApps, fetchOrders])
 
   // Check if user is admin
   useEffect(() => {
@@ -266,26 +133,14 @@ export default function AdminDashboardPage() {
     }
   }, [user, isLoading, router])
 
-  const loadApplications = () => {
-    if (typeof window !== "undefined") {
-      try {
-        const apps = getSellerApplications()
-        setApplications(apps)
-      } catch (error) {
-        console.error("Error loading applications:", error)
-        setApplications([])
-      }
-    }
-  }
-
-  const refreshApplications = () => {
+  const refreshAll = async () => {
     setIsRefreshing(true)
-    loadApplications()
-    fetchSupabaseApplications()
-    setTimeout(() => setIsRefreshing(false), 500)
+    await Promise.all([fetchSellerApps(), fetchPTApps(), fetchOrders()])
+    setIsRefreshing(false)
   }
 
-  const handleSupabaseApprove = async (applicationId: string) => {
+  // ── Seller application actions ─────────────────────────────
+  const handleSellerApprove = async (applicationId: string) => {
     try {
       const res = await fetch("/api/seller/application/review", {
         method: "PATCH",
@@ -293,99 +148,64 @@ export default function AdminDashboardPage() {
         body: JSON.stringify({ application_id: applicationId, action: "approve" }),
       })
       if (!res.ok) throw new Error("Failed to approve")
-      toast({ title: "Application Approved", description: "Seller application has been approved." })
-      fetchSupabaseApplications()
+      const data = await res.json()
+      toast({
+        title: "Seller Application Approved",
+        description: data.generatedPassword
+          ? `Seller credentials generated. Password: ${data.generatedPassword}`
+          : "Seller application has been approved.",
+      })
+      fetchSellerApps()
     } catch {
       toast({ title: "Error", description: "Failed to approve application.", variant: "destructive" })
     }
   }
 
-  const handleSupabaseReject = async (applicationId: string, feedback?: string) => {
+  const handleSellerReject = async (applicationId: string) => {
+    const feedback = rejectFeedback[applicationId] || "Application rejected"
     try {
       const res = await fetch("/api/seller/application/review", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ application_id: applicationId, action: "reject", admin_feedback: feedback || "Application rejected" }),
+        body: JSON.stringify({ application_id: applicationId, action: "reject", admin_feedback: feedback }),
       })
       if (!res.ok) throw new Error("Failed to reject")
-      toast({ title: "Application Rejected", description: "Seller application has been rejected." })
-      fetchSupabaseApplications()
+      toast({ title: "Seller Application Rejected", description: "Seller application has been rejected." })
+      setRejectFeedback((prev) => { const n = { ...prev }; delete n[applicationId]; return n })
+      fetchSellerApps()
     } catch {
       toast({ title: "Error", description: "Failed to reject application.", variant: "destructive" })
     }
   }
 
-  const handleApprove = async (id: string, feedback?: string) => {
+  // ── Pattern testing application actions ────────────────────
+  const handlePTApprove = async (id: string) => {
     try {
-      const response = await fetch(`/api/seller/applications/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: "approved",
-          adminFeedback: feedback,
-          reviewedBy: user?.id,
-        }),
+      await fetch("/api/admin/pattern-testing/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: id, adminId: user?.id }),
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to approve application")
-      }
-
-      const result = await response.json()
-      
-      toast({
-        title: "Application Approved",
-        description: `${result.application.name}'s seller application has been approved.`,
-      })
-
-      refreshApplications()
-      setSelectedApplication(null)
-    } catch (error) {
-      console.error("Error approving application:", error)
-      toast({
-        title: "Error",
-        description: "Failed to approve application. Please try again.",
-        variant: "destructive",
-      })
+      toast({ title: "Pattern Testing Approved", description: "User now has access to pattern testing." })
+      fetchPTApps()
+    } catch {
+      toast({ title: "Error", description: "Failed to approve.", variant: "destructive" })
     }
   }
 
-  const handleReject = async (id: string, feedback: string) => {
+  const handlePTReject = async (id: string) => {
+    const reason = rejectFeedback[id] || "Not a fit at this time"
     try {
-      const response = await fetch(`/api/seller/applications/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: "rejected",
-          adminFeedback: feedback,
-          reviewedBy: user?.id,
-        }),
+      await fetch("/api/admin/pattern-testing/disapprove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: id, adminId: user?.id, reason }),
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to reject application")
-      }
-
-      const result = await response.json()
-      
-      toast({
-        title: "Application Rejected",
-        description: `${result.application.name}'s seller application has been rejected.`,
-      })
-
-      refreshApplications()
-      setSelectedApplication(null)
-    } catch (error) {
-      console.error("Error rejecting application:", error)
-      toast({
-        title: "Error",
-        description: "Failed to reject application. Please try again.",
-        variant: "destructive",
-      })
+      toast({ title: "Pattern Testing Rejected", description: "Application has been rejected." })
+      setRejectFeedback((prev) => { const n = { ...prev }; delete n[id]; return n })
+      fetchPTApps()
+    } catch {
+      toast({ title: "Error", description: "Failed to reject.", variant: "destructive" })
     }
   }
 
@@ -397,103 +217,42 @@ export default function AdminDashboardPage() {
     )
   }
 
-  // If viewing a specific application, show the detailed review interface
-  if (selectedApplication) {
-    return (
-      <div className="container mx-auto py-10 px-4">
-        <div className="flex items-center gap-4 mb-6">
-          <Button 
-            variant="outline" 
-            onClick={() => setSelectedApplication(null)}
-            className="flex items-center gap-2"
-          >
-            ← Back to Applications
-          </Button>
-          <h1 className="text-2xl font-bold">Review Seller Application</h1>
-        </div>
-        
-        <SellerApplicationReview
-          application={{
-            ...selectedApplication,
-            submittedAt: selectedApplication.submittedAt,
-            createdAt: selectedApplication.submittedAt,
-            updatedAt: selectedApplication.updatedAt,
-          }}
-          onApprove={handleApprove}
-          onReject={handleReject}
-          adminId={user.id}
-        />
-      </div>
-    )
-  }
+  // Build unified pending list
+  const pendingSellerApps = sellerApps.filter((a) => a.status === "pending")
+  const pendingPTApps = ptApps.filter((a) => a.status === "pending")
 
-  // Merge seller and pattern testing pending applications
-  const pendingSellerApps = applications.filter((app) => app.status === "pending")
-  const pendingPTApps = ptApplications.filter((app) => app.status === "pending")
-  const pendingSupabaseApps = supabaseApplications.filter((app) => app.status === "pending")
-  const pendingApplications = [
-    ...pendingSupabaseApps.map((app) => ({
-      type: "supabase-seller" as const,
-      id: app.id,
-      name: app.users?.full_name || app.users?.email || "Unknown",
-      email: app.users?.email || "",
-      experience: app.experience,
-      reason: app.reason,
-      introduction: app.introduction,
-      createdAt: app.created_at,
-      userId: app.user_id,
-    })),
-    ...pendingSellerApps.map((app) => ({
+  const pendingApplications: PendingApplication[] = [
+    ...pendingSellerApps.map((a) => ({
       type: "seller" as const,
-      id: app.id,
-      name: app.name,
-      email: app.email,
-      bio: app.bio,
-      experience: app.experience,
-      socialMedia: app.socialMedia,
-      submittedAt: app.submittedAt,
-      userId: app.userId,
+      id: a.id,
+      userId: a.user_id,
+      name: a.users?.full_name || a.users?.email || "Unknown",
+      email: a.users?.email || "",
+      details: {
+        Experience: a.experience,
+        "Why They Want to Sell": a.reason,
+        Introduction: a.introduction,
+      },
+      createdAt: a.created_at,
     })),
-    ...pendingPTApps.map((app) => ({
+    ...pendingPTApps.map((a) => ({
       type: "pattern-testing" as const,
-      id: app.id,
-      name: app.userName,
-      email: app.userEmail,
-      whyTesting: app.whyTesting,
-      experienceLevel: app.experienceLevel,
-      availability: app.availability,
-      createdAt: app.createdAt,
-      userId: app.userId,
+      id: a.id,
+      userId: a.userId,
+      name: a.userName,
+      email: a.userEmail,
+      details: {
+        "Why Testing": a.whyTesting,
+        "Experience Level": a.experienceLevel,
+        Availability: a.availability,
+        ...(a.comments ? { Comments: a.comments } : {}),
+      },
+      createdAt: a.createdAt,
     })),
   ]
-    // Approve/reject for pattern testing
-    // Approve/reject for pattern testing (call backend API, then reload)
-    const handleApprovePatternTesting = async (id: string) => {
-      await fetch("/api/admin/pattern-testing/approve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applicationId: id, adminId: user?.id }),
-      })
-      await fetchPTApplications()
-      toast({
-        title: "Pattern Testing Application Approved",
-        description: `Application has been approved.`,
-      })
-    }
-    const handleRejectPatternTesting = async (id: string) => {
-      await fetch("/api/admin/pattern-testing/disapprove", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applicationId: id, adminId: user?.id, reason: "Not a fit" }),
-      })
-      await fetchPTApplications()
-      toast({
-        title: "Pattern Testing Application Rejected",
-        description: `Application has been rejected.`,
-      })
-    }
-  const approvedApplications = applications.filter((app) => app.status === "approved")
-  const rejectedApplications = applications.filter((app) => app.status === "rejected")
+
+  const allSellerApps = sellerApps
+  const allPTApps = ptApps
 
   return (
     <div className="container mx-auto py-10 px-4">
@@ -506,7 +265,7 @@ export default function AdminDashboardPage() {
           <h1 className="text-2xl font-bold">Admin Dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={refreshApplications} disabled={isRefreshing}>
+          <Button variant="outline" size="sm" onClick={refreshAll} disabled={isRefreshing}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh
           </Button>
@@ -534,7 +293,9 @@ export default function AdminDashboardPage() {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="all-applications">All Applications</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="activity">Activity Monitor</TabsTrigger>
           <TabsTrigger value="content">Content</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="competitions">Competitions</TabsTrigger>
@@ -545,10 +306,12 @@ export default function AdminDashboardPage() {
           <TabsTrigger value="config">Configuration</TabsTrigger>
         </TabsList>
 
+        {/* ── Overview Tab ── */}
         <TabsContent value="overview">
           <AdminDashboardOverview />
         </TabsContent>
 
+        {/* ── Pending Applications Tab ── */}
         <TabsContent value="pending">
           {pendingApplications.length === 0 ? (
             <Card>
@@ -565,14 +328,16 @@ export default function AdminDashboardPage() {
                       <div>
                         <CardTitle>{application.name}</CardTitle>
                         <CardDescription>{application.email}</CardDescription>
-                        {application.type === "pattern-testing" && (
-                          <span className="text-xs text-blue-600">Pattern Testing Application</span>
-                        )}
-                        {application.type === "seller" && (
-                          <span className="text-xs text-green-600">Seller Application</span>
-                        )}
-                        {application.type === "supabase-seller" && (
-                          <span className="text-xs text-rose-600">Seller Application (New)</span>
+                        {application.type === "pattern-testing" ? (
+                          <Badge variant="outline" className="mt-1 text-blue-600 border-blue-300">
+                            <TestTube className="h-3 w-3 mr-1" />
+                            Pattern Testing Application
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="mt-1 text-green-600 border-green-300">
+                            <Store className="h-3 w-3 mr-1" />
+                            Seller Application
+                          </Badge>
                         )}
                       </div>
                       <Badge variant="outline" className="flex items-center">
@@ -582,122 +347,51 @@ export default function AdminDashboardPage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {application.type === "seller" && (
-                        <>
-                          <div>
-                            <h3 className="font-medium mb-1">Bio</h3>
-                            <p className="text-sm text-muted-foreground">{application.bio}</p>
-                          </div>
-                          <div>
-                            <h3 className="font-medium mb-1">Experience</h3>
-                            <p className="text-sm text-muted-foreground">{application.experience}</p>
-                          </div>
-                          {application.socialMedia && (
-                            <div>
-                              <h3 className="font-medium mb-1">Social Media</h3>
-                              <div className="text-sm text-muted-foreground">
-                                {application.socialMedia.instagram && <p>Instagram: {application.socialMedia.instagram}</p>}
-                                {application.socialMedia.pinterest && <p>Pinterest: {application.socialMedia.pinterest}</p>}
-                                {application.socialMedia.youtube && <p>YouTube: {application.socialMedia.youtube}</p>}
-                              </div>
-                            </div>
-                          )}
-                          <div>
-                            <h3 className="font-medium mb-1">Submitted</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {application.submittedAt?.replace('T', ' ').slice(0, 19)}
-                            </p>
-                          </div>
-                        </>
-                      )}
-                      {application.type === "pattern-testing" && (
-                        <>
-                          <div>
-                            <h3 className="font-medium mb-1">Why Testing</h3>
-                            <p className="text-sm text-muted-foreground">{application.whyTesting}</p>
-                          </div>
-                          <div>
-                            <h3 className="font-medium mb-1">Experience Level</h3>
-                            <p className="text-sm text-muted-foreground">{application.experienceLevel}</p>
-                          </div>
-                          <div>
-                            <h3 className="font-medium mb-1">Availability</h3>
-                            <p className="text-sm text-muted-foreground">{application.availability}</p>
-                          </div>
-                          <div>
-                            <h3 className="font-medium mb-1">Submitted</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {application.createdAt?.replace('T', ' ').slice(0, 19)}
-                            </p>
-                          </div>
-                        </>
-                      )}
-                      {application.type === "supabase-seller" && (
-                        <>
-                          <div>
-                            <h3 className="font-medium mb-1">Experience</h3>
-                            <p className="text-sm text-muted-foreground">{application.experience}</p>
-                          </div>
-                          <div>
-                            <h3 className="font-medium mb-1">Why They Want to Sell</h3>
-                            <p className="text-sm text-muted-foreground">{application.reason}</p>
-                          </div>
-                          <div>
-                            <h3 className="font-medium mb-1">Introduction</h3>
-                            <p className="text-sm text-muted-foreground">{application.introduction}</p>
-                          </div>
-                          <div>
-                            <h3 className="font-medium mb-1">Submitted</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {application.createdAt?.replace('T', ' ').slice(0, 19)}
-                            </p>
-                          </div>
-                        </>
-                      )}
+                    <div className="space-y-3">
+                      {Object.entries(application.details).map(([label, value]) => (
+                        <div key={label}>
+                          <h3 className="font-medium mb-1">{label}</h3>
+                          <p className="text-sm text-muted-foreground whitespace-pre-line">{value}</p>
+                        </div>
+                      ))}
+                      <div>
+                        <h3 className="font-medium mb-1">Submitted</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {application.createdAt?.replace("T", " ").slice(0, 19)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <Textarea
+                        placeholder="Rejection reason / feedback (optional)"
+                        value={rejectFeedback[application.id] || ""}
+                        onChange={(e) =>
+                          setRejectFeedback((prev) => ({ ...prev, [application.id]: e.target.value }))
+                        }
+                        className="mb-2"
+                        rows={2}
+                      />
                     </div>
                   </CardContent>
                   <CardFooter className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
-                    {application.type === "supabase-seller" ? (
+                    {application.type === "seller" ? (
                       <>
-                        <Button variant="outline" onClick={() => handleSupabaseReject(application.id, "Application rejected")} className="w-full sm:w-auto">
+                        <Button variant="outline" onClick={() => handleSellerReject(application.id)} className="w-full sm:w-auto">
                           <XCircle className="h-4 w-4 mr-2" />
                           Reject
                         </Button>
-                        <Button onClick={() => handleSupabaseApprove(application.id)} className="w-full sm:w-auto">
+                        <Button onClick={() => handleSellerApprove(application.id)} className="w-full sm:w-auto">
                           <CheckCircle className="h-4 w-4 mr-2" />
                           Approve
                         </Button>
                       </>
-                    ) : application.type === "seller" ? (
-                      <>
-                        <Button 
-                          variant="outline" 
-                          onClick={() => {
-                            const fullApp = applications.find(app => app.id === application.id)
-                            if (fullApp) setSelectedApplication(fullApp)
-                          }}
-                          className="w-full sm:w-auto"
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          Review Details
-                        </Button>
-                        <Button variant="outline" onClick={() => handleReject(application.id, "Application rejected")} className="w-full sm:w-auto">
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Quick Reject
-                        </Button>
-                        <Button onClick={() => handleApprove(application.id)} className="w-full sm:w-auto">
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Quick Approve
-                        </Button>
-                      </>
                     ) : (
                       <>
-                        <Button variant="outline" onClick={() => handleRejectPatternTesting(application.id)} className="w-full sm:w-auto">
+                        <Button variant="outline" onClick={() => handlePTReject(application.id)} className="w-full sm:w-auto">
                           <XCircle className="h-4 w-4 mr-2" />
                           Reject
                         </Button>
-                        <Button onClick={() => handleApprovePatternTesting(application.id)} className="w-full sm:w-auto">
+                        <Button onClick={() => handlePTApprove(application.id)} className="w-full sm:w-auto">
                           <CheckCircle className="h-4 w-4 mr-2" />
                           Approve
                         </Button>
@@ -710,10 +404,94 @@ export default function AdminDashboardPage() {
           )}
         </TabsContent>
 
+        {/* ── All Applications Tab ── */}
+        <TabsContent value="all-applications">
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Store className="h-5 w-5" />
+              Seller Applications ({allSellerApps.length})
+            </h2>
+            {allSellerApps.length === 0 ? (
+              <Card><CardContent className="pt-6"><p className="text-center text-muted-foreground">No seller applications yet</p></CardContent></Card>
+            ) : (
+              <div className="grid gap-3">
+                {allSellerApps.map((app) => (
+                  <Card key={app.id}>
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-base">{app.users?.full_name || app.users?.email}</CardTitle>
+                          <CardDescription>{app.users?.email}</CardDescription>
+                        </div>
+                        <Badge className={
+                          app.status === "approved" ? "bg-green-100 text-green-800" :
+                          app.status === "rejected" ? "bg-red-100 text-red-800" :
+                          "bg-yellow-100 text-yellow-800"
+                        }>
+                          {app.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="text-sm text-muted-foreground space-y-1">
+                      <p><strong>Experience:</strong> {app.experience}</p>
+                      <p><strong>Reason:</strong> {app.reason}</p>
+                      <p><strong>Applied:</strong> {app.created_at?.replace("T", " ").slice(0, 19)}</p>
+                      {app.admin_feedback && <p><strong>Admin Feedback:</strong> {app.admin_feedback}</p>}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            <h2 className="text-lg font-semibold flex items-center gap-2 mt-8">
+              <TestTube className="h-5 w-5" />
+              Pattern Testing Applications ({allPTApps.length})
+            </h2>
+            {allPTApps.length === 0 ? (
+              <Card><CardContent className="pt-6"><p className="text-center text-muted-foreground">No pattern testing applications yet</p></CardContent></Card>
+            ) : (
+              <div className="grid gap-3">
+                {allPTApps.map((app) => (
+                  <Card key={app.id}>
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-base">{app.userName}</CardTitle>
+                          <CardDescription>{app.userEmail}</CardDescription>
+                        </div>
+                        <Badge className={
+                          app.status === "approved" ? "bg-green-100 text-green-800" :
+                          app.status === "disapproved" ? "bg-red-100 text-red-800" :
+                          "bg-yellow-100 text-yellow-800"
+                        }>
+                          {app.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="text-sm text-muted-foreground space-y-1">
+                      <p><strong>Why:</strong> {app.whyTesting}</p>
+                      <p><strong>Level:</strong> {app.experienceLevel}</p>
+                      <p><strong>Availability:</strong> {app.availability}</p>
+                      <p><strong>Applied:</strong> {app.createdAt?.replace("T", " ").slice(0, 19)}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* ── Users Tab ── */}
         <TabsContent value="users">
           <UserManagement />
         </TabsContent>
 
+        {/* ── Activity Monitor Tab ── */}
+        <TabsContent value="activity">
+          <AdminActivityMonitor orders={orders} sellerApps={allSellerApps} ptApps={allPTApps} />
+        </TabsContent>
+
+        {/* ── Other Tabs ── */}
         <TabsContent value="content">
           <ContentModeration />
         </TabsContent>
@@ -738,61 +516,145 @@ export default function AdminDashboardPage() {
           <AdvertisementAnalytics />
         </TabsContent>
 
-        <TabsContent value="approved">
-          {approvedApplications.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <p className="text-center text-muted-foreground">No approved applications</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {approvedApplications.map((application) => (
-                <Card key={application.id}>
-                  <CardHeader>
-                    <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-                      <div>
-                        <CardTitle>{application.name}</CardTitle>
-                        <CardDescription>{application.email}</CardDescription>
-                      </div>
-                      <Badge className="bg-green-100 text-green-800 flex items-center">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Approved
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="font-medium mb-1">Bio</h3>
-                        <p className="text-sm text-muted-foreground">{application.bio}</p>
-                      </div>
-                      <div>
-                        <h3 className="font-medium mb-1">Experience</h3>
-                        <p className="text-sm text-muted-foreground">{application.experience}</p>
-                      </div>
-                      <div>
-                        <h3 className="font-medium mb-1">Approved On</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {application.updatedAt ? application.updatedAt.replace('T', ' ').slice(0, 19) : "Unknown"}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+        <TabsContent value="gamification">
+          <GamificationManagement />
         </TabsContent>
 
         <TabsContent value="config">
           <SystemConfiguration />
         </TabsContent>
-
-        <TabsContent value="gamification">
-          <GamificationManagement />
-        </TabsContent>
       </Tabs>
+    </div>
+  )
+}
+
+// ── Activity Monitor Component ───────────────────────────────
+function AdminActivityMonitor({
+  orders,
+  sellerApps,
+  ptApps,
+}: {
+  orders: OrderRow[]
+  sellerApps: SellerAppRow[]
+  ptApps: PatternTestingAppRow[]
+}) {
+  const [activityLogs, setActivityLogs] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState<"purchases" | "sellers" | "testers" | "logs">("purchases")
+
+  useEffect(() => {
+    fetch("/api/activity-log")
+      .then((r) => r.json())
+      .then((d) => setActivityLogs(d.logs || d.activities || []))
+      .catch(() => setActivityLogs([]))
+  }, [])
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Activity Monitor</h2>
+      <div className="flex gap-2 flex-wrap">
+        {(["purchases", "sellers", "testers", "logs"] as const).map((tab) => (
+          <Button
+            key={tab}
+            variant={activeTab === tab ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab === "purchases" && <ShoppingBag className="h-4 w-4 mr-1" />}
+            {tab === "sellers" && <Store className="h-4 w-4 mr-1" />}
+            {tab === "testers" && <TestTube className="h-4 w-4 mr-1" />}
+            {tab === "logs" && <Users className="h-4 w-4 mr-1" />}
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </Button>
+        ))}
+      </div>
+
+      {activeTab === "purchases" && (
+        <div className="space-y-3">
+          <h3 className="font-medium">Recent Orders / Purchases</h3>
+          {orders.length === 0 ? (
+            <Card><CardContent className="pt-6"><p className="text-center text-muted-foreground">No orders yet</p></CardContent></Card>
+          ) : (
+            orders.map((order) => (
+              <Card key={order.id}>
+                <CardContent className="pt-4 text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="font-medium">{order.users?.full_name || order.users?.email || order.user_id}</span>
+                    <Badge>{order.status}</Badge>
+                  </div>
+                  <p>Total: ${order.total.toFixed(2)}</p>
+                  <p>Items: {Array.isArray(order.items) ? order.items.length : 0}</p>
+                  <p className="text-muted-foreground">{order.created_at?.replace("T", " ").slice(0, 19)}</p>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === "sellers" && (
+        <div className="space-y-3">
+          <h3 className="font-medium">Approved Sellers Activity</h3>
+          {sellerApps.filter((a) => a.status === "approved").length === 0 ? (
+            <Card><CardContent className="pt-6"><p className="text-center text-muted-foreground">No approved sellers yet</p></CardContent></Card>
+          ) : (
+            sellerApps
+              .filter((a) => a.status === "approved")
+              .map((app) => (
+                <Card key={app.id}>
+                  <CardContent className="pt-4 text-sm space-y-1">
+                    <p className="font-medium">{app.users?.full_name || app.users?.email}</p>
+                    <p><strong>Experience:</strong> {app.experience}</p>
+                    <p><strong>Approved:</strong> {app.reviewed_at?.replace("T", " ").slice(0, 19) || "N/A"}</p>
+                  </CardContent>
+                </Card>
+              ))
+          )}
+        </div>
+      )}
+
+      {activeTab === "testers" && (
+        <div className="space-y-3">
+          <h3 className="font-medium">Pattern Testers Activity</h3>
+          {ptApps.filter((a) => a.status === "approved").length === 0 ? (
+            <Card><CardContent className="pt-6"><p className="text-center text-muted-foreground">No approved testers yet</p></CardContent></Card>
+          ) : (
+            ptApps
+              .filter((a) => a.status === "approved")
+              .map((app) => (
+                <Card key={app.id}>
+                  <CardContent className="pt-4 text-sm space-y-1">
+                    <p className="font-medium">{app.userName}</p>
+                    <p><strong>Level:</strong> {app.experienceLevel}</p>
+                    <p><strong>Availability:</strong> {app.availability}</p>
+                    <p><strong>Approved:</strong> {app.reviewedAt?.replace("T", " ").slice(0, 19) || "N/A"}</p>
+                  </CardContent>
+                </Card>
+              ))
+          )}
+        </div>
+      )}
+
+      {activeTab === "logs" && (
+        <div className="space-y-3">
+          <h3 className="font-medium">Recent Activity Logs</h3>
+          {activityLogs.length === 0 ? (
+            <Card><CardContent className="pt-6"><p className="text-center text-muted-foreground">No activity logs yet</p></CardContent></Card>
+          ) : (
+            activityLogs.slice(0, 50).map((log: any, i: number) => (
+              <Card key={log.id || i}>
+                <CardContent className="pt-4 text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="font-medium">{log.user_name || log.user_id || "System"}</span>
+                    <Badge variant="outline">{log.action || log.type}</Badge>
+                  </div>
+                  <p className="text-muted-foreground">{log.description || log.details}</p>
+                  <p className="text-xs text-muted-foreground">{log.created_at?.replace("T", " ").slice(0, 19)}</p>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
     </div>
   )
 }

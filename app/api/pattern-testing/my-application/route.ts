@@ -1,23 +1,51 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { initializeDatabase, getItem } from "@/lib/local-storage-db"
-import type { PatternTestingApplication } from "@/lib/local-storage-db"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("\n[PATTERN-TESTING-MY-APPLICATION] Request received")
-    initializeDatabase()
-
     const { userId } = await request.json()
     if (!userId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 })
     }
 
-    const applications = getItem("crochet_pattern_testing_applications", []) as PatternTestingApplication[]
-    const application = applications.find((app) => app.userId === userId) || null
+    const { data: app, error } = await supabaseAdmin
+      .from("pattern_testing_applications")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-    return NextResponse.json({ application })
+    if (error) throw error
+
+    if (!app) {
+      return NextResponse.json({ application: null })
+    }
+
+    // Get user info
+    const { data: user } = await supabaseAdmin
+      .from("users")
+      .select("full_name, email")
+      .eq("id", userId)
+      .single()
+
+    return NextResponse.json({
+      application: {
+        id: app.id,
+        userId: app.user_id,
+        userName: user?.full_name || user?.email || "Unknown",
+        userEmail: user?.email || "",
+        whyTesting: app.why_testing,
+        experienceLevel: app.experience_level,
+        availability: app.availability,
+        comments: app.comments,
+        status: app.status,
+        createdAt: app.created_at,
+        reviewedAt: app.reviewed_at,
+      },
+    })
   } catch (error) {
-    console.error("[PATTERN-TESTING-MY-APPLICATION] Error:", error)
+    console.error("Error fetching pattern testing application:", error)
     return NextResponse.json({ error: "Internal error" }, { status: 500 })
   }
 }

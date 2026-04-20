@@ -136,14 +136,27 @@ export async function getUserXPHistory(userId: string, limit = 20) {
   return data || []
 }
 
-// ── Leaderboard: top N users by XP ──────────────────────────
+// ── Leaderboard: top N users by XP (excludes admins) ─────────
 export async function getLeaderboard(limit = 50) {
-  const { data, error } = await supabaseAdmin
+  // Get admin user IDs to exclude
+  const { data: adminUsers } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('role', 'admin')
+
+  const adminIds = (adminUsers || []).map((u) => u.id)
+
+  let query = supabaseAdmin
     .from('user_xp')
     .select('user_id, total_xp, tier')
     .order('total_xp', { ascending: false })
     .limit(limit)
 
+  if (adminIds.length > 0) {
+    query = query.not('user_id', 'in', `(${adminIds.join(',')})`)
+  }
+
+  const { data, error } = await query
   if (error) throw error
 
   // Fetch display names for all returned users

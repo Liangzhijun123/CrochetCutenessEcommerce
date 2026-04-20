@@ -4,61 +4,44 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { 
-  Users, 
-  DollarSign, 
-  ShoppingCart, 
-  TrendingUp, 
+import {
+  Users,
+  DollarSign,
+  ShoppingCart,
+  TrendingUp,
   AlertCircle,
   CheckCircle,
   Clock,
   Activity,
   FileText,
   Trophy,
-  MessageSquare
+  MessageSquare,
+  UserPlus,
+  Store,
+  RefreshCw,
 } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
 import Link from "next/link"
 
+interface UserRow {
+  id: string
+  email: string
+  full_name: string | null
+  avatar_url: string | null
+  role: string
+  is_seller: boolean
+  created_at: string
+}
+
 interface DashboardStats {
-  users: {
-    total: number
-    active: number
-    newToday: number
-    growth: number
-  }
-  revenue: {
-    total: number
-    today: number
-    thisMonth: number
-    growth: number
-  }
-  sales: {
-    total: number
-    today: number
-    pending: number
-  }
-  content: {
-    pendingPatterns: number
-    pendingEntries: number
-    flaggedContent: number
-  }
-  applications: {
-    pendingSeller: number
-    pendingTesting: number
-  }
-  engagement: {
-    activeCompetitions: number
-    messagesLast24h: number
-    dailyClaims: number
-  }
-  recentActivity: Array<{
-    id: string
-    type: string
-    description: string
-    timestamp: string
-    status: "success" | "warning" | "error"
-  }>
+  totalUsers: number
+  totalSellers: number
+  totalOrders: number
+  totalRevenue: number
+  leaderboardUsers: number
+  pendingSellerApps: number
+  pendingPTApps: number
+  recentUsers: UserRow[]
+  allUsers: UserRow[]
 }
 
 export default function AdminDashboardOverview() {
@@ -67,29 +50,16 @@ export default function AdminDashboardOverview() {
 
   useEffect(() => {
     fetchDashboardStats()
-    
-    // Refresh stats every 30 seconds
-    const interval = setInterval(fetchDashboardStats, 30000)
+    const interval = setInterval(fetchDashboardStats, 60000)
     return () => clearInterval(interval)
   }, [])
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await fetch("/api/admin/dashboard", {
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("crochet_token")}`,
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setStats(data.stats)
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to load dashboard statistics",
-          variant: "destructive",
-        })
+      const res = await fetch("/api/admin/stats")
+      if (res.ok) {
+        const data = await res.json()
+        setStats(data)
       }
     } catch (error) {
       console.error("Failed to fetch dashboard stats:", error)
@@ -114,43 +84,24 @@ export default function AdminDashboardOverview() {
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground">Failed to load dashboard statistics</p>
+        <Button variant="outline" size="sm" className="mt-2" onClick={fetchDashboardStats}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Retry
+        </Button>
       </div>
     )
-  }
-
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case "user": return <Users className="h-4 w-4" />
-      case "sale": return <ShoppingCart className="h-4 w-4" />
-      case "pattern": return <FileText className="h-4 w-4" />
-      case "competition": return <Trophy className="h-4 w-4" />
-      case "message": return <MessageSquare className="h-4 w-4" />
-      default: return <Activity className="h-4 w-4" />
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "success": return "text-green-600"
-      case "warning": return "text-yellow-600"
-      case "error": return "text-red-600"
-      default: return "text-gray-600"
-    }
   }
 
   return (
     <div className="space-y-6">
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Users</p>
-                <p className="text-2xl font-bold">{stats.users.total.toLocaleString()}</p>
-                <p className={`text-xs mt-1 ${stats.users.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {stats.users.growth >= 0 ? '+' : ''}{stats.users.growth}% this month
-                </p>
+                <p className="text-2xl font-bold">{stats.totalUsers}</p>
               </div>
               <Users className="h-8 w-8 text-blue-500" />
             </div>
@@ -161,13 +112,10 @@ export default function AdminDashboardOverview() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold">${stats.revenue.total.toLocaleString()}</p>
-                <p className={`text-xs mt-1 ${stats.revenue.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {stats.revenue.growth >= 0 ? '+' : ''}{stats.revenue.growth}% this month
-                </p>
+                <p className="text-sm font-medium text-muted-foreground">Total Sellers</p>
+                <p className="text-2xl font-bold">{stats.totalSellers}</p>
               </div>
-              <DollarSign className="h-8 w-8 text-green-500" />
+              <Store className="h-8 w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
@@ -176,11 +124,8 @@ export default function AdminDashboardOverview() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Sales</p>
-                <p className="text-2xl font-bold">{stats.sales.total.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stats.sales.today} today
-                </p>
+                <p className="text-sm font-medium text-muted-foreground">Orders</p>
+                <p className="text-2xl font-bold">{stats.totalOrders}</p>
               </div>
               <ShoppingCart className="h-8 w-8 text-purple-500" />
             </div>
@@ -191,20 +136,29 @@ export default function AdminDashboardOverview() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Users</p>
-                <p className="text-2xl font-bold">{stats.users.active.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stats.users.newToday} new today
-                </p>
+                <p className="text-sm font-medium text-muted-foreground">Revenue</p>
+                <p className="text-2xl font-bold">${stats.totalRevenue.toFixed(2)}</p>
               </div>
-              <Activity className="h-8 w-8 text-orange-500" />
+              <DollarSign className="h-8 w-8 text-yellow-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Leaderboard</p>
+                <p className="text-2xl font-bold">{stats.leaderboardUsers}</p>
+              </div>
+              <Trophy className="h-8 w-8 text-orange-500" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Pending Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Pending Applications</CardTitle>
@@ -216,16 +170,20 @@ export default function AdminDashboardOverview() {
                   <Clock className="h-4 w-4 text-yellow-600" />
                   <span className="text-sm font-medium">Seller Applications</span>
                 </div>
-                <Badge variant="destructive">{stats.applications.pendingSeller}</Badge>
+                <Badge variant={stats.pendingSellerApps > 0 ? "destructive" : "secondary"}>
+                  {stats.pendingSellerApps}
+                </Badge>
               </div>
             </Link>
             <Link href="/admin-dashboard?tab=pending">
-              <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer mt-2">
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-yellow-600" />
-                  <span className="text-sm font-medium">Testing Applications</span>
+                  <span className="text-sm font-medium">Pattern Testing Applications</span>
                 </div>
-                <Badge variant="destructive">{stats.applications.pendingTesting}</Badge>
+                <Badge variant={stats.pendingPTApps > 0 ? "destructive" : "secondary"}>
+                  {stats.pendingPTApps}
+                </Badge>
               </div>
             </Link>
           </CardContent>
@@ -233,105 +191,84 @@ export default function AdminDashboardOverview() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Content Moderation</CardTitle>
+            <CardTitle className="text-lg">Platform Summary</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium">Pending Patterns</span>
+                <UserPlus className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium">Registered Users</span>
               </div>
-              <Badge variant={stats.content.pendingPatterns > 0 ? "destructive" : "secondary"}>
-                {stats.content.pendingPatterns}
-              </Badge>
+              <Badge>{stats.totalUsers}</Badge>
             </div>
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div className="flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-purple-600" />
-                <span className="text-sm font-medium">Pending Entries</span>
+                <Trophy className="h-4 w-4 text-orange-600" />
+                <span className="text-sm font-medium">Leaderboard Participants</span>
               </div>
-              <Badge variant={stats.content.pendingEntries > 0 ? "destructive" : "secondary"}>
-                {stats.content.pendingEntries}
-              </Badge>
+              <Badge>{stats.leaderboardUsers}</Badge>
             </div>
             <div className="flex items-center justify-between p-3 border rounded-lg">
               <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-red-600" />
-                <span className="text-sm font-medium">Flagged Content</span>
+                <Store className="h-4 w-4 text-green-600" />
+                <span className="text-sm font-medium">Active Sellers</span>
               </div>
-              <Badge variant={stats.content.flaggedContent > 0 ? "destructive" : "secondary"}>
-                {stats.content.flaggedContent}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Platform Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-yellow-600" />
-                <span className="text-sm font-medium">Active Competitions</span>
-              </div>
-              <Badge>{stats.engagement.activeCompetitions}</Badge>
-            </div>
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium">Messages (24h)</span>
-              </div>
-              <Badge>{stats.engagement.messagesLast24h}</Badge>
-            </div>
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center gap-2">
-                <Activity className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium">Daily Claims</span>
-              </div>
-              <Badge>{stats.engagement.dailyClaims}</Badge>
+              <Badge>{stats.totalSellers}</Badge>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Activity */}
+      {/* All Registered Users */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Recent Activity</CardTitle>
+            <div>
+              <CardTitle>Registered Users ({stats.allUsers.length})</CardTitle>
+              <CardDescription>All users who have signed up on the platform</CardDescription>
+            </div>
             <Button variant="outline" size="sm" onClick={fetchDashboardStats}>
+              <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
           </div>
-          <CardDescription>Latest platform events and actions</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {stats.recentActivity.length === 0 ? (
-              <p className="text-center text-muted-foreground py-4">No recent activity</p>
-            ) : (
-              stats.recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-center justify-between p-3 border-b last:border-b-0">
+          {stats.allUsers.length === 0 ? (
+            <p className="text-center text-muted-foreground py-4">No users have signed up yet</p>
+          ) : (
+            <div className="space-y-3">
+              {stats.allUsers.map((u) => (
+                <div key={u.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
-                    <div className={getStatusColor(activity.status)}>
-                      {getActivityIcon(activity.type)}
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-pink-300 to-purple-400 flex items-center justify-center text-white font-bold text-sm">
+                      {(u.full_name || u.email).charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-sm font-medium">{activity.description}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(activity.timestamp).toLocaleString()}
-                      </p>
+                      <p className="text-sm font-medium">{u.full_name || "No name set"}</p>
+                      <p className="text-xs text-muted-foreground">{u.email}</p>
                     </div>
                   </div>
-                  {activity.status === "success" && <CheckCircle className="h-4 w-4 text-green-600" />}
-                  {activity.status === "warning" && <AlertCircle className="h-4 w-4 text-yellow-600" />}
-                  {activity.status === "error" && <AlertCircle className="h-4 w-4 text-red-600" />}
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      className={
+                        u.role === "admin"
+                          ? "bg-red-100 text-red-800"
+                          : u.role === "seller"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-blue-100 text-blue-800"
+                      }
+                    >
+                      {u.role}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {u.created_at ? new Date(u.created_at).toLocaleDateString() : "N/A"}
+                    </span>
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

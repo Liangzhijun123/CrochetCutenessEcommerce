@@ -1,86 +1,64 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { initializeDatabase, getItem, setItem, getUserById, updateUser } from "@/lib/local-storage-db"
-import { PatternTestingApplication } from "@/lib/local-storage-db"
-import { sendEmail } from "@/lib/email-service"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("\n[ADMIN-APPROVE] ========== APPROVE REQUEST ==========")
-    initializeDatabase()
-
     const { applicationId, adminId } = await request.json()
-    console.log(`[ADMIN-APPROVE] Application ID: ${applicationId}, Admin ID: ${adminId}`)
 
     if (!applicationId || !adminId) {
-      console.log("[ADMIN-APPROVE] ❌ Missing required fields")
       return NextResponse.json({ error: "Application ID and Admin ID are required" }, { status: 400 })
     }
 
     // Verify admin
-    const admin = getUserById(adminId)
+    const { data: admin } = await supabaseAdmin
+      .from("users")
+      .select("id, role")
+      .eq("id", adminId)
+      .single()
+
     if (!admin || admin.role !== "admin") {
-      console.log(`[ADMIN-APPROVE] ❌ Not authorized - user is not admin`)
       return NextResponse.json({ error: "Only admins can approve applications" }, { status: 403 })
     }
 
-    // Get applications
-    const applications = getItem("crochet_pattern_testing_applications", []) as PatternTestingApplication[]
-    const appIndex = applications.findIndex((app) => app.id === applicationId)
+    // Get the application
+    const { data: application, error: appErr } = await supabaseAdmin
+      .from("pattern_testing_applications")
+      .select("*")
+      .eq("id", applicationId)
+      .single()
 
-    if (appIndex === -1) {
-      console.log(`[ADMIN-APPROVE] ❌ Application not found: ${applicationId}`)
+    if (appErr || !application) {
       return NextResponse.json({ error: "Application not found" }, { status: 404 })
     }
 
-    const application = applications[appIndex]
-    console.log(`[ADMIN-APPROVE] Found application for user: ${application.userEmail}`)
-
     // Update application status
-    application.status = "approved"
-    application.reviewedAt = new Date().toISOString()
-    application.reviewedBy = adminId
-    console.log(`[ADMIN-APPROVE] Application status updated to approved`)
-
-    // Update user - grant access and set tester level 1
-    const user = getUserById(application.userId)
-    if (user) {
-      console.log(`[ADMIN-APPROVE] Updating user with tester access...`)
-      updateUser(application.userId, {
-        patternTestingApproved: true,
-        testerLevel: 1,
-        testerXP: 0,
-        patternTestingApplicationId: applicationId,
+    const { error: updateErr } = await supabaseAdmin
+      .from("pattern_testing_applications")
+      .update({
+        status: "approved",
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: adminId,
       })
-      console.log(`[ADMIN-APPROVE] ✅ User updated - testerLevel: 1, approved: true`)
-    }
+      .eq("id", applicationId)
 
-    // Save updated applications
-    applications[appIndex] = application
-    setItem("crochet_pattern_testing_applications", applications)
-    console.log(`[ADMIN-APPROVE] ✅ Application approved and saved`)
-    console.log("[ADMIN-APPROVE] ========== APPROVE SUCCESSFUL ==========\n")
-    
-      // Send notification email (stub)
-      try {
-        if (user) {
-          await sendEmail(user.email, "pattern-testing-approval", {
-            applicationId: application.id,
-            userName: user.name,
-            reviewerId: adminId,
-          })
-          console.log("[ADMIN-APPROVE] Notification email sent to user")
-        }
-      } catch (err) {
-        console.error("[ADMIN-APPROVE] Failed to send notification email:", err)
-      }
+    if (updateErr) throw updateErr
+
+    // Grant pattern testing access to the user
+    await supabaseAdmin
+      .from("users")
+      .update({
+        pattern_testing_approved: true,
+        tester_level: 1,
+        tester_xp: 0,
+      })
+      .eq("id", application.user_id)
 
     return NextResponse.json({
       message: "Application approved successfully",
-      application,
+      application: { ...application, status: "approved" },
     })
   } catch (error) {
-    console.error("[ADMIN-APPROVE] ❌ Error:", error)
-    console.log("[ADMIN-APPROVE] ========== APPROVE FAILED ==========\n")
+    console.error("Error approving pattern testing application:", error)
     return NextResponse.json({ error: "An error occurred while approving the application" }, { status: 500 })
   }
 }

@@ -1,65 +1,69 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getUserById, initializeDatabase, setItem, getItem, PatternTestingApplication } from "@/lib/local-storage-db"
-import { randomUUID } from "crypto"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("\n[PATTERN-TESTING-APPLY] ========== APPLICATION SUBMISSION ==========")
-    initializeDatabase()
-
     const { userId, whyTesting, experienceLevel, availability, comments } = await request.json()
-    console.log(`[PATTERN-TESTING-APPLY] User ID: ${userId}`)
-    console.log(`[PATTERN-TESTING-APPLY] Experience: ${experienceLevel}, Availability: ${availability}`)
 
     if (!userId || !whyTesting || !experienceLevel || !availability) {
-      console.log("[PATTERN-TESTING-APPLY] ❌ Missing required fields")
       return NextResponse.json({ error: "All required fields must be filled" }, { status: 400 })
     }
 
-    // Get user info
-    const user = getUserById(userId)
-    if (!user) {
-      console.log(`[PATTERN-TESTING-APPLY] ❌ User not found: ${userId}`)
+    // Verify user exists
+    const { data: user, error: userErr } = await supabaseAdmin
+      .from("users")
+      .select("id, full_name, email")
+      .eq("id", userId)
+      .single()
+
+    if (userErr || !user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Check if user already has a pending or approved application
-    const applications = getItem("crochet_pattern_testing_applications", []) as PatternTestingApplication[]
-    const existingApp = applications.find((app) => app.userId === userId)
-    if (existingApp && existingApp.status === "pending") {
-      console.log(`[PATTERN-TESTING-APPLY] ❌ User already has pending application`)
+    // Check for existing pending application
+    const { data: existing } = await supabaseAdmin
+      .from("pattern_testing_applications")
+      .select("id, status")
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .maybeSingle()
+
+    if (existing) {
       return NextResponse.json({ error: "You already have a pending application" }, { status: 409 })
     }
 
-    // Create new application
-    const newApplication: PatternTestingApplication = {
-      id: randomUUID(),
-      userId,
-      userName: user.name,
-      userEmail: user.email,
-      whyTesting,
-      experienceLevel: experienceLevel as "beginner" | "intermediate" | "advanced",
-      availability,
-      comments,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    }
+    const { data: newApp, error: insertErr } = await supabaseAdmin
+      .from("pattern_testing_applications")
+      .insert({
+        user_id: userId,
+        why_testing: whyTesting,
+        experience_level: experienceLevel,
+        availability,
+        comments: comments || null,
+        status: "pending",
+      })
+      .select()
+      .single()
 
-    console.log(`[PATTERN-TESTING-APPLY] Creating application - ID: ${newApplication.id}`)
-    applications.push(newApplication)
-    console.log(`[PATTERN-TESTING-APPLY] Saving ${applications.length} applications to database`)
-    setItem("crochet_pattern_testing_applications", applications)
-
-    console.log(`[PATTERN-TESTING-APPLY] ✅ Application submitted successfully`)
-    console.log("[PATTERN-TESTING-APPLY] ========== APPLICATION SAVED ==========\n")
+    if (insertErr) throw insertErr
 
     return NextResponse.json({
       message: "Application submitted successfully. Pending admin review.",
-      application: newApplication,
+      application: {
+        id: newApp.id,
+        userId: newApp.user_id,
+        userName: user.full_name || user.email,
+        userEmail: user.email,
+        whyTesting: newApp.why_testing,
+        experienceLevel: newApp.experience_level,
+        availability: newApp.availability,
+        comments: newApp.comments,
+        status: newApp.status,
+        createdAt: newApp.created_at,
+      },
     })
   } catch (error) {
-    console.error("[PATTERN-TESTING-APPLY] ❌ Error:", error)
-    console.log("[PATTERN-TESTING-APPLY] ========== APPLICATION FAILED ==========\n")
+    console.error("Error submitting pattern testing application:", error)
     return NextResponse.json({ error: "An error occurred while submitting the application" }, { status: 500 })
   }
 }

@@ -1,12 +1,29 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { supabase, supabaseDB } from "@/lib/supabase"
+import { supabaseAdmin } from "@/lib/supabase-admin"
+import crypto from "crypto"
+
+function generatePassword(length = 12): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$"
+  let password = ""
+  const bytes = crypto.randomBytes(length)
+  for (let i = 0; i < length; i++) {
+    password += chars[bytes[i] % chars.length]
+  }
+  return password
+}
 
 export async function GET() {
   try {
-    const applications = await supabaseDB.getPendingSellerApplications()
-    return NextResponse.json({ applications })
+    const { data: applications, error } = await supabaseAdmin
+      .from("seller_applications")
+      .select("*, users!seller_applications_user_id_fkey(full_name, email)")
+      .order("created_at", { ascending: false })
+
+    if (error) throw error
+
+    return NextResponse.json({ applications: applications || [] })
   } catch (error) {
-    console.error("Error fetching pending applications:", error)
+    console.error("Error fetching seller applications:", error)
     return NextResponse.json(
       { error: "An error occurred while fetching applications" },
       { status: 500 }
@@ -33,26 +50,48 @@ export async function PATCH(request: NextRequest) {
     }
 
     const status = action === "approve" ? "approved" : "rejected"
-    const application = await supabaseDB.updateSellerApplicationStatus(
-      application_id,
-      status,
-      admin_feedback
-    )
 
-    // If approved, update user role to 'seller'
+    // Update the application
+    const { data: application, error: updateErr } = await supabaseAdmin
+      .from("seller_applications")
+      .update({
+        status,
+        admin_feedback: admin_feedback || null,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", application_id)
+      .select("*, users!seller_applications_user_id_fkey(full_name, email)")
+      .single()
+
+    if (updateErr) throw updateErr
+
+    let generatedPassword: string | null = null
+
     if (action === "approve") {
-      await supabase
+      // Generate a random password for the new seller
+      generatedPassword = generatePassword()
+
+      await supabaseAdmin
         .from("users")
-        .update({ role: "seller", is_seller: true, seller_application_status: "approved" })
+        .update({
+          role: "seller",
+          is_seller: true,
+          seller_application_status: "approved",
+          seller_generated_password: generatedPassword,
+        })
         .eq("id", application.user_id)
     } else {
-      await supabase
+      await supabaseAdmin
         .from("users")
         .update({ role: "customer", seller_application_status: "rejected" })
         .eq("id", application.user_id)
     }
 
-    return NextResponse.json({ application, message: `Application ${status}` })
+    return NextResponse.json({
+      application,
+      generatedPassword,
+      message: `Application ${status}`,
+    })
   } catch (error) {
     console.error("Error updating seller application:", error)
     return NextResponse.json(
