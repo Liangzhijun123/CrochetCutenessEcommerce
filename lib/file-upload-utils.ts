@@ -149,18 +149,11 @@ export async function extractFileMetadata(buffer: Buffer, mimeType: string): Pro
 }> {
   const metadata: any = {}
   
-  // For images, we could use sharp to get dimensions
+  // For images, basic metadata extraction
   if (mimeType.startsWith('image/')) {
-    try {
-      const sharp = require('sharp')
-      const imageMetadata = await sharp(buffer).metadata()
-      metadata.dimensions = {
-        width: imageMetadata.width || 0,
-        height: imageMetadata.height || 0
-      }
-    } catch (error) {
-      console.warn('Failed to extract image metadata:', error)
-    }
+    // Without sharp, we can't extract dimensions server-side
+    // Dimensions can be determined client-side if needed
+    metadata.dimensions = { width: 0, height: 0 }
   }
   
   // For videos and documents, we would need additional libraries

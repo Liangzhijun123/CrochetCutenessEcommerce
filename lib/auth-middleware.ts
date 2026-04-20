@@ -78,3 +78,18 @@ export function withUserAuth(
 ) {
   return withAuth(handler, { requiredRole: 'user' })
 }
+
+/**
+ * Verify token and return auth result (used by messaging routes)
+ */
+export async function verifyToken(request: NextRequest): Promise<{ success: boolean; user?: JWTPayload }> {
+  try {
+    const user = getAuthenticatedUser(request)
+    if (!user) {
+      return { success: false }
+    }
+    return { success: true, user }
+  } catch {
+    return { success: false }
+  }
+}

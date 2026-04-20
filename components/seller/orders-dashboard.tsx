@@ -61,7 +61,7 @@ type Order = {
   trackingNumber?: string
 }
 
-export default function OrdersDashboard() {
+export function SellerOrdersDashboard() {
   const { toast } = useToast()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
