@@ -188,8 +188,8 @@ export default function LeaderboardPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {/* Header */}
-              <div className="grid grid-cols-12 gap-2 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
+              {/* Header — desktop only */}
+              <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
                 <div className="col-span-1">Rank</div>
                 <div className="col-span-4">Member</div>
                 <div className="col-span-3 text-center">Tier</div>
@@ -205,7 +205,7 @@ export default function LeaderboardPage() {
                 return (
                   <div
                     key={entry.userId}
-                    className={`grid grid-cols-12 gap-2 items-center px-4 py-3 rounded-lg transition-colors ${
+                    className={`rounded-lg transition-colors px-4 py-3 ${
                       isCurrentUser
                         ? "bg-rose-50 border border-rose-200"
                         : entry.rank <= 3
@@ -213,34 +213,67 @@ export default function LeaderboardPage() {
                           : "hover:bg-muted/50"
                     }`}
                   >
-                    <div className="col-span-1 flex items-center">
-                      {getRankIcon(entry.rank)}
+                    {/* ── Mobile layout ── */}
+                    <div className="flex items-center gap-3 md:hidden">
+                      <div className="flex-shrink-0 w-8 flex justify-center">
+                        {getRankIcon(entry.rank)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`font-medium truncate ${isCurrentUser ? "text-rose-700" : ""}`}>
+                            {entry.username}
+                          </span>
+                          {isCurrentUser && (
+                            <Badge variant="outline" className="bg-rose-100 text-rose-700 text-xs border-rose-200 shrink-0">
+                              You
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {getTierIcon(tierName, "h-3 w-3")}
+                          <span className={`text-xs font-medium ${tierInfo.textColor}`}>{tierName}</span>
+                          <span className="text-xs text-muted-foreground">·</span>
+                          <span className="text-xs font-semibold">{entry.xp.toLocaleString()} XP</span>
+                        </div>
+                        <Progress
+                          value={Math.min(((entry.xp - tierInfo.min) / (tierInfo.max - tierInfo.min)) * 100, 100)}
+                          className="h-1.5 mt-1.5"
+                          indicatorClassName={isCurrentUser ? "bg-rose-500" : "bg-gray-400"}
+                        />
+                      </div>
                     </div>
-                    <div className="col-span-4 flex items-center gap-2">
-                      <span className={`font-medium ${isCurrentUser ? "text-rose-700" : ""}`}>
-                        {entry.username}
-                      </span>
-                      {isCurrentUser && (
-                        <Badge variant="outline" className="bg-rose-100 text-rose-700 text-xs border-rose-200">
-                          You
+
+                    {/* ── Desktop layout ── */}
+                    <div className="hidden md:grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-1 flex items-center">
+                        {getRankIcon(entry.rank)}
+                      </div>
+                      <div className="col-span-4 flex items-center gap-2">
+                        <span className={`font-medium ${isCurrentUser ? "text-rose-700" : ""}`}>
+                          {entry.username}
+                        </span>
+                        {isCurrentUser && (
+                          <Badge variant="outline" className="bg-rose-100 text-rose-700 text-xs border-rose-200">
+                            You
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="col-span-3 flex items-center justify-center gap-1">
+                        {getTierIcon(tierName, "h-4 w-4")}
+                        <Badge variant="secondary" className={tierInfo.badgeClass}>
+                          {tierName}
                         </Badge>
-                      )}
-                    </div>
-                    <div className="col-span-3 flex items-center justify-center gap-1">
-                      {getTierIcon(tierName, "h-4 w-4")}
-                      <Badge variant="secondary" className={tierInfo.badgeClass}>
-                        {tierName}
-                      </Badge>
-                    </div>
-                    <div className="col-span-2 text-right font-medium">
-                      {entry.xp.toLocaleString()}
-                    </div>
-                    <div className="col-span-2">
-                      <Progress
-                        value={Math.min(((entry.xp - tierInfo.min) / (tierInfo.max - tierInfo.min)) * 100, 100)}
-                        className="h-2"
-                        indicatorClassName={isCurrentUser ? "bg-rose-500" : "bg-gray-400"}
-                      />
+                      </div>
+                      <div className="col-span-2 text-right font-medium">
+                        {entry.xp.toLocaleString()}
+                      </div>
+                      <div className="col-span-2">
+                        <Progress
+                          value={Math.min(((entry.xp - tierInfo.min) / (tierInfo.max - tierInfo.min)) * 100, 100)}
+                          className="h-2"
+                          indicatorClassName={isCurrentUser ? "bg-rose-500" : "bg-gray-400"}
+                        />
+                      </div>
                     </div>
                   </div>
                 )

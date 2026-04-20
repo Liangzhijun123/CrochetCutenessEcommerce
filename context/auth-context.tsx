@@ -97,6 +97,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ]);
   }
 
+  // Checks that Supabase env vars are configured — throws immediately if not
+  function assertSupabaseConfigured() {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || url.includes('placeholder') || !key || key === 'placeholder') {
+      throw new Error('Authentication service is not configured. Please contact support.');
+    }
+  }
+
   // ─── 1. Get session on refresh  2. Listen for auth changes ───
   useEffect(() => {
     withTimeout(supabase.auth.getSession(), 10000)
@@ -198,6 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     lastSignUpTime.current = now;
 
     try {
+      assertSupabaseConfigured();
       const { data, error } = await withTimeout(
         supabase.auth.signUp({
           email,
@@ -306,6 +316,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     lastSignInTime.current = now;
 
     try {
+      assertSupabaseConfigured();
       const { data, error } = await withTimeout(
         supabase.auth.signInWithPassword({ email, password }),
         15000,
