@@ -1,24 +1,86 @@
 // ✅ OAuth Callback Handler
 // This route handles the redirect from Supabase OAuth providers (Google, GitHub)
 
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
 
-  if (code) {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  if (!code) {
+    return NextResponse.redirect(
+      new URL('/auth/login?error=No+authorization+code', request.url)
     );
+  }
 
+  const cookieStore = await cookies();
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  // Exchange the auth code for a session — this sets the session cookie
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+  if (error) {
+    console.error('❌ OAuth exchange error:', error);
+    return NextResponse.redirect(
+      new URL(
+        `/auth/login?error=${encodeURIComponent(error.message)}`,
+        request.url
+      )
+    );
+  }
+
+  // Ensure user profile exists
+  if (data.user) {
     try {
-      console.log('🔐 OAuth callback: Exchanging code for session...');
+      const { data: existingProfile } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', data.user.id)
+        .single();
 
-      // Exchange auth code for session
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!existingProfile) {
+        const fullName =
+          data.user.user_metadata?.full_name ||
+          data.user.email?.split('@')[0] ||
+          'OAuth User';
+
+        await supabase.from('users').insert([
+          {
+            id: data.user.id,
+            email: data.user.email,
+            full_name: fullName,
+            role: 'customer',
+            avatar_url: data.user.user_metadata?.avatar_url || '',
+          },
+        ]);
+      }
+    } catch {
+      // Profile creation failure should not block login
+    }
+  }
+
+  // Redirect to home after successful login
+  return NextResponse.redirect(new URL('/', request.url));
+}
+
 
       if (error) {
         console.error('❌ OAuth exchange error:', error);
