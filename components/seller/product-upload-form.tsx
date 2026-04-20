@@ -90,8 +90,8 @@ export default function ProductUploadForm() {
     body.append("file", file)
     body.append("folder", "products")
     const res = await fetch("/api/files/upload", { method: "POST", body })
-    if (!res.ok) throw new Error("Image upload failed")
     const data = await res.json()
+    if (!res.ok) throw new Error(data?.error || "Image upload failed")
     return data.url as string
   }
 

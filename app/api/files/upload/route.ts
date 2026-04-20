@@ -45,6 +45,16 @@ export async function POST(request: NextRequest) {
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_")
     const filePath = `${folder}/${timestamp}_${sanitizedName}`
 
+    // Ensure the 'files' bucket exists
+    const { error: bucketError } = await supabaseAdmin.storage.createBucket("files", {
+      public: true,
+      fileSizeLimit: 10 * 1024 * 1024,
+    })
+    // Ignore error if bucket already exists
+    if (bucketError && !bucketError.message.includes("already exists")) {
+      console.error("Bucket creation error:", bucketError)
+    }
+
     // Upload to Supabase Storage
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
@@ -59,7 +69,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error("Supabase Storage upload error:", error)
       return NextResponse.json(
-        { error: "Failed to upload file to storage" },
+        { error: `Storage upload failed: ${error.message}` },
         { status: 500 }
       )
     }
