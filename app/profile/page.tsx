@@ -363,15 +363,17 @@ export default function ProfilePage() {
               router.push(`/profile?tab=${value}`, { scroll: false })
             }}
           >
-            <TabsList className="grid w-full grid-cols-7">
-              <TabsTrigger value="account">Account</TabsTrigger>
-              <TabsTrigger value="orders">Orders</TabsTrigger>
-              <TabsTrigger value="wishlist">Wishlist</TabsTrigger>
-              <TabsTrigger value="loyalty">Loyalty</TabsTrigger>
-              <TabsTrigger value="coins">Coins</TabsTrigger>
-              <TabsTrigger value="library">Library</TabsTrigger>
-              <TabsTrigger value="security">Security</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 pb-1">
+              <TabsList className="grid grid-cols-7 w-max min-w-full [&>*]:whitespace-nowrap">
+                <TabsTrigger value="account">Account</TabsTrigger>
+                <TabsTrigger value="orders">Orders</TabsTrigger>
+                <TabsTrigger value="wishlist">Wishlist</TabsTrigger>
+                <TabsTrigger value="loyalty">Loyalty</TabsTrigger>
+                <TabsTrigger value="coins">Coins</TabsTrigger>
+                <TabsTrigger value="library">Library</TabsTrigger>
+                <TabsTrigger value="security">Security</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="account" className="mt-6 space-y-8">
               <Card>
