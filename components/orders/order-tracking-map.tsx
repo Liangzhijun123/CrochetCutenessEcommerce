@@ -96,17 +96,16 @@ export default function OrderTrackingMap({ trackingDetails }: { trackingDetails:
       <div className="text-sm">
         <p className="font-medium">Current Status:</p>
         <OrderStatusWithDate status={trackingDetails.currentLocation.status} timestamp={trackingDetails.currentLocation.timestamp} />
-      // Avoid hydration mismatch by formatting date on client only
-      import { useEffect, useState } from "react"
-
-      function OrderStatusWithDate({ status, timestamp }: { status: string; timestamp: string }) {
-        const [dateString, setDateString] = useState("")
-        useEffect(() => {
-          setDateString(new Date(timestamp).toLocaleString())
-        }, [timestamp])
-        return <p className="text-gray-600">{status} - {dateString || "..."}</p>
-      }
       </div>
     </div>
   )
+}
+
+// Avoid hydration mismatch by formatting date on client only
+function OrderStatusWithDate({ status, timestamp }: { status: string; timestamp: string }) {
+  const [dateString, setDateString] = useState("")
+  useEffect(() => {
+    setDateString(new Date(timestamp).toLocaleString())
+  }, [timestamp])
+  return <p className="text-gray-600">{status} - {dateString || "..."}</p>
 }

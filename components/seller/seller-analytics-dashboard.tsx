@@ -41,6 +41,8 @@ import {
   Target,
   Award,
   Loader2,
+  Upload,
+  Package,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -190,6 +192,9 @@ export default function SellerAnalyticsDashboard({ sellerId }: SellerAnalyticsDa
 
   const { summary, revenueChart, patternPerformance, customerInsights, salesByCategory } = analyticsData
 
+  const hasRevenue = summary.totalRevenue > 0
+  const hasRevenueChartData = revenueChart.length > 0 && revenueChart.some(d => d.revenue > 0 || d.sales > 0)
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -302,33 +307,51 @@ export default function SellerAnalyticsDashboard({ sellerId }: SellerAnalyticsDa
               <CardDescription>Track your revenue and sales over time</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={revenueChart}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip />
-                  <Legend />
-                  <Area
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#f43f5e"
-                    fill="#f43f5e"
-                    fillOpacity={0.1}
-                    name="Revenue ($)"
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="sales"
-                    stroke="#8b5cf6"
-                    strokeWidth={2}
-                    name="Sales Count"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {!hasRevenueChartData ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <DollarSign className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                  <h3 className="text-lg font-semibold text-muted-foreground mb-2">You got no revenue yet</h3>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Try uploading a pattern and start selling! Once customers purchase your patterns, your revenue trends will show up here.
+                  </p>
+                  <div className="flex gap-3 mt-6">
+                    <Button variant="outline" size="sm" asChild>
+                      <a href="/seller-dashboard?tab=products">
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload a Pattern
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart data={revenueChart}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Legend />
+                    <Area
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#f43f5e"
+                      fill="#f43f5e"
+                      fillOpacity={0.1}
+                      name="Revenue ($)"
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="sales"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      name="Sales Count"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -340,6 +363,13 @@ export default function SellerAnalyticsDashboard({ sellerId }: SellerAnalyticsDa
               <CardDescription>See how your patterns are performing</CardDescription>
             </CardHeader>
             <CardContent>
+              {patternPerformance.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Package className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                  <h3 className="text-lg font-semibold text-muted-foreground mb-2">No pattern data yet</h3>
+                  <p className="text-sm text-muted-foreground">Upload patterns and start selling to see performance metrics here.</p>
+                </div>
+              ) : (
               <div className="space-y-4">
                 {patternPerformance.map((pattern, index) => (
                   <div key={pattern.id} className="flex items-center justify-between p-4 border rounded-lg">
@@ -367,6 +397,7 @@ export default function SellerAnalyticsDashboard({ sellerId }: SellerAnalyticsDa
                   </div>
                 ))}
               </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -424,26 +455,34 @@ export default function SellerAnalyticsDashboard({ sellerId }: SellerAnalyticsDa
               <CardDescription>Breakdown of sales by pattern category</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <PieChart>
-                  <Pie
-                    data={salesByCategory}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ category, sales }) => `${category}: ${sales}`}
-                    outerRadius={120}
-                    fill="#8884d8"
-                    dataKey="sales"
-                  >
-                    {salesByCategory.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              {salesByCategory.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <ShoppingCart className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                  <h3 className="text-lg font-semibold text-muted-foreground mb-2">No sales data yet</h3>
+                  <p className="text-sm text-muted-foreground">Category breakdown will appear here once you start making sales.</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={400}>
+                  <PieChart>
+                    <Pie
+                      data={salesByCategory}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ category, sales }) => `${category}: ${sales}`}
+                      outerRadius={120}
+                      fill="#8884d8"
+                      dataKey="sales"
+                    >
+                      {salesByCategory.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
