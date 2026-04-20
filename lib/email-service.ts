@@ -29,16 +29,36 @@ export interface EmailData {
   status: "sent" | "failed"
 }
 
-import { readSentEmailsFromFile, writeSentEmailsToFile } from "./file-db"
+import { createClient } from "@supabase/supabase-js"
 
-// Store sent emails in localStorage for demo purposes (or file on server)
-const getSentEmails = (): EmailData[] => {
-  // If server-side, read from file persistence
+const getSupabaseAdmin = () =>
+  createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+  )
+
+// Store sent emails in Supabase (server) or localStorage (client demo)
+const getSentEmails = async (): Promise<EmailData[]> => {
   if (typeof window === "undefined") {
     try {
-      return readSentEmailsFromFile() as EmailData[]
+      const supabase = getSupabaseAdmin()
+      const { data, error } = await supabase
+        .from("sent_emails")
+        .select("*")
+        .order("sent_at", { ascending: false })
+        .limit(100)
+      if (error) throw error
+      return (data || []).map((row: any) => ({
+        id: row.id,
+        to: row.to_email,
+        subject: row.subject,
+        template: row.template,
+        data: row.data || {},
+        sentAt: row.sent_at,
+        status: row.status,
+      }))
     } catch (err) {
-      console.error("Error reading sent emails from file:", err)
+      console.error("Error reading sent emails from Supabase:", err)
       return []
     }
   }
@@ -52,22 +72,28 @@ const getSentEmails = (): EmailData[] => {
   }
 }
 
-const storeSentEmail = (email: EmailData): void => {
-  // If server-side, append to file persistence
+const storeSentEmail = async (email: EmailData): Promise<void> => {
   if (typeof window === "undefined") {
     try {
-      const emails = readSentEmailsFromFile()
-      emails.push(email)
-      writeSentEmailsToFile(emails)
+      const supabase = getSupabaseAdmin()
+      await supabase.from("sent_emails").insert({
+        id: email.id,
+        to_email: email.to,
+        subject: email.subject,
+        template: email.template,
+        data: email.data,
+        sent_at: email.sentAt,
+        status: email.status,
+      })
       return
     } catch (err) {
-      console.error("Error storing sent email to file:", err)
+      console.error("Error storing sent email to Supabase:", err)
       return
     }
   }
 
   try {
-    const emails = getSentEmails()
+    const emails = await getSentEmails()
     emails.push(email)
     localStorage.setItem("crochet_sent_emails", JSON.stringify(emails))
   } catch (error) {
@@ -136,20 +162,20 @@ export const sendEmail = async (to: string, template: EmailTemplate, data: Recor
     status: Math.random() > 0.05 ? "sent" : "failed", // 5% chance of failure for demo
   }
 
-  // Store the email in localStorage for demo purposes
-  storeSentEmail(emailData)
+  // Store the email
+  await storeSentEmail(emailData)
 
   return emailData
 }
 
 // Get emails for a specific recipient
-export const getEmailsForRecipient = (email: string): EmailData[] => {
-  const emails = getSentEmails()
+export const getEmailsForRecipient = async (email: string): Promise<EmailData[]> => {
+  const emails = await getSentEmails()
   return emails.filter((e) => e.to === email)
 }
 
 // Get all sent emails
-export const getAllSentEmails = (): EmailData[] => {
+export const getAllSentEmails = async (): Promise<EmailData[]> => {
   return getSentEmails()
 }
 

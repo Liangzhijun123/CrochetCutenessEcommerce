@@ -94,19 +94,6 @@ export default function SellerDashboard() {
       return
     }
 
-    // If admin hasn't generated credentials yet, seller can't proceed
-    if ((user?.role === "seller" || user?.role === "creator") && !user?.sellerProfile?.credentialsGenerated) {
-      // Stay on this page but show waiting state (handled below)
-      setIsLoading(false)
-      return
-    }
-
-    // If user is a seller but hasn't completed onboarding, redirect to onboarding
-    if ((user?.role === "seller" || user?.role === "creator") && !user?.sellerProfile?.onboardingCompleted) {
-      router.push("/seller-onboarding")
-      return
-    }
-
     setIsLoading(false)
   }, [isAuthenticated, user, router])
 
@@ -198,55 +185,8 @@ export default function SellerDashboard() {
     )
   }
 
-  // If seller is approved but admin hasn't generated credentials yet
-  if ((user?.role === "seller" || user?.role === "creator") && !user?.sellerProfile?.credentialsGenerated) {
-    return (
-      <div className="container mx-auto flex min-h-screen flex-col items-center justify-center px-4 py-8">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-              <Clock className="h-8 w-8 text-blue-600" />
-            </div>
-            <CardTitle className="text-xl">Awaiting Seller Credentials</CardTitle>
-            <CardDescription>
-              Your seller application has been approved! The admin is generating your seller credentials.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                <div>
-                  <p className="font-medium">What happens next?</p>
-                  <p className="mt-1">
-                    The admin will generate your seller username and password. Once your credentials are ready,
-                    you'll be able to access the seller dashboard and complete your onboarding.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button variant="outline" className="w-full" asChild>
-                <Link href="/">Return to Homepage</Link>
-              </Button>
-              <Button variant="outline" className="w-full" asChild>
-                <Link href="/profile">View Profile</Link>
-              </Button>
-            </div>
-            <Button
-              variant="outline"
-              className="w-full flex items-center justify-center gap-2"
-              onClick={handleRefreshUserData}
-              disabled={isRefreshing}
-            >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-              Refresh Status
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  // If seller is approved but admin hasn't generated credentials yet — skip straight to dashboard
+  // (No separate seller login needed, admin approval auto-converts status)
 
   // If user has a pending application, show the waiting screen
   const sellerApp = user?.sellerApplication as { status?: string; submittedAt?: string } | undefined

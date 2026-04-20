@@ -19,8 +19,8 @@ export default function AdminEmailsPage() {
     loadEmails()
   }, [])
 
-  const loadEmails = () => {
-    const allEmails = getAllSentEmails()
+  const loadEmails = async () => {
+    const allEmails = await getAllSentEmails()
     setEmails(allEmails.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()))
 
     if (allEmails.length > 0 && !selectedEmail) {

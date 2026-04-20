@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
         written_instructions: body.writtenInstructions || null,
         product_type: body.productType || "plushie",
         pdf_password: body.pdfPassword || null,
-        pdf_password: body.pdfPassword || null,
+        pdf_file_url: body.pdfFileUrl || null,
       }])
       .select()
       .single()
@@ -142,10 +142,10 @@ export async function PATCH(request: NextRequest) {
       allowedFields.image_urls = updates.image_urls
       allowedFields.image_url = updates.image_urls[0] || null
     }
-    if (updates.product_type !== undefined) allowedFields.product_type = updates.pro
-    if (updates.pdf_password !== undefined) allowedFields.pdf_password = updates.pdf_passwordduct_type
-    if (updates.is_active !== undefined) allowedFields.is_active = updates.is_active
+    if (updates.product_type !== undefined) allowedFields.product_type = updates.product_type
     if (updates.pdf_password !== undefined) allowedFields.pdf_password = updates.pdf_password
+    if (updates.pdf_file_url !== undefined) allowedFields.pdf_file_url = updates.pdf_file_url
+    if (updates.is_active !== undefined) allowedFields.is_active = updates.is_active
 
     if (Object.keys(allowedFields).length === 0) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })

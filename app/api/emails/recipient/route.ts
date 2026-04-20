@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
     const { email } = await request.json()
     if (!email) return NextResponse.json({ error: "email is required" }, { status: 400 })
 
-    const emails = getEmailsForRecipient(email)
+    const emails = await getEmailsForRecipient(email)
     return NextResponse.json({ emails })
   } catch (error) {
     console.error("[EMAILS-RECIPIENT] Error:", error)

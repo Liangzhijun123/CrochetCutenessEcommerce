@@ -45,7 +45,7 @@ export default function ProductUploadForm() {
     writtenInstructions: "",
     productType: "plushie" as "pdf_pattern" | "plushie" | "both",
     pdfPassword: "",
-    pdfPassword: "",
+    pdfFile: null as File | null,
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -117,6 +117,18 @@ export default function ProductUploadForm() {
         uploadedImageUrls = await Promise.all(uploadPromises)
       }
 
+      // Upload PDF file if present
+      let pdfFileUrl: string | null = null
+      if (formData.pdfFile) {
+        const pdfFormData = new FormData()
+        pdfFormData.append("file", formData.pdfFile)
+        pdfFormData.append("folder", "patterns")
+        const pdfRes = await fetch("/api/files/upload", { method: "POST", body: pdfFormData })
+        if (!pdfRes.ok) throw new Error("PDF upload failed")
+        const pdfData = await pdfRes.json()
+        pdfFileUrl = pdfData.url as string
+      }
+
       // Prepare the data
       const productData = {
         ...formData,
@@ -126,10 +138,12 @@ export default function ProductUploadForm() {
         tags: formData.tags,
         colors: formData.colors.length ? formData.colors : undefined,
         images: uploadedImageUrls.length > 0 ? uploadedImageUrls : ["/placeholder.svg?height=400&width=400"],
+        pdfFileUrl: pdfFileUrl || undefined,
       }
 
       // Remove the temporary fields before sending
       delete (productData as any).imageFiles
+      delete (productData as any).pdfFile
 
       // Submit to API
       const response = await fetch("/api/products", {
@@ -368,43 +382,44 @@ export default function ProductUploadForm() {
               </p>
             )}
           </div>
-{/* PDF Password Protection */}
+{/* PDF File Upload */}
           {(formData.productType === "pdf_pattern" || formData.productType === "both") && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
+            <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 space-y-3">
               <div className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <Label className="text-blue-800 font-semibold">PDF Password Protection</Label>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-rose-600"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                <Label className="text-rose-800 font-semibold">Upload PDF Pattern File</Label>
               </div>
-              <p className="text-xs text-blue-600">Set a password to protect your PDF pattern. Buyers will need this password to view the pattern in their Digital Library. You can change the password later to revoke access if needed.</p>
-              <div className="flex gap-2">
+              <p className="text-xs text-rose-600">Upload your crochet pattern as a PDF file. This will be available in the buyer&apos;s Digital Library after purchase.</p>
+              {formData.pdfFile ? (
+                <div className="flex items-center gap-2 rounded-md border bg-white p-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-rose-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span className="flex-1 truncate text-sm">{formData.pdfFile.name}</span>
+                  <span className="text-xs text-muted-foreground">{(formData.pdfFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setFormData((prev) => ({ ...prev, pdfFile: null }))}>
+                    ×
+                  </Button>
+                </div>
+              ) : (
                 <Input
-                  id="pdfPassword"
-                  name="pdfPassword"
-                  value={formData.pdfPassword}
-                  onChange={handleChange}
-                  placeholder="Enter PDF access password"
-                  className="flex-1"
-                  required
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
-                    let password = ""
-                    for (let i = 0; i < 12; i++) password += chars.charAt(Math.floor(Math.random() * chars.length))
-                    setFormData((prev) => ({ ...prev, pdfPassword: password }))
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      if (file.type !== "application/pdf") {
+                        toast({ title: "Invalid file", description: "Please select a PDF file only.", variant: "destructive" })
+                        return
+                      }
+                      setFormData((prev) => ({ ...prev, pdfFile: file }))
+                    }
                   }}
-                >
-                  Auto-generate
-                </Button>
-              </div>
+                  className="cursor-pointer"
+                />
+              )}
             </div>
           )}
 
-          
-          {/* PDF Password Protection */}
+{/* PDF Password Protection */}
           {(formData.productType === "pdf_pattern" || formData.productType === "both") && (
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
               <div className="flex items-center gap-2">

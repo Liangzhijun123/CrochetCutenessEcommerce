@@ -1,7 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { cdnService } from "@/lib/cdn-config"
-import sharp from 'sharp'
-import { fileStorageService } from "@/lib/file-storage"
 
 // Optimize images on-the-fly or batch process
 export async function POST(request: NextRequest) {
