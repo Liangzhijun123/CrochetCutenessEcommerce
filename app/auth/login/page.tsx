@@ -61,9 +61,9 @@ export default function LoginPage() {
       console.log(`🔐 Starting ${provider} OAuth login...`)
 
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: "https://crochet-ecommerce-site.vercel.app",
         },
       })
 

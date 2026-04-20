@@ -94,9 +94,9 @@ export default function RegisterPage() {
       setError(null)
 
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: "https://crochet-ecommerce-site.vercel.app",
         },
       })
 
