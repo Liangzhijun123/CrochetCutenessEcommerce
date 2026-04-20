@@ -223,7 +223,7 @@ export default function ProductUploadForm() {
             <Input
               id="youtubeLink"
               name="youtubeLink"
-              type="url"
+              type="text"
               value={formData.youtubeLink}
               onChange={handleChange}
               placeholder="https://youtube.com/watch?v=..."

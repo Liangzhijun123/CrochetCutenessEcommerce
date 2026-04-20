@@ -159,6 +159,7 @@ export async function POST(request: NextRequest) {
         written_instructions: productData.writtenInstructions || null,
         product_type: productData.productType || "plushie",
         pdf_password: productData.pdfPassword || null,
+        pdf_file_url: productData.pdfFileUrl || null,
       }])
       .select()
       .single()
