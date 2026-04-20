@@ -31,6 +31,7 @@ import SalesReportingDashboard from "./sales-reporting-dashboard"
 import InventoryManagementDashboard from "./inventory-management-dashboard"
 import CreatorProfileManagement from "./creator-profile-management"
 import ProductUploadForm from "./product-upload-form"
+import SellerProductList from "./seller-product-list"
 
 // Helper component for displaying dates
 function SellerAppDate({ date }: { date: string }) {
@@ -42,7 +43,7 @@ function SellerAppDate({ date }: { date: string }) {
 }
 
 export default function SellerDashboard() {
-  const { user, isAuthenticated, signOut, updateUser, refreshUserData } = useAuth()
+  const { user, isAuthenticated, signOut, updateUser, refreshUser } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("products")
@@ -58,6 +59,7 @@ export default function SellerDashboard() {
     transactions: Array<{ id: string; type: string; description: string; amount: number; created_at: string }>
     withdrawals: Array<{ id: string; amount: number; method: string; status: string; createdAt: string; processedAt: string | null }>
     analytics: { totalSales: number; totalRevenue: number; recentRevenue: number; recentSales: number; totalProducts: number; totalViews: number; conversionRate: number }
+    seller?: { shop_name?: string; shop_description?: string }
     products: any[]
   } | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(false)
@@ -120,9 +122,9 @@ export default function SellerDashboard() {
     setIsRefreshing(true)
 
     try {
-      // Check if refreshUserData is available
-      if (typeof refreshUserData === "function") {
-        const success = await refreshUserData()
+      // Check if refreshUser is available
+      if (typeof refreshUser === "function") {
+        const success = await refreshUser()
 
         if (success) {
           toast({
@@ -142,9 +144,9 @@ export default function SellerDashboard() {
           })
         }
       } else {
-        // Fallback if refreshUserData is not available
+        // Fallback if refreshUser is not available
         // Try to update the user role directly
-        if (user && user.sellerApplication?.status === "approved") {
+        if (user && (user.sellerApplication as any)?.status === "approved") {
           const success = await updateUser({ ...user, role: "seller" })
           if (success) {
             toast({
@@ -247,7 +249,9 @@ export default function SellerDashboard() {
   }
 
   // If user has a pending application, show the waiting screen
-  if (user?.sellerApplication?.status === "pending") {
+  const sellerApp = user?.sellerApplication as { status?: string; submittedAt?: string } | undefined
+
+  if (sellerApp?.status === "pending") {
     return (
       <div className="container mx-auto flex min-h-screen flex-col items-center justify-center px-4 py-8">
         <Card className="w-full max-w-md">
@@ -263,14 +267,14 @@ export default function SellerDashboard() {
               <p className="mb-2 font-medium">Application Details:</p>
               <ul className="space-y-2">
                 <li>
-                  <span className="text-muted-foreground">Name:</span> {user.name}
+                  <span className="text-muted-foreground">Name:</span> {user?.name}
                 </li>
                 <li>
-                  <span className="text-muted-foreground">Email:</span> {user.email}
+                  <span className="text-muted-foreground">Email:</span> {user?.email}
                 </li>
                 <li>
                   <span className="text-muted-foreground">Submitted:</span>{" "}
-                  <SellerAppDate date={user.sellerApplication.submittedAt} />
+                  <SellerAppDate date={sellerApp.submittedAt || ""} />
                 </li>
                 <li>
                   <span className="text-muted-foreground">Status:</span>{" "}
@@ -316,7 +320,7 @@ export default function SellerDashboard() {
   }
 
   // If user has a rejected application, show the rejection screen
-  if (user?.sellerApplication?.status === "rejected") {
+  if (sellerApp?.status === "rejected") {
     return (
       <div className="container mx-auto flex min-h-screen flex-col items-center justify-center px-4 py-8">
         <Card className="w-full max-w-md">
@@ -365,7 +369,7 @@ export default function SellerDashboard() {
   }
 
   // If user has an approved application, show the approved screen
-  if (user?.sellerApplication?.status === "approved" && user.role !== "seller") {
+  if (sellerApp?.status === "approved" && user?.role !== "seller") {
     return (
       <div className="container mx-auto flex min-h-screen flex-col items-center justify-center px-4 py-8">
         <Card className="w-full max-w-md">
@@ -451,9 +455,15 @@ export default function SellerDashboard() {
         </TabsContent>
 
         <TabsContent value="products" className="space-y-6">
-          <h2 className="text-2xl font-bold">Upload Products</h2>
-          <p className="text-muted-foreground">Add new products to your shop</p>
-          <ProductUploadForm />
+          <h2 className="text-2xl font-bold">My Products</h2>
+          <p className="text-muted-foreground">View, edit, and manage your uploaded products</p>
+          <SellerProductList />
+
+          <div className="border-t pt-6">
+            <h2 className="text-2xl font-bold">Upload New Product</h2>
+            <p className="text-muted-foreground mb-4">Add a new product to your shop</p>
+            <ProductUploadForm />
+          </div>
         </TabsContent>
 
         <TabsContent value="patterns" className="space-y-6">

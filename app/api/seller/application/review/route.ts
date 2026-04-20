@@ -121,6 +121,26 @@ export async function PATCH(request: NextRequest) {
       const email = application.users?.email || ""
       generatedUsername = generateUsername(fullName, email)
 
+      // Create a seller record if one doesn't already exist
+      const { data: existingSeller } = await supabaseAdmin
+        .from("sellers")
+        .select("id")
+        .eq("user_id", application.user_id)
+        .maybeSingle()
+
+      let sellerId = existingSeller?.id
+      if (!sellerId) {
+        const { data: newSeller } = await supabaseAdmin
+          .from("sellers")
+          .insert({
+            user_id: application.user_id,
+            shop_name: fullName ? `${fullName}'s Shop` : `${email.split("@")[0]}'s Shop`,
+          })
+          .select("id")
+          .single()
+        sellerId = newSeller?.id
+      }
+
       await supabaseAdmin
         .from("users")
         .update({
@@ -129,6 +149,7 @@ export async function PATCH(request: NextRequest) {
           seller_application_status: "approved",
           seller_generated_password: generatedPassword,
           seller_username: generatedUsername,
+          ...(sellerId ? { seller_id: sellerId } : {}),
         })
         .eq("id", application.user_id)
     } else {

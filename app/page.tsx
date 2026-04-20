@@ -6,43 +6,39 @@ import ProductCard from "@/components/product-card"
 import Newsletter from "@/components/newsletter"
 import AboutUs from "@/components/about-us"
 import LoyaltyProgram from "@/components/loyalty-program"
-import { initializeDatabase, getProducts } from "@/lib/local-storage-db"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 /**
  * Best Selling algorithm:
  * 1. Sort by averageRating descending (highest rated first)
- * 2. If ratings are equal, sort by number of reviews descending
- * 3. If still equal, sort by most recently uploaded (createdAt descending)
- * 4. Take top 4 products
- * 5. If no products exist, show empty state
- * 6. If no rated products, fall back to most recently uploaded
+ * 2. If ratings are equal, sort by most recently uploaded (created_at descending)
+ * 3. Take top 4 products
+ * 4. If no products exist, show empty state
  */
-function getBestSellingProducts() {
-  initializeDatabase()
-  const products = getProducts()
+async function getBestSellingProducts() {
+  const { data: products, error } = await supabaseAdmin
+    .from("products")
+    .select("*")
+    .order("rating", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(4)
 
-  if (products.length === 0) return []
+  if (error || !products) return []
 
-  const sorted = [...products].sort((a, b) => {
-    // Primary: highest average rating first
-    const ratingA = a.averageRating ?? 0
-    const ratingB = b.averageRating ?? 0
-    if (ratingB !== ratingA) return ratingB - ratingA
-
-    // Secondary: most reviews first
-    const reviewsA = a.reviews?.length ?? 0
-    const reviewsB = b.reviews?.length ?? 0
-    if (reviewsB !== reviewsA) return reviewsB - reviewsA
-
-    // Tertiary: most recently uploaded first
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  })
-
-  return sorted.slice(0, 4)
+  return products.map((p: any) => ({
+    id: p.id,
+    name: p.title,
+    price: p.price,
+    images: p.image_url ? [p.image_url] : ["/placeholder.svg?height=300&width=300"],
+    category: p.category,
+    sellerId: p.seller_id,
+    difficulty: p.difficulty_level || "beginner",
+    colors: [],
+  }))
 }
 
-export default function Home() {
-  const bestSelling = getBestSellingProducts()
+export default async function Home() {
+  const bestSelling = await getBestSellingProducts()
 
   return (
     <>

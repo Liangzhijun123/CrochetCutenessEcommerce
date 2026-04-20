@@ -22,6 +22,7 @@ interface ProductFiltersProps {
   onFilterChange: (filters: FilterState) => void
   initialFilters?: FilterState
   categories: Category[]
+  availableTags?: string[]
   isMobile?: boolean
 }
 
@@ -32,6 +33,7 @@ export interface FilterState {
   difficulty: string
   isPattern: boolean | null
   colors?: string[]
+  tags?: string[]
 }
 
 // Common yarn colors
@@ -50,7 +52,7 @@ const colorOptions = [
   { name: "Beige", value: "beige", hex: "#e5e7eb" },
 ]
 
-export function ProductFilters({ onFilterChange, initialFilters, categories, isMobile = false }: ProductFiltersProps) {
+export function ProductFilters({ onFilterChange, initialFilters, categories, availableTags = [], isMobile = false }: ProductFiltersProps) {
   const [filters, setFilters] = useState<FilterState>({
     search: initialFilters?.search || "",
     category: initialFilters?.category || "",
@@ -58,6 +60,7 @@ export function ProductFilters({ onFilterChange, initialFilters, categories, isM
     difficulty: initialFilters?.difficulty || "",
     isPattern: initialFilters?.isPattern || null,
     colors: initialFilters?.colors || [],
+    tags: initialFilters?.tags || [],
   })
 
   const [isOpen, setIsOpen] = useState(false)
@@ -105,6 +108,26 @@ export function ProductFilters({ onFilterChange, initialFilters, categories, isM
     setFilters({ ...filters, colors: updatedColors })
   }
 
+  const handleTagToggle = (tag: string) => {
+    const currentTags = filters.tags || []
+    const updatedTags = currentTags.includes(tag)
+      ? currentTags.filter((t) => t !== tag)
+      : [...currentTags, tag]
+    setFilters({ ...filters, tags: updatedTags })
+
+    // Track tag interaction in localStorage for recommendation algorithm
+    if (!currentTags.includes(tag)) {
+      try {
+        const stored = localStorage.getItem("user_tag_preferences")
+        const prefs: Record<string, number> = stored ? JSON.parse(stored) : {}
+        prefs[tag] = (prefs[tag] || 0) + 2 // weight filter clicks higher
+        localStorage.setItem("user_tag_preferences", JSON.stringify(prefs))
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   const handleApplyFilters = () => {
     onFilterChange(filters)
     if (isMobile) {
@@ -120,6 +143,7 @@ export function ProductFilters({ onFilterChange, initialFilters, categories, isM
       difficulty: "",
       isPattern: null,
       colors: [],
+      tags: [],
     }
     setFilters(resetFilters)
     onFilterChange(resetFilters)
@@ -147,22 +171,47 @@ export function ProductFilters({ onFilterChange, initialFilters, categories, isM
 
       <div>
         <h3 className="text-lg font-medium mb-2">Category</h3>
-        <Select value={filters.category} onValueChange={handleCategoryChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <RadioGroup value={filters.category || "all"} onValueChange={handleCategoryChange}>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="all" id="cat-all" />
+            <Label htmlFor="cat-all">All Categories</Label>
+          </div>
+          {categories.map((category) => (
+            <div key={category.id} className="flex items-center space-x-2">
+              <RadioGroupItem value={category.id} id={`cat-${category.id}`} />
+              <Label htmlFor={`cat-${category.id}`}>{category.name}</Label>
+            </div>
+          ))}
+        </RadioGroup>
       </div>
 
       <Separator />
+
+      {availableTags.length > 0 && (
+        <>
+          <div>
+            <h3 className="text-lg font-medium mb-2">Tags</h3>
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {availableTags.map((tag) => {
+                const isSelected = (filters.tags || []).includes(tag)
+                return (
+                  <div key={tag} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`tag-${tag}`}
+                      checked={isSelected}
+                      onChange={() => handleTagToggle(tag)}
+                      className="h-4 w-4 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+                    />
+                    <Label htmlFor={`tag-${tag}`} className="text-sm font-normal cursor-pointer">{tag}</Label>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          <Separator />
+        </>
+      )}
 
       <div>
         <h3 className="text-lg font-medium mb-2">Colors</h3>

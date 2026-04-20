@@ -5,8 +5,6 @@ import { ProductFilters, type FilterState } from "@/components/product-filters"
 import ProductCard from "@/components/product-card"
 import { useState } from "react"
 import { ProductQuickView } from "@/components/product-quick-view"
-import { Grid, LayoutList, Info } from "lucide-react"
-import { Button } from "@/components/ui/button"
 
 interface Product {
   id: string
@@ -21,12 +19,17 @@ interface Product {
   materials: string[]
   dimensions: any
   isPattern: boolean
+  productType?: string
+  tags?: string[]
+  rating?: number
   createdAt: string
   updatedAt: string
   seller: {
     id: string
     name: string
     shopName: string
+    country?: string | null
+    state?: string | null
   }
   category: {
     id: string
@@ -42,18 +45,17 @@ interface Category {
 interface ShopClientPageProps {
   initialProducts: Product[]
   categories: Category[]
+  availableTags?: string[]
   initialFilters: FilterState
 }
 
-export function ShopClientPage({ initialProducts, categories, initialFilters }: ShopClientPageProps) {
+export function ShopClientPage({ initialProducts, categories, availableTags = [], initialFilters }: ShopClientPageProps) {
   const [products, setProducts] = useState<Product[]>(initialProducts)
   const [isLoading, setIsLoading] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [viewMode, setViewMode] = useState<"grid" | "row">("grid")
-  const [showDetails, setShowDetails] = useState(false)
 
   const handleFilterChange = async (filters: FilterState) => {
     setIsLoading(true)
@@ -83,6 +85,11 @@ export function ShopClientPage({ initialProducts, categories, initialFilters }: 
     // Add product type if selected
     if (filters.isPattern !== null) {
       params.set("isPattern", filters.isPattern.toString())
+    }
+
+    // Add tags if selected
+    if (filters.tags && filters.tags.length > 0) {
+      params.set("tags", filters.tags.join(","))
     }
 
     // Update URL with new search params
@@ -127,6 +134,12 @@ export function ShopClientPage({ initialProducts, categories, initialFilters }: 
         filtered = filtered.filter((product) => product.isPattern === filters.isPattern)
       }
 
+      if (filters.tags && filters.tags.length > 0) {
+        filtered = filtered.filter((product) =>
+          filters.tags!.some((tag) => (product.tags || []).includes(tag))
+        )
+      }
+
       setProducts(filtered)
     } finally {
       setIsLoading(false)
@@ -143,12 +156,13 @@ export function ShopClientPage({ initialProducts, categories, initialFilters }: 
 
       <div className="flex flex-col md:flex-row gap-8">
         <div className="hidden md:block">
-          <ProductFilters categories={categories} initialFilters={initialFilters} onFilterChange={handleFilterChange} />
+          <ProductFilters categories={categories} availableTags={availableTags} initialFilters={initialFilters} onFilterChange={handleFilterChange} />
         </div>
 
         <div className="md:hidden">
           <ProductFilters
             categories={categories}
+            availableTags={availableTags}
             initialFilters={initialFilters}
             onFilterChange={handleFilterChange}
             isMobile={true}
@@ -156,43 +170,10 @@ export function ShopClientPage({ initialProducts, categories, initialFilters }: 
         </div>
 
         <div className="flex-1">
-          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="mb-4">
             <p className="text-muted-foreground">
               Showing {products.length} {products.length === 1 ? "product" : "products"}
             </p>
-
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={viewMode === "grid" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("grid")}
-                  aria-label="Grid view"
-                >
-                  <Grid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "row" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("row")}
-                  aria-label="Row view"
-                >
-                  <LayoutList className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="h-4 w-px bg-border" />
-
-              <Button
-                variant={showDetails ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowDetails(!showDetails)}
-                aria-label="Show product details"
-              >
-                <Info className="h-4 w-4 mr-1" />
-                Details
-              </Button>
-            </div>
           </div>
 
           {isLoading ? (
@@ -205,11 +186,7 @@ export function ShopClientPage({ initialProducts, categories, initialFilters }: 
               <p className="text-muted-foreground">No products have been uploaded by sellers yet.</p>
             </div>
           ) : (
-            <div
-              className={
-                viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"
-              }
-            >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {products.map((product) => (
                 <div key={product.id} onClick={() => handleProductClick(product)} className="cursor-pointer">
                   <ProductCard
@@ -217,11 +194,12 @@ export function ShopClientPage({ initialProducts, categories, initialFilters }: 
                     title={product.name}
                     price={product.price}
                     image={product.images[0] || "/placeholder.svg"}
-                    rating={product.averageRating || 4}
-                    difficulty={showDetails ? product.difficulty : undefined}
-                    materials={showDetails ? product.materials : undefined}
-                    isPattern={showDetails ? product.isPattern : undefined}
-                    showDetails={showDetails}
+                    rating={product.rating || 0}
+                    difficulty={product.difficulty}
+                    isPattern={product.isPattern}
+                    sellerName={product.seller?.shopName || product.seller?.name}
+                    productType={product.productType}
+                    tags={product.tags}
                   />
                 </div>
               ))}

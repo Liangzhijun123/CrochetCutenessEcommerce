@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Search, Menu, X, Bell, Trophy } from "lucide-react"
 import CartButton from "./cart/cart-button"
 import CartDrawer from "./cart/cart-drawer"
+import WishlistButton from "./wishlist-button"
 import AuthStatus from "./auth/auth-status"
 import { MessageNotifications } from "./messaging/message-notifications"
 import SellerNotificationsDropdown from "./seller/seller-notifications-dropdown"
@@ -146,6 +147,7 @@ export default function Header() {
 
               {isAuthenticated && <MessageNotifications />}
               {isAuthenticated && user?.role === "seller" && <SellerNotificationsDropdown />}
+              <WishlistButton />
               <CartButton onClick={() => setIsCartOpen(true)} />
               <AuthStatus />
 

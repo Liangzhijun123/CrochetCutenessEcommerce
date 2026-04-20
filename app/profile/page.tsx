@@ -6,7 +6,7 @@ import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { User, Settings, ShoppingBag, Heart, CreditCard, LogOut, Loader2, Award } from "lucide-react"
+import { User, Settings, ShoppingBag, Heart, CreditCard, LogOut, Loader2, Award, FileText } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -21,6 +21,7 @@ import { useAuth } from "@/context/auth-context"
 import { toast } from "@/hooks/use-toast"
 import CoinsDashboard from "@/components/profile/coins-dashboard"
 import PointsDashboard from "@/components/profile/points-dashboard"
+import DigitalLibrary from "@/components/profile/digital-library"
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -119,7 +120,7 @@ export default function ProfilePage() {
 
   // Set active tab from URL parameter if available
   useEffect(() => {
-    if (tabParam && ["account", "orders", "wishlist", "security", "loyalty", "coins"].includes(tabParam)) {
+    if (tabParam && ["account", "orders", "wishlist", "security", "loyalty", "coins", "library"].includes(tabParam)) {
       setActiveTab(tabParam)
     }
   }, [tabParam])
@@ -376,6 +377,17 @@ export default function ProfilePage() {
               Daily Coins
             </Button>
             <Button
+              variant={activeTab === "library" ? "default" : "ghost"}
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                setActiveTab("library")
+                router.push("/profile?tab=library", { scroll: false })
+              }}
+            >
+              <FileText className="h-4 w-4" />
+              Digital Library
+            </Button>
+            <Button
               variant={activeTab === "security" ? "default" : "ghost"}
               className="w-full justify-start gap-2"
               onClick={() => {
@@ -398,12 +410,13 @@ export default function ProfilePage() {
               router.push(`/profile?tab=${value}`, { scroll: false })
             }}
           >
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="account">Account</TabsTrigger>
               <TabsTrigger value="orders">Orders</TabsTrigger>
               <TabsTrigger value="wishlist">Wishlist</TabsTrigger>
               <TabsTrigger value="loyalty">Loyalty</TabsTrigger>
               <TabsTrigger value="coins">Coins</TabsTrigger>
+              <TabsTrigger value="library">Library</TabsTrigger>
               <TabsTrigger value="security">Security</TabsTrigger>
             </TabsList>
 
@@ -789,6 +802,10 @@ export default function ProfilePage() {
 
             <TabsContent value="coins" className="mt-6">
               <CoinsDashboard />
+            </TabsContent>
+
+            <TabsContent value="library" className="mt-6">
+              <DigitalLibrary />
             </TabsContent>
 
             <TabsContent value="security" className="mt-6">

@@ -1,68 +1,29 @@
 "use client"
 
-import { useState } from "react"
-import { Star } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { Star, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { useAuth } from "@/context/auth-context"
+import { useToast } from "@/hooks/use-toast"
 
-// Mock review data
-const reviews = [
-  {
-    id: 1,
-    author: "Emily Johnson",
-    date: "2 months ago",
-    rating: 5,
-    title: "Absolutely adorable!",
-    content:
-      "This bunny is even cuter in person! The craftsmanship is exceptional, and it's so soft. My daughter loves it and takes it everywhere. The attention to detail is amazing - the little embroidered nose and the perfectly proportioned ears. Highly recommend!",
-    helpful: 12,
-    images: ["/placeholder.svg?height=100&width=100", "/placeholder.svg?height=100&width=100"],
-  },
-  {
-    id: 2,
-    author: "Michael Smith",
-    date: "1 month ago",
-    rating: 4,
-    title: "Great quality, slightly smaller than expected",
-    content:
-      "The bunny is beautifully made with high-quality materials. The stitching is perfect and it's very soft. I was expecting it to be a bit larger based on the photos, but it's still a wonderful piece. Would buy from this shop again.",
-    helpful: 8,
-    images: [],
-  },
-  {
-    id: 3,
-    author: "Sarah Williams",
-    date: "3 weeks ago",
-    rating: 5,
-    title: "Perfect gift!",
-    content:
-      "I bought this as a baby shower gift and it was a hit! Everyone loved the handmade quality and cute design. The recipient was thrilled with how soft and well-made it is. Will definitely order more for future gifts.",
-    helpful: 5,
-    images: ["/placeholder.svg?height=100&width=100"],
-  },
-  {
-    id: 4,
-    author: "David Chen",
-    date: "2 weeks ago",
-    rating: 5,
-    title: "Exceptional craftsmanship",
-    content:
-      "As someone who crochets myself, I can appreciate the skill that went into making this bunny. The stitches are even, the stuffing is perfect, and the details are charming. It's obvious that a lot of care went into creating this piece.",
-    helpful: 7,
-    images: [],
-  },
-]
-
-// Rating distribution
-const ratingDistribution = {
-  5: 75,
-  4: 18,
-  3: 5,
-  2: 2,
-  1: 0,
+interface Review {
+  id: string
+  productId: string
+  userId: string
+  author: string
+  rating: number
+  title: string
+  content: string
+  images: string[]
+  helpful: number
+  date: string
 }
 
 interface ReviewSectionProps {
@@ -71,14 +32,163 @@ interface ReviewSectionProps {
   reviewCount: number
 }
 
-export default function ReviewSection({ productId, rating, reviewCount }: ReviewSectionProps) {
-  const [activeTab, setActiveTab] = useState("all")
-  const [helpfulReviews, setHelpfulReviews] = useState<number[]>([])
+export default function ReviewSection({ productId, rating: initialRating }: ReviewSectionProps) {
+  const { user } = useAuth()
+  const { toast } = useToast()
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [averageRating, setAverageRating] = useState(initialRating || 0)
+  const [reviewCount, setReviewCount] = useState(0)
+  const [ratingDistribution, setRatingDistribution] = useState<Record<number, number>>({ 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 })
+  const [loading, setLoading] = useState(true)
+  const [helpfulReviews, setHelpfulReviews] = useState<string[]>([])
+  const [showWriteReview, setShowWriteReview] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [newReview, setNewReview] = useState({ rating: 5, title: "", content: "" })
 
-  const markHelpful = (reviewId: number) => {
-    if (!helpfulReviews.includes(reviewId)) {
-      setHelpfulReviews([...helpfulReviews, reviewId])
+  const fetchReviews = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/reviews?productId=${productId}`)
+      if (!res.ok) throw new Error("Failed to fetch reviews")
+      const data = await res.json()
+      setReviews(data.reviews || [])
+      setAverageRating(data.averageRating || 0)
+      setReviewCount(data.reviewCount || 0)
+      setRatingDistribution(data.ratingDistribution || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 })
+    } catch {
+      // Keep empty state
+    } finally {
+      setLoading(false)
     }
+  }, [productId])
+
+  useEffect(() => {
+    fetchReviews()
+  }, [fetchReviews])
+
+  const markHelpful = async (reviewId: string) => {
+    if (helpfulReviews.includes(reviewId)) return
+    setHelpfulReviews([...helpfulReviews, reviewId])
+    try {
+      await fetch("/api/reviews", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewId }),
+      })
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, helpful: r.helpful + 1 } : r))
+    } catch {
+      setHelpfulReviews(prev => prev.filter(id => id !== reviewId))
+    }
+  }
+
+  const handleSubmitReview = async () => {
+    if (!user) {
+      toast({ title: "Please sign in", description: "You need to be signed in to leave a review.", variant: "destructive" })
+      return
+    }
+    if (!newReview.title.trim() || !newReview.content.trim()) {
+      toast({ title: "Missing fields", description: "Please fill in the title and review content.", variant: "destructive" })
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId,
+          userId: user.id,
+          userName: user.name || user.email || "Anonymous",
+          rating: newReview.rating,
+          title: newReview.title,
+          content: newReview.content,
+          images: [],
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to submit review")
+      }
+
+      toast({ title: "Review submitted!", description: "Thank you for your review." })
+      setNewReview({ rating: 5, title: "", content: "" })
+      setShowWriteReview(false)
+      fetchReviews()
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to submit review.", variant: "destructive" })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    if (diffDays === 0) return "Today"
+    if (diffDays === 1) return "Yesterday"
+    if (diffDays < 7) return `${diffDays} days ago`
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`
+    return date.toLocaleDateString()
+  }
+
+  const renderReviewCard = (review: Review) => (
+    <div key={review.id} className="rounded-lg border p-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="font-medium">{review.author}</div>
+          <div className="text-xs text-muted-foreground">{formatDate(review.date)}</div>
+        </div>
+        <div className="flex">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Star
+              key={i}
+              className={`h-4 w-4 ${i < review.rating ? "fill-amber-400 text-amber-400" : "text-gray-300"}`}
+            />
+          ))}
+        </div>
+      </div>
+
+      <h4 className="mt-2 font-medium">{review.title}</h4>
+      <p className="mt-1 text-sm">{review.content}</p>
+
+      {review.images.length > 0 && (
+        <div className="mt-3 flex gap-2">
+          {review.images.map((image, index) => (
+            <div key={index} className="h-16 w-16 overflow-hidden rounded-md">
+              <img
+                src={image || "/placeholder.svg"}
+                alt={`Review image ${index + 1}`}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center justify-between">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => markHelpful(review.id)}
+          disabled={helpfulReviews.includes(review.id)}
+        >
+          {helpfulReviews.includes(review.id) ? "Marked as helpful" : "Mark as helpful"} ({review.helpful})
+        </Button>
+      </div>
+    </div>
+  )
+
+  if (loading) {
+    return (
+      <div className="py-8 text-center">
+        <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+        <p className="text-sm text-muted-foreground mt-2">Loading reviews...</p>
+      </div>
+    )
   }
 
   return (
@@ -93,16 +203,16 @@ export default function ReviewSection({ productId, rating, reviewCount }: Review
         <div className="md:col-span-4">
           <div className="space-y-4 rounded-lg border p-4">
             <div className="text-center">
-              <div className="text-5xl font-bold">{rating.toFixed(1)}</div>
+              <div className="text-5xl font-bold">{averageRating.toFixed(1)}</div>
               <div className="mt-1 flex justify-center">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star
                     key={i}
-                    className={`h-5 w-5 ${i < Math.floor(rating) ? "fill-amber-400 text-amber-400" : "text-gray-300"}`}
+                    className={`h-5 w-5 ${i < Math.floor(averageRating) ? "fill-amber-400 text-amber-400" : "text-gray-300"}`}
                   />
                 ))}
               </div>
-              <div className="mt-1 text-sm text-muted-foreground">Based on {reviewCount} reviews</div>
+              <div className="mt-1 text-sm text-muted-foreground">Based on {reviewCount} {reviewCount === 1 ? "review" : "reviews"}</div>
             </div>
 
             <div className="space-y-2">
@@ -112,312 +222,110 @@ export default function ReviewSection({ productId, rating, reviewCount }: Review
                     <span className="text-sm">{star}</span>
                     <Star className="ml-1 h-3 w-3 fill-amber-400 text-amber-400" />
                   </div>
-                  <Progress value={ratingDistribution[star as keyof typeof ratingDistribution]} className="h-2" />
+                  <Progress value={ratingDistribution[star] || 0} className="h-2" />
                   <div className="w-8 text-right text-xs text-muted-foreground">
-                    {ratingDistribution[star as keyof typeof ratingDistribution]}%
+                    {ratingDistribution[star] || 0}%
                   </div>
                 </div>
               ))}
             </div>
 
-            <Button className="w-full bg-rose-500 hover:bg-rose-600">Write a Review</Button>
+            <Button className="w-full" variant="outline" onClick={() => setShowWriteReview(!showWriteReview)}>
+              {showWriteReview ? "Cancel" : "Write a Review"}
+            </Button>
           </div>
         </div>
 
-        {/* Reviews List */}
+        {/* Reviews */}
         <div className="md:col-span-8">
-          <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
-            <TabsList className="mb-4 grid w-full grid-cols-5">
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="5">5 Star</TabsTrigger>
-              <TabsTrigger value="4">4 Star</TabsTrigger>
-              <TabsTrigger value="3">3 Star</TabsTrigger>
-              <TabsTrigger value="images">With Images</TabsTrigger>
-            </TabsList>
+          {/* Write Review Form */}
+          {showWriteReview && (
+            <div className="rounded-lg border p-4 mb-6 space-y-4">
+              <h3 className="font-semibold">Write Your Review</h3>
 
-            <TabsContent value="all" className="space-y-6">
-              {reviews.map((review) => (
-                <div key={review.id} className="rounded-lg border p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="font-medium">{review.author}</div>
-                      <div className="text-xs text-muted-foreground">{review.date}</div>
-                    </div>
-                    <div className="flex">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`h-4 w-4 ${i < review.rating ? "fill-amber-400 text-amber-400" : "text-gray-300"}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <h4 className="mt-2 font-medium">{review.title}</h4>
-                  <p className="mt-1 text-sm">{review.content}</p>
-
-                  {review.images.length > 0 && (
-                    <div className="mt-3 flex gap-2">
-                      {review.images.map((image, index) => (
-                        <div key={index} className="h-16 w-16 overflow-hidden rounded-md">
-                          <img
-                            src={image || "/placeholder.svg"}
-                            alt={`Review image ${index + 1}`}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex items-center justify-between">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => markHelpful(review.id)}
-                      disabled={helpfulReviews.includes(review.id)}
+              <div className="space-y-2">
+                <Label>Rating</Label>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setNewReview({ ...newReview, rating: star })}
+                      className="focus:outline-none"
                     >
-                      {helpfulReviews.includes(review.id) ? "Marked as helpful" : "Mark as helpful"} (
-                      {helpfulReviews.includes(review.id) ? review.helpful + 1 : review.helpful})
-                    </Button>
-                    <Button variant="link" size="sm" className="text-rose-600">
-                      Report
-                    </Button>
-                  </div>
+                      <Star
+                        className={`h-6 w-6 cursor-pointer transition-colors ${
+                          star <= newReview.rating ? "fill-amber-400 text-amber-400" : "text-gray-300 hover:text-amber-200"
+                        }`}
+                      />
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </TabsContent>
+              </div>
 
-            <TabsContent value="5" className="space-y-6">
-              {reviews
-                .filter((review) => review.rating === 5)
-                .map((review) => (
-                  <div key={review.id} className="rounded-lg border p-4">
-                    {/* Same review content as above */}
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="font-medium">{review.author}</div>
-                        <div className="text-xs text-muted-foreground">{review.date}</div>
-                      </div>
-                      <div className="flex">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-4 w-4 ${
-                              i < review.rating ? "fill-amber-400 text-amber-400" : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
+              <div className="space-y-2">
+                <Label>Title</Label>
+                <Input
+                  value={newReview.title}
+                  onChange={(e) => setNewReview({ ...newReview, title: e.target.value })}
+                  placeholder="Summarize your experience"
+                />
+              </div>
 
-                    <h4 className="mt-2 font-medium">{review.title}</h4>
-                    <p className="mt-1 text-sm">{review.content}</p>
+              <div className="space-y-2">
+                <Label>Review</Label>
+                <Textarea
+                  value={newReview.content}
+                  onChange={(e) => setNewReview({ ...newReview, content: e.target.value })}
+                  placeholder="Tell others about your experience with this product..."
+                  rows={4}
+                />
+              </div>
 
-                    {review.images.length > 0 && (
-                      <div className="mt-3 flex gap-2">
-                        {review.images.map((image, index) => (
-                          <div key={index} className="h-16 w-16 overflow-hidden rounded-md">
-                            <img
-                              src={image || "/placeholder.svg"}
-                              alt={`Review image ${index + 1}`}
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )}
+              <div className="flex justify-end">
+                <Button onClick={handleSubmitReview} disabled={submitting}>
+                  {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                  Submit Review
+                </Button>
+              </div>
+            </div>
+          )}
 
-                    <div className="mt-3 flex items-center justify-between">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => markHelpful(review.id)}
-                        disabled={helpfulReviews.includes(review.id)}
-                      >
-                        {helpfulReviews.includes(review.id) ? "Marked as helpful" : "Mark as helpful"} (
-                        {helpfulReviews.includes(review.id) ? review.helpful + 1 : review.helpful})
-                      </Button>
-                      <Button variant="link" size="sm" className="text-rose-600">
-                        Report
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-            </TabsContent>
+          {reviews.length === 0 ? (
+            <div className="text-center py-8 rounded-lg border">
+              <p className="text-muted-foreground">No reviews yet. Be the first to review this product!</p>
+            </div>
+          ) : (
+            <Tabs defaultValue="all" className="w-full">
+              <TabsList>
+                <TabsTrigger value="all">All ({reviewCount})</TabsTrigger>
+                <TabsTrigger value="5">5 Star</TabsTrigger>
+                <TabsTrigger value="4">4 Star</TabsTrigger>
+                <TabsTrigger value="3">3 Star</TabsTrigger>
+                <TabsTrigger value="images">With Images</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="4" className="space-y-6">
-              {reviews
-                .filter((review) => review.rating === 4)
-                .map((review) => (
-                  <div key={review.id} className="rounded-lg border p-4">
-                    {/* Same review content as above */}
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="font-medium">{review.author}</div>
-                        <div className="text-xs text-muted-foreground">{review.date}</div>
-                      </div>
-                      <div className="flex">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-4 w-4 ${
-                              i < review.rating ? "fill-amber-400 text-amber-400" : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
+              <TabsContent value="all" className="space-y-6 mt-4">
+                {reviews.map(renderReviewCard)}
+              </TabsContent>
 
-                    <h4 className="mt-2 font-medium">{review.title}</h4>
-                    <p className="mt-1 text-sm">{review.content}</p>
+              <TabsContent value="5" className="space-y-6 mt-4">
+                {reviews.filter((r) => r.rating === 5).map(renderReviewCard)}
+              </TabsContent>
 
-                    {review.images.length > 0 && (
-                      <div className="mt-3 flex gap-2">
-                        {review.images.map((image, index) => (
-                          <div key={index} className="h-16 w-16 overflow-hidden rounded-md">
-                            <img
-                              src={image || "/placeholder.svg"}
-                              alt={`Review image ${index + 1}`}
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )}
+              <TabsContent value="4" className="space-y-6 mt-4">
+                {reviews.filter((r) => r.rating === 4).map(renderReviewCard)}
+              </TabsContent>
 
-                    <div className="mt-3 flex items-center justify-between">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => markHelpful(review.id)}
-                        disabled={helpfulReviews.includes(review.id)}
-                      >
-                        {helpfulReviews.includes(review.id) ? "Marked as helpful" : "Mark as helpful"} (
-                        {helpfulReviews.includes(review.id) ? review.helpful + 1 : review.helpful})
-                      </Button>
-                      <Button variant="link" size="sm" className="text-rose-600">
-                        Report
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-            </TabsContent>
+              <TabsContent value="3" className="space-y-6 mt-4">
+                {reviews.filter((r) => r.rating === 3).map(renderReviewCard)}
+              </TabsContent>
 
-            <TabsContent value="3" className="space-y-6">
-              {reviews
-                .filter((review) => review.rating === 3)
-                .map((review) => (
-                  <div key={review.id} className="rounded-lg border p-4">
-                    {/* Same review content as above */}
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="font-medium">{review.author}</div>
-                        <div className="text-xs text-muted-foreground">{review.date}</div>
-                      </div>
-                      <div className="flex">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-4 w-4 ${
-                              i < review.rating ? "fill-amber-400 text-amber-400" : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    <h4 className="mt-2 font-medium">{review.title}</h4>
-                    <p className="mt-1 text-sm">{review.content}</p>
-
-                    {review.images.length > 0 && (
-                      <div className="mt-3 flex gap-2">
-                        {review.images.map((image, index) => (
-                          <div key={index} className="h-16 w-16 overflow-hidden rounded-md">
-                            <img
-                              src={image || "/placeholder.svg"}
-                              alt={`Review image ${index + 1}`}
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="mt-3 flex items-center justify-between">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => markHelpful(review.id)}
-                        disabled={helpfulReviews.includes(review.id)}
-                      >
-                        {helpfulReviews.includes(review.id) ? "Marked as helpful" : "Mark as helpful"} (
-                        {helpfulReviews.includes(review.id) ? review.helpful + 1 : review.helpful})
-                      </Button>
-                      <Button variant="link" size="sm" className="text-rose-600">
-                        Report
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-            </TabsContent>
-
-            <TabsContent value="images" className="space-y-6">
-              {reviews
-                .filter((review) => review.images.length > 0)
-                .map((review) => (
-                  <div key={review.id} className="rounded-lg border p-4">
-                    {/* Same review content as above */}
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="font-medium">{review.author}</div>
-                        <div className="text-xs text-muted-foreground">{review.date}</div>
-                      </div>
-                      <div className="flex">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-4 w-4 ${
-                              i < review.rating ? "fill-amber-400 text-amber-400" : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    <h4 className="mt-2 font-medium">{review.title}</h4>
-                    <p className="mt-1 text-sm">{review.content}</p>
-
-                    <div className="mt-3 flex gap-2">
-                      {review.images.map((image, index) => (
-                        <div key={index} className="h-16 w-16 overflow-hidden rounded-md">
-                          <img
-                            src={image || "/placeholder.svg"}
-                            alt={`Review image ${index + 1}`}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => markHelpful(review.id)}
-                        disabled={helpfulReviews.includes(review.id)}
-                      >
-                        {helpfulReviews.includes(review.id) ? "Marked as helpful" : "Mark as helpful"} (
-                        {helpfulReviews.includes(review.id) ? review.helpful + 1 : review.helpful})
-                      </Button>
-                      <Button variant="link" size="sm" className="text-rose-600">
-                        Report
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="images" className="space-y-6 mt-4">
+                {reviews.filter((r) => r.images.length > 0).map(renderReviewCard)}
+              </TabsContent>
+            </Tabs>
+          )}
         </div>
       </div>
     </div>

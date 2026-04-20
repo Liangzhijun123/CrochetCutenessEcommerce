@@ -11,7 +11,19 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
+
+const AVAILABLE_TAGS = [
+  "Amigurumi", "Toy", "Stuffed Animal", "Doll", "Baby", "Blanket",
+  "Hat", "Scarf", "Sweater", "Cardigan", "Bag", "Purse",
+  "Home Decor", "Pillow", "Coaster", "Wall Hanging",
+  "Holiday", "Christmas", "Halloween", "Easter",
+  "Gift", "Keychain", "Bookmark", "Flowers",
+  "Animals", "Bunny", "Bear", "Cat", "Dog", "Dinosaur",
+  "Beginner Friendly", "Quick Project", "Eco Friendly",
+  "Cotton", "Wool", "Acrylic", "Chunky Yarn",
+] as const
 
 export default function ProductUploadForm() {
   const { user } = useAuth()
@@ -25,11 +37,15 @@ export default function ProductUploadForm() {
     stock: "1",
     difficulty: "beginner",
     images: [] as string[],
+    imageFiles: [] as File[],
     colors: [],
-    tags: "",
+    tags: [] as string[],
     featured: false,
     youtubeLink: "",
     writtenInstructions: "",
+    productType: "plushie" as "pdf_pattern" | "plushie" | "both",
+    pdfPassword: "",
+    pdfPassword: "",
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -49,18 +65,34 @@ export default function ProductUploadForm() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files) {
-      // In a real app, you would upload these to a server/CDN
-      // For now, we'll create object URLs for preview
-      const newImages = Array.from(files).map(file => URL.createObjectURL(file))
-      setFormData((prev) => ({ ...prev, images: [...prev.images, ...newImages] }))
+      const newFiles = Array.from(files)
+      // Create preview URLs for display, but keep the actual File objects for upload
+      const newPreviews = newFiles.map(file => URL.createObjectURL(file))
+      setFormData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...newPreviews],
+        imageFiles: [...prev.imageFiles, ...newFiles],
+      }))
     }
   }
 
   const removeImage = (index: number) => {
     setFormData((prev) => ({
       ...prev,
-      images: prev.images.filter((_, i) => i !== index)
+      images: prev.images.filter((_, i) => i !== index),
+      imageFiles: prev.imageFiles.filter((_, i) => i !== index),
     }))
+  }
+
+  // Upload a single image file to the server and return the persistent URL
+  const uploadImageFile = async (file: File): Promise<string> => {
+    const body = new FormData()
+    body.append("file", file)
+    body.append("folder", "products")
+    const res = await fetch("/api/files/upload", { method: "POST", body })
+    if (!res.ok) throw new Error("Image upload failed")
+    const data = await res.json()
+    return data.url as string
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,16 +110,26 @@ export default function ProductUploadForm() {
     try {
       setIsLoading(true)
 
+      // Upload image files to the server first to get persistent URLs
+      let uploadedImageUrls: string[] = []
+      if (formData.imageFiles.length > 0) {
+        const uploadPromises = formData.imageFiles.map((file) => uploadImageFile(file))
+        uploadedImageUrls = await Promise.all(uploadPromises)
+      }
+
       // Prepare the data
       const productData = {
         ...formData,
         price: Number.parseFloat(formData.price),
         stock: Number.parseInt(formData.stock),
         sellerId: user.id,
-        tags: formData.tags.split(",").map((tag) => tag.trim()),
+        tags: formData.tags,
         colors: formData.colors.length ? formData.colors : undefined,
-        images: formData.images.length ? formData.images : ["/placeholder.svg?height=400&width=400"],
+        images: uploadedImageUrls.length > 0 ? uploadedImageUrls : ["/placeholder.svg?height=400&width=400"],
       }
+
+      // Remove the temporary fields before sending
+      delete (productData as any).imageFiles
 
       // Submit to API
       const response = await fetch("/api/products", {
@@ -236,6 +278,30 @@ export default function ProductUploadForm() {
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label>Product Type</Label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { value: "plushie" as const, label: "Plushie Only", desc: "Physical finished crochet item" },
+                { value: "pdf_pattern" as const, label: "PDF Pattern Only", desc: "Downloadable crochet pattern" },
+                { value: "both" as const, label: "Both Available", desc: "Pattern + finished item" },
+              ].map((option) => (
+                <div
+                  key={option.value}
+                  onClick={() => setFormData((prev) => ({ ...prev, productType: option.value }))}
+                  className={`cursor-pointer rounded-lg border-2 p-3 text-center transition-colors ${
+                    formData.productType === option.value
+                      ? "border-rose-500 bg-rose-50 dark:bg-rose-950"
+                      : "border-muted hover:border-rose-300"
+                  }`}
+                >
+                  <p className="font-medium text-sm">{option.label}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{option.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
@@ -269,15 +335,109 @@ export default function ProductUploadForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tags">Tags (comma separated)</Label>
-            <Input
-              id="tags"
-              name="tags"
-              value={formData.tags}
-              onChange={handleChange}
-              placeholder="e.g. bunny, toy, gift"
-            />
+            <Label>Tags (select all that apply)</Label>
+            <div className="flex flex-wrap gap-2 p-3 border rounded-md max-h-48 overflow-y-auto">
+              {AVAILABLE_TAGS.map((tag) => {
+                const isSelected = formData.tags.includes(tag)
+                return (
+                  <Badge
+                    key={tag}
+                    variant={isSelected ? "default" : "outline"}
+                    className={`cursor-pointer transition-colors ${
+                      isSelected
+                        ? "bg-rose-500 hover:bg-rose-600 text-white"
+                        : "hover:bg-rose-50 hover:border-rose-300"
+                    }`}
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        tags: isSelected
+                          ? prev.tags.filter((t) => t !== tag)
+                          : [...prev.tags, tag],
+                      }))
+                    }
+                  >
+                    {tag}
+                  </Badge>
+                )
+              })}
+            </div>
+            {formData.tags.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Selected: {formData.tags.join(", ")}
+              </p>
+            )}
           </div>
+{/* PDF Password Protection */}
+          {(formData.productType === "pdf_pattern" || formData.productType === "both") && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <Label className="text-blue-800 font-semibold">PDF Password Protection</Label>
+              </div>
+              <p className="text-xs text-blue-600">Set a password to protect your PDF pattern. Buyers will need this password to view the pattern in their Digital Library. You can change the password later to revoke access if needed.</p>
+              <div className="flex gap-2">
+                <Input
+                  id="pdfPassword"
+                  name="pdfPassword"
+                  value={formData.pdfPassword}
+                  onChange={handleChange}
+                  placeholder="Enter PDF access password"
+                  className="flex-1"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
+                    let password = ""
+                    for (let i = 0; i < 12; i++) password += chars.charAt(Math.floor(Math.random() * chars.length))
+                    setFormData((prev) => ({ ...prev, pdfPassword: password }))
+                  }}
+                >
+                  Auto-generate
+                </Button>
+              </div>
+            </div>
+          )}
+
+          
+          {/* PDF Password Protection */}
+          {(formData.productType === "pdf_pattern" || formData.productType === "both") && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <Label className="text-blue-800 font-semibold">PDF Password Protection</Label>
+              </div>
+              <p className="text-xs text-blue-600">Set a password to protect your PDF pattern. Buyers will need this password to view the pattern in their Digital Library. You can change the password later to revoke access if needed.</p>
+              <div className="flex gap-2">
+                <Input
+                  id="pdfPassword"
+                  name="pdfPassword"
+                  value={formData.pdfPassword}
+                  onChange={handleChange}
+                  placeholder="Enter PDF access password"
+                  className="flex-1"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
+                    let password = ""
+                    for (let i = 0; i < 12; i++) password += chars.charAt(Math.floor(Math.random() * chars.length))
+                    setFormData((prev) => ({ ...prev, pdfPassword: password }))
+                  }}
+                >
+                  Auto-generate
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center space-x-2">
             <input

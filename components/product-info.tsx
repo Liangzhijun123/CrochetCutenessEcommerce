@@ -24,6 +24,7 @@ interface ProductInfoProps {
     sku?: string
     categories?: string[]
     images?: string[]
+    productType?: string
   }
 }
 
@@ -32,13 +33,15 @@ export default function ProductInfo({ product }: ProductInfoProps) {
     product.colors && product.colors.length > 0 ? product.colors[0] : undefined,
   )
   const [quantity, setQuantity] = useState(1)
-  const [patternOption, setPatternOption] = useState("with-pattern")
-  const [productType, setProductType] = useState("plushie-only")
   const { addItem } = useCart()
   const { addToWishlist, isInWishlist, removeFromWishlist } = useWishlist()
 
   // Safely extract values with defaults
-  const { id = "", name = "", price = 0, description = "", colors = [], rating = 0, images = [], sellerId } = product || {}
+  const { id = "", name = "", price = 0, description = "", colors = [], rating = 0, images = [], sellerId, productType: sellerProductType } = product || {}
+
+  // Determine what's available based on seller's product type
+  const hasPlushie = sellerProductType === "plushie" || sellerProductType === "both"
+  const hasPdf = sellerProductType === "pdf_pattern" || sellerProductType === "both"
 
   const handleAddToCart = () => {
     addItem({
@@ -48,8 +51,8 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       image: images[0] || "/placeholder.svg",
       sellerId: sellerId || "unknown",
       color: selectedColor,
-      patternOption,
-      productType,
+      patternOption: hasPdf ? "with-pattern" : "no-pattern",
+      productType: sellerProductType || "plushie",
     })
   }
 
@@ -119,63 +122,32 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         </div>
       )}
 
-      {/* Pattern Options */}
+      {/* What's Included - based on seller's product type */}
       <div className="space-y-2">
-        <h2 className="font-medium">Pattern Options</h2>
-        <RadioGroup value={patternOption} onValueChange={setPatternOption} className="flex flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <RadioGroupItem id="with-pattern" value="with-pattern" className="peer sr-only" />
-            <Label
-              htmlFor="with-pattern"
-              className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 peer-data-[state=checked]:border-primary"
-            >
-              <span className="text-sm">With Pattern</span>
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <RadioGroupItem id="no-pattern" value="no-pattern" className="peer sr-only" />
-            <Label
-              htmlFor="no-pattern"
-              className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 peer-data-[state=checked]:border-primary"
-            >
-              <span className="text-sm">No Pattern</span>
-            </Label>
-          </div>
-        </RadioGroup>
-      </div>
-
-      {/* Product Type Options */}
-      <div className="space-y-2">
-        <h2 className="font-medium">Product Type</h2>
-        <RadioGroup value={productType} onValueChange={setProductType} className="flex flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <RadioGroupItem id="plushie-only" value="plushie-only" className="peer sr-only" />
-            <Label
-              htmlFor="plushie-only"
-              className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 peer-data-[state=checked]:border-primary"
-            >
-              <span className="text-sm">Plushie Only</span>
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <RadioGroupItem id="pattern-only" value="pattern-only" className="peer sr-only" />
-            <Label
-              htmlFor="pattern-only"
-              className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 peer-data-[state=checked]:border-primary"
-            >
-              <span className="text-sm">Pattern Only</span>
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <RadioGroupItem id="both" value="both" className="peer sr-only" />
-            <Label
-              htmlFor="both"
-              className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 peer-data-[state=checked]:border-primary"
-            >
-              <span className="text-sm">Both Plushie & Pattern</span>
-            </Label>
-          </div>
-        </RadioGroup>
+        <h2 className="font-medium">What&apos;s Included</h2>
+        <div className="flex flex-wrap gap-2">
+          {hasPlushie && (
+            <div className="flex items-center gap-2 rounded-md border border-pink-200 bg-pink-50 px-3 py-2">
+              <span className="h-2 w-2 rounded-full bg-pink-500" />
+              <span className="text-sm font-medium text-pink-700">Handmade Plushie</span>
+            </div>
+          )}
+          {hasPdf && (
+            <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
+              <span className="h-2 w-2 rounded-full bg-blue-500" />
+              <span className="text-sm font-medium text-blue-700">PDF Pattern</span>
+            </div>
+          )}
+        </div>
+        {hasPdf && hasPlushie && (
+          <p className="text-xs text-muted-foreground">This listing includes both the finished plushie and the PDF pattern.</p>
+        )}
+        {hasPdf && !hasPlushie && (
+          <p className="text-xs text-muted-foreground">Digital pattern delivered to your email after purchase.</p>
+        )}
+        {hasPlushie && !hasPdf && (
+          <p className="text-xs text-muted-foreground">Handcrafted plushie shipped to your address.</p>
+        )}
       </div>
 
       <div className="flex gap-4">
