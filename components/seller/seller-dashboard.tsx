@@ -377,7 +377,8 @@ export default function SellerDashboard() {
       {/* Add notification center at the top */}
 
       <Tabs defaultValue="analytics" onValueChange={setActiveTab} value={activeTab}>
-        <TabsList className="mb-8 flex flex-wrap">
+        <div className="mb-8 w-full overflow-x-auto">
+        <TabsList className="inline-flex w-max min-w-full">
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="patterns">Pattern Management</TabsTrigger>
@@ -389,6 +390,7 @@ export default function SellerDashboard() {
           <TabsTrigger value="pattern-testing">Pattern Testing</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="analytics" className="space-y-6">
           <SellerAnalyticsDashboard sellerId={user?.id || ''} />
