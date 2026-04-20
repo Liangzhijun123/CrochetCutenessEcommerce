@@ -42,10 +42,10 @@ export default function Header() {
           isScrolled ? "bg-white shadow-sm" : "bg-white/80 backdrop-blur-sm"
         }`}
       >
-        <div className="container mx-auto px-4">
-          <div className="flex h-16 items-center justify-between">
+        <div className="container mx-auto px-4 overflow-hidden">
+          <div className="flex h-16 items-center justify-between min-w-0">
             {/* Logo */}
-            <Link href="/" className="flex items-center">
+            <Link href="/" className="flex items-center shrink-0">
               <span className="text-xl font-bold text-rose-500">Crochet Crafts</span>
             </Link>
 
@@ -139,7 +139,7 @@ export default function Header() {
             </nav>
 
             {/* Search, Messages, Cart, and Auth */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-1 md:gap-4">
               <div className="hidden md:flex relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input type="search" placeholder="Search..." className="w-[200px] pl-8 rounded-full bg-background" />
@@ -149,7 +149,9 @@ export default function Header() {
               {isAuthenticated && user?.role === "seller" && <SellerNotificationsDropdown />}
               <WishlistButton />
               <CartButton onClick={() => setIsCartOpen(true)} />
-              <AuthStatus />
+              <div className="hidden md:block">
+                <AuthStatus />
+              </div>
 
               {/* Mobile Menu Button */}
               <button
@@ -259,6 +261,9 @@ export default function Header() {
                   </Link>
                 )}
               </nav>
+              <div className="pt-2 border-t">
+                <AuthStatus />
+              </div>
             </div>
           </div>
         )}

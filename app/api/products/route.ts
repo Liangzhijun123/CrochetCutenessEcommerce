@@ -142,30 +142,42 @@ export async function POST(request: NextRequest) {
     const uploadOrder = (maxOrder?.upload_order || 0) + 1
 
     const imageUrls = productData.images || []
+    const price = Number(productData.price)
+
+    // Validate before insert
+    if (isNaN(price)) {
+      return NextResponse.json({ error: "Invalid price" }, { status: 400 })
+    }
+    const imageUrl = imageUrls[0] || "/placeholder.svg?height=400&width=400"
+
+    const insertRow = {
+      title: String(productData.name || "").trim(),
+      description: String(productData.description || "").trim(),
+      price,
+      category: String(productData.category || "general").trim(),
+      seller_id: sellerDbId,
+      image_url: imageUrl,
+      image_urls: imageUrls,
+      difficulty_level: productData.difficulty || "beginner",
+      tags: productData.tags || [],
+      upload_order: uploadOrder,
+      youtube_link: productData.youtubeLink || null,
+      written_instructions: productData.writtenInstructions || null,
+      product_type: productData.productType || "plushie",
+      pdf_password: productData.pdfPassword || null,
+      pdf_file_url: productData.pdfFileUrl || null,
+    }
+
+    console.log("PRODUCT INSERT ROW:", JSON.stringify(insertRow, null, 2))
+
     const { data: product, error } = await supabaseAdmin
       .from("products")
-      .insert([{
-        title: productData.name,
-        description: productData.description || "",
-        price: parseFloat(productData.price),
-        category: productData.category || "general",
-        seller_id: sellerDbId,
-        image_url: imageUrls[0] || "/placeholder.svg?height=400&width=400",
-        image_urls: imageUrls,
-        difficulty_level: productData.difficulty || "beginner",
-        tags: productData.tags || [],
-        upload_order: uploadOrder,
-        youtube_link: productData.youtubeLink || null,
-        written_instructions: productData.writtenInstructions || null,
-        product_type: productData.productType || "plushie",
-        pdf_password: productData.pdfPassword || null,
-        pdf_file_url: productData.pdfFileUrl || null,
-      }])
+      .insert([insertRow])
       .select()
       .single()
 
     if (error) {
-      console.error("Error creating product:", error)
+      console.error("SUPABASE ERROR:", JSON.stringify(error, null, 2))
       return NextResponse.json({ error: error.message || "Failed to create product" }, { status: 500 })
     }
 
