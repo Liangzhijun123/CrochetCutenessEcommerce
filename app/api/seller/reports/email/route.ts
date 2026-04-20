@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/mock-db-adapter'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/email-service'
 
 export async function POST(request: NextRequest) {
@@ -14,59 +14,59 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const db = await getDb()
     const startDate = new Date(from)
     const endDate = new Date(to)
 
     // Get seller information
-    const sellerQuery = `
-      SELECT u.name, u.email
-      FROM users u
-      WHERE u.id = $1
-    `
+    const { data: seller, error: sellerErr } = await supabaseAdmin
+      .from('users')
+      .select('full_name, email')
+      .eq('id', sellerId)
+      .single()
 
-    const sellerResult = await db.query(sellerQuery, [sellerId])
-    
-    if (sellerResult.rows.length === 0) {
+    if (sellerErr || !seller) {
       return NextResponse.json({
         success: false,
         error: 'Seller not found'
       }, { status: 404 })
     }
 
-    const seller = sellerResult.rows[0]
-
     // Get summary data
-    const summaryQuery = `
-      SELECT 
-        COALESCE(SUM(p.amount_paid), 0) as total_revenue,
-        COUNT(p.id) as total_sales,
-        COUNT(DISTINCT p.user_id) as total_customers,
-        COALESCE(AVG(p.amount_paid), 0) as average_order_value,
-        COALESCE(SUM(p.creator_commission), 0) as total_commission
-      FROM purchases p
-      JOIN patterns pt ON p.pattern_id = pt.id
-      WHERE pt.creator_id = $1 AND p.purchased_at >= $2 AND p.purchased_at <= $3
-    `
+    const { data: purchases } = await supabaseAdmin
+      .from('purchases')
+      .select('*, patterns!inner(creator_id)')
+      .eq('patterns.creator_id', sellerId)
+      .gte('purchased_at', startDate.toISOString())
+      .lte('purchased_at', endDate.toISOString())
 
-    const summaryResult = await db.query(summaryQuery, [sellerId, startDate, endDate])
-    const summary = summaryResult.rows[0]
+    const purchaseData = purchases || []
+    const summary = {
+      total_sales: purchaseData.length,
+      total_revenue: purchaseData.reduce((sum: number, p: any) => sum + (parseFloat(p.amount_paid) || 0), 0),
+      total_commission: purchaseData.reduce((sum: number, p: any) => sum + (parseFloat(p.creator_commission) || 0), 0),
+      total_customers: new Set(purchaseData.map((p: any) => p.user_id)).size,
+      average_order_value: purchaseData.length > 0 
+        ? purchaseData.reduce((sum: number, p: any) => sum + (parseFloat(p.amount_paid) || 0), 0) / purchaseData.length 
+        : 0,
+    }
 
     // Get top patterns
-    const topPatternsQuery = `
-      SELECT 
-        pt.title,
-        COUNT(p.id) as sales,
-        COALESCE(SUM(p.amount_paid), 0) as revenue
-      FROM purchases p
-      JOIN patterns pt ON p.pattern_id = pt.id
-      WHERE pt.creator_id = $1 AND p.purchased_at >= $2 AND p.purchased_at <= $3
-      GROUP BY pt.id, pt.title
-      ORDER BY revenue DESC
-      LIMIT 5
-    `
+    const { data: topPatterns } = await supabaseAdmin
+      .from('purchases')
+      .select('pattern_id, amount_paid, patterns!inner(title, creator_id)')
+      .eq('patterns.creator_id', sellerId)
+      .gte('purchased_at', startDate.toISOString())
+      .lte('purchased_at', endDate.toISOString())
 
-    const topPatternsResult = await db.query(topPatternsQuery, [sellerId, startDate, endDate])
+    const patternMap = new Map<string, { title: string; sales: number; revenue: number }>()
+    for (const p of topPatterns || []) {
+      const pid = p.pattern_id
+      const existing = patternMap.get(pid) || { title: (p as any).patterns?.title || '', sales: 0, revenue: 0 }
+      existing.sales++
+      existing.revenue += parseFloat(p.amount_paid) || 0
+      patternMap.set(pid, existing)
+    }
+    const topPatternsList = Array.from(patternMap.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 5)
 
     // Create email content
     const emailSubject = `Sales Report - ${startDate.toDateString()} to ${endDate.toDateString()}`
@@ -78,16 +78,16 @@ export async function POST(request: NextRequest) {
       <h3>Summary</h3>
       <ul>
         <li><strong>Total Sales:</strong> ${summary.total_sales}</li>
-        <li><strong>Total Revenue:</strong> $${parseFloat(summary.total_revenue).toFixed(2)}</li>
-        <li><strong>Your Commission:</strong> $${parseFloat(summary.total_commission).toFixed(2)}</li>
+        <li><strong>Total Revenue:</strong> $${summary.total_revenue.toFixed(2)}</li>
+        <li><strong>Your Commission:</strong> $${summary.total_commission.toFixed(2)}</li>
         <li><strong>Total Customers:</strong> ${summary.total_customers}</li>
-        <li><strong>Average Order Value:</strong> $${parseFloat(summary.average_order_value).toFixed(2)}</li>
+        <li><strong>Average Order Value:</strong> $${summary.average_order_value.toFixed(2)}</li>
       </ul>
 
       <h3>Top Performing Patterns</h3>
       <ol>
-        ${topPatternsResult.rows.map(pattern => 
-          `<li>${pattern.title} - ${pattern.sales} sales, $${parseFloat(pattern.revenue).toFixed(2)} revenue</li>`
+        ${topPatternsList.map(pattern => 
+          `<li>${pattern.title} - ${pattern.sales} sales, $${pattern.revenue.toFixed(2)} revenue</li>`
         ).join('')}
       </ol>
 

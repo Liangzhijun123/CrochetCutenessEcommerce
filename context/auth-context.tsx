@@ -25,8 +25,14 @@ interface LegacyUser {
     approved: boolean;
     bio: string;
     storeName: string;
+    onboardingCompleted?: boolean;
+    credentialsGenerated?: boolean;
+    sellerUsername?: string;
   };
   sellerApplication?: unknown;
+  patternTestingApproved?: boolean;
+  testerLevel?: number;
+  testerXP?: number;
 }
 
 export interface UserProfile {
@@ -38,6 +44,12 @@ export interface UserProfile {
   is_seller: boolean;
   seller_id?: string;
   seller_application_status?: 'none' | 'submitted' | 'approved' | 'rejected';
+  seller_onboarding_completed?: boolean;
+  seller_username?: string;
+  seller_generated_password?: string;
+  pattern_testing_approved?: boolean;
+  tester_level?: number;
+  tester_xp?: number;
 }
 
 interface AuthContextType {
@@ -50,7 +62,7 @@ interface AuthContextType {
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateUser: (updates: Partial<LegacyUser>) => Promise<boolean>;
-  refreshUser: () => Promise<boolean>;
+  refreshUser: (userId?: string) => Promise<boolean>;
   // Supabase-native fields (login/register pages)
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string, role?: 'customer' | 'seller') => Promise<void>;
@@ -130,8 +142,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginStreak: 0,
         isActive: true,
         sellerProfile: userProfile.is_seller
-          ? { approved: true, bio: '', storeName: userProfile.seller_id || '' }
+          ? {
+              approved: true,
+              bio: '',
+              storeName: userProfile.seller_id || '',
+              onboardingCompleted: userProfile.seller_onboarding_completed || false,
+              credentialsGenerated: !!userProfile.seller_generated_password,
+              sellerUsername: userProfile.seller_username || '',
+            }
           : undefined,
+        patternTestingApproved: userProfile.pattern_testing_approved || false,
+        testerLevel: userProfile.tester_level || 0,
+        testerXP: userProfile.tester_xp || 0,
       }
     : null;
 
@@ -331,7 +353,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateUser = async (): Promise<boolean> => false;
-  const refreshUser = async (): Promise<boolean> => false;
+  const refreshUser = async (userId?: string): Promise<boolean> => {
+    try {
+      const id = userId || supabaseUser?.id;
+      if (id) {
+        await fetchUserProfile(id);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
 
   const value: AuthContextType = {
     user,

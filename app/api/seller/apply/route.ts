@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
         experience,
         reason,
         introduction,
+        application_details: introduction,
         status: "pending",
       })
       .select()

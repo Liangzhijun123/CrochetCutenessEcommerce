@@ -6,7 +6,7 @@ export async function GET() {
     // Fetch all users
     const { data: users, error: usersErr } = await supabaseAdmin
       .from("users")
-      .select("id, email, full_name, avatar_url, role, is_seller, created_at")
+      .select("id, email, full_name, avatar_url, role, is_seller, pattern_testing_approved, tester_level, created_at")
       .order("created_at", { ascending: false })
 
     if (usersErr) throw usersErr
@@ -70,6 +70,31 @@ export async function GET() {
       // no apps
     }
 
+    // Approved pattern testers (from users table - source of truth)
+    const approvedTesters = allUsers
+      .filter((u: any) => u.pattern_testing_approved === true)
+      .map((u: any) => ({
+        id: u.id,
+        full_name: u.full_name || null,
+        email: u.email || "",
+        approved_at: u.created_at,
+      }))
+
+    // Approved sellers
+    let approvedSellers: { id: string; full_name: string | null; email: string; created_at: string | null }[] = []
+    try {
+      const { data } = await supabaseAdmin
+        .from("users")
+        .select("id, full_name, email, created_at")
+        .eq("is_seller", true)
+        .order("created_at", { ascending: false })
+      if (data) {
+        approvedSellers = data
+      }
+    } catch {
+      // no data
+    }
+
     return NextResponse.json({
       totalUsers: allUsers.length,
       totalSellers,
@@ -78,6 +103,8 @@ export async function GET() {
       leaderboardUsers,
       pendingSellerApps,
       pendingPTApps,
+      approvedTesters,
+      approvedSellers,
       recentUsers: allUsers.slice(0, 5),
       allUsers,
     })

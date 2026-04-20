@@ -24,6 +24,12 @@ export default function SellerOnboardingPage() {
         return
       }
 
+      // If admin hasn't generated credentials yet, redirect to seller dashboard (shows waiting state)
+      if (!user?.sellerProfile?.credentialsGenerated) {
+        router.push("/seller-dashboard")
+        return
+      }
+
       // If user already completed onboarding, redirect to seller dashboard
       if (user?.sellerProfile?.onboardingCompleted) {
         router.push("/seller-dashboard")

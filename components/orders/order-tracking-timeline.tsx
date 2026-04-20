@@ -1,5 +1,6 @@
 import { Clock, Package, Truck, Home, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useEffect, useState } from "react"
 
 interface OrderTrackingTimelineProps {
   order: {
@@ -68,15 +69,6 @@ export default function OrderTrackingTimeline({ order }: OrderTrackingTimelinePr
           <div>
             <h3 className="font-medium text-red-800">Order Cancelled</h3>
             <OrderCancelledDate cancelledAt={order.cancelledAt} />
-          // Avoid hydration mismatch for cancelled date
-          import { useEffect, useState } from "react"
-          function OrderCancelledDate({ cancelledAt }: { cancelledAt?: string }) {
-            const [date, setDate] = useState("")
-            useEffect(() => {
-              if (cancelledAt) setDate(new Date(cancelledAt).toLocaleDateString())
-            }, [cancelledAt])
-            return <p className="text-sm text-red-700">This order was cancelled on {date || "..."}</p>
-          }
           </div>
         </div>
       </div>
@@ -141,13 +133,6 @@ export default function OrderTrackingTimeline({ order }: OrderTrackingTimelinePr
                         Est. <TimelineDate date={order.estimatedDelivery} />
                       </span>
                     ) : null}
-                  function TimelineDate({ date }: { date: string }) {
-                    const [dateStr, setDateStr] = useState("")
-                    useEffect(() => {
-                      setDateStr(new Date(date).toLocaleDateString())
-                    }, [date])
-                    return <time dateTime={date}>{dateStr || "..."}</time>
-                  }
                   </div>
                 </div>
               </div>
@@ -157,4 +142,20 @@ export default function OrderTrackingTimeline({ order }: OrderTrackingTimelinePr
       </ul>
     </div>
   )
+}
+
+function OrderCancelledDate({ cancelledAt }: { cancelledAt?: string }) {
+  const [date, setDate] = useState("")
+  useEffect(() => {
+    if (cancelledAt) setDate(new Date(cancelledAt).toLocaleDateString())
+  }, [cancelledAt])
+  return <p className="text-sm text-red-700">This order was cancelled on {date || "..."}</p>
+}
+
+function TimelineDate({ date }: { date: string }) {
+  const [dateStr, setDateStr] = useState("")
+  useEffect(() => {
+    setDateStr(new Date(date).toLocaleDateString())
+  }, [date])
+  return <time dateTime={date}>{dateStr || "..."}</time>
 }

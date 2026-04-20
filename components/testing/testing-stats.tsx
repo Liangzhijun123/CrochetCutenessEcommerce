@@ -1,5 +1,9 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
 import { Sparkles, Award, BarChart3, Clock } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import { useAuth } from "@/context/auth-context"
 
 interface TestingStatsProps {
   level: number
@@ -8,7 +12,30 @@ interface TestingStatsProps {
 }
 
 export default function TestingStats({ level, xp, nextLevelXP }: TestingStatsProps) {
+  const { user } = useAuth()
   const progress = (xp / nextLevelXP) * 100
+  const [completedCount, setCompletedCount] = useState(0)
+  const [inProgressCount, setInProgressCount] = useState(0)
+
+  const fetchStats = useCallback(async () => {
+    if (!user?.id) return
+    try {
+      const [completedRes, approvedRes] = await Promise.all([
+        fetch(`/api/pattern-testing/test-listings/signup?userId=${user.id}&status=completed`),
+        fetch(`/api/pattern-testing/test-listings/signup?userId=${user.id}&status=approved`),
+      ])
+      const completedData = await completedRes.json()
+      const approvedData = await approvedRes.json()
+      if (completedData.success) setCompletedCount(completedData.signups.length)
+      if (approvedData.success) setInProgressCount(approvedData.signups.length)
+    } catch {
+      // silent
+    }
+  }, [user?.id])
+
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -37,11 +64,13 @@ export default function TestingStats({ level, xp, nextLevelXP }: TestingStatsPro
         <div className="flex justify-between items-start mb-2">
           <div>
             <h3 className="text-rose-800 text-sm font-medium">Patterns Tested</h3>
-            <p className="text-3xl font-bold text-rose-900">27</p>
+            <p className="text-3xl font-bold text-rose-900">{completedCount}</p>
           </div>
           <Award className="h-6 w-6 text-rose-500" />
         </div>
-        <p className="text-rose-700 text-sm mt-2">You've completed 27 pattern tests</p>
+        <p className="text-rose-700 text-sm mt-2">
+          {completedCount === 0 ? "No patterns tested yet" : `You've completed ${completedCount} pattern test${completedCount !== 1 ? "s" : ""}`}
+        </p>
         <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-rose-200 rounded-full opacity-20"></div>
       </div>
 
@@ -49,11 +78,11 @@ export default function TestingStats({ level, xp, nextLevelXP }: TestingStatsPro
         <div className="flex justify-between items-start mb-2">
           <div>
             <h3 className="text-blue-800 text-sm font-medium">Average Rating</h3>
-            <p className="text-3xl font-bold text-blue-900">4.8/5</p>
+            <p className="text-3xl font-bold text-blue-900">-</p>
           </div>
           <BarChart3 className="h-6 w-6 text-blue-500" />
         </div>
-        <p className="text-blue-700 text-sm mt-2">From 36 designer ratings</p>
+        <p className="text-blue-700 text-sm mt-2">Ratings coming soon</p>
         <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-blue-200 rounded-full opacity-20"></div>
       </div>
 
@@ -61,11 +90,13 @@ export default function TestingStats({ level, xp, nextLevelXP }: TestingStatsPro
         <div className="flex justify-between items-start mb-2">
           <div>
             <h3 className="text-emerald-800 text-sm font-medium">In Progress</h3>
-            <p className="text-3xl font-bold text-emerald-900">3</p>
+            <p className="text-3xl font-bold text-emerald-900">{inProgressCount}</p>
           </div>
           <Clock className="h-6 w-6 text-emerald-500" />
         </div>
-        <p className="text-emerald-700 text-sm mt-2">Patterns in your testing queue</p>
+        <p className="text-emerald-700 text-sm mt-2">
+          {inProgressCount === 0 ? "No patterns in queue" : `Pattern${inProgressCount !== 1 ? "s" : ""} in your testing queue`}
+        </p>
         <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-emerald-200 rounded-full opacity-20"></div>
       </div>
     </div>

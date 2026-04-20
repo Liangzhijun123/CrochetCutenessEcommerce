@@ -10,8 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { RefreshCw, CheckCircle, XCircle, Clock, Home, Eye, Users, ShoppingBag, TestTube, Store } from "lucide-react"
+import { RefreshCw, CheckCircle, XCircle, Clock, Home, Eye, Users, ShoppingBag, TestTube, Store, Copy, Key } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import GamificationManagement from "@/components/admin/gamification-management"
 import AdminDashboardOverview from "@/components/admin/admin-dashboard-overview"
 import ContentModeration from "@/components/admin/content-moderation"
@@ -34,7 +35,7 @@ type SellerAppRow = {
   admin_feedback: string | null
   reviewed_at: string | null
   created_at: string
-  users?: { full_name: string | null; email: string }
+  users?: { full_name: string | null; email: string; seller_username: string | null; seller_generated_password: string | null }
 }
 
 type PatternTestingAppRow = {
@@ -83,6 +84,12 @@ export default function AdminDashboardPage() {
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [rejectFeedback, setRejectFeedback] = useState<Record<string, string>>({})
+  const [generatedCredentials, setGeneratedCredentials] = useState<{
+    username: string
+    password: string
+    sellerName: string
+    email: string
+  } | null>(null)
 
   // ── Data fetchers ──────────────────────────────────────────
   const fetchSellerApps = useCallback(async () => {
@@ -149,11 +156,17 @@ export default function AdminDashboardPage() {
       })
       if (!res.ok) throw new Error("Failed to approve")
       const data = await res.json()
+      if (data.generatedUsername && data.generatedPassword) {
+        setGeneratedCredentials({
+          username: data.generatedUsername,
+          password: data.generatedPassword,
+          sellerName: data.application?.users?.full_name || data.application?.users?.email || "Seller",
+          email: data.application?.users?.email || "",
+        })
+      }
       toast({
         title: "Seller Application Approved",
-        description: data.generatedPassword
-          ? `Seller credentials generated. Password: ${data.generatedPassword}`
-          : "Seller application has been approved.",
+        description: "Seller credentials have been generated. Please share them with the seller.",
       })
       fetchSellerApps()
     } catch {
@@ -206,6 +219,34 @@ export default function AdminDashboardPage() {
       fetchPTApps()
     } catch {
       toast({ title: "Error", description: "Failed to reject.", variant: "destructive" })
+    }
+  }
+
+  // ── Generate credentials for approved seller ───────────────
+  const handleGenerateCredentials = async (applicationId: string) => {
+    try {
+      const res = await fetch("/api/seller/application/review", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ application_id: applicationId, action: "generate_credentials" }),
+      })
+      if (!res.ok) throw new Error("Failed to generate credentials")
+      const data = await res.json()
+      if (data.generatedUsername && data.generatedPassword) {
+        setGeneratedCredentials({
+          username: data.generatedUsername,
+          password: data.generatedPassword,
+          sellerName: data.application?.users?.full_name || data.application?.users?.email || "Seller",
+          email: data.application?.users?.email || "",
+        })
+      }
+      toast({
+        title: "Credentials Generated",
+        description: "Seller credentials have been generated. Please share them with the seller.",
+      })
+      fetchSellerApps()
+    } catch {
+      toast({ title: "Error", description: "Failed to generate credentials.", variant: "destructive" })
     }
   }
 
@@ -437,6 +478,35 @@ export default function AdminDashboardPage() {
                       <p><strong>Reason:</strong> {app.reason}</p>
                       <p><strong>Applied:</strong> {app.created_at?.replace("T", " ").slice(0, 19)}</p>
                       {app.admin_feedback && <p><strong>Admin Feedback:</strong> {app.admin_feedback}</p>}
+                      {app.status === "approved" && (
+                        <div className="pt-2 border-t mt-2">
+                          {app.users?.seller_username ? (
+                            <div className="space-y-1">
+                              <p className="text-green-700 dark:text-green-400 font-medium flex items-center gap-1">
+                                <Key className="h-3 w-3" /> Credentials generated
+                              </p>
+                              <p><strong>Username:</strong> <span className="font-mono">{app.users.seller_username}</span></p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-1"
+                                onClick={() => handleGenerateCredentials(app.id)}
+                              >
+                                <RefreshCw className="h-3 w-3 mr-1" />
+                                Regenerate Credentials
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => handleGenerateCredentials(app.id)}
+                            >
+                              <Key className="h-4 w-4 mr-1" />
+                              Generate Credentials
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -524,6 +594,72 @@ export default function AdminDashboardPage() {
           <SystemConfiguration />
         </TabsContent>
       </Tabs>
+
+      {/* Seller Credentials Dialog */}
+      <Dialog open={!!generatedCredentials} onOpenChange={(open) => !open && setGeneratedCredentials(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Seller Credentials Generated
+            </DialogTitle>
+            <DialogDescription>
+              Share these credentials with <strong>{generatedCredentials?.sellerName}</strong> ({generatedCredentials?.email}).
+              They will need these to access the seller dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Username</label>
+              <div className="flex items-center gap-2">
+                <Input readOnly value={generatedCredentials?.username || ""} className="font-mono" />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedCredentials?.username || "")
+                    toast({ title: "Copied", description: "Username copied to clipboard" })
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Password</label>
+              <div className="flex items-center gap-2">
+                <Input readOnly value={generatedCredentials?.password || ""} className="font-mono" />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedCredentials?.password || "")
+                    toast({ title: "Copied", description: "Password copied to clipboard" })
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="rounded-md bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 p-3">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                <strong>Important:</strong> Save these credentials now. The password cannot be retrieved after closing this dialog.
+              </p>
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => {
+                const text = `Seller Credentials\nUsername: ${generatedCredentials?.username}\nPassword: ${generatedCredentials?.password}`
+                navigator.clipboard.writeText(text)
+                toast({ title: "Copied", description: "All credentials copied to clipboard" })
+              }}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy All Credentials
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

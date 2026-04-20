@@ -61,50 +61,6 @@ type Order = {
   trackingNumber?: string
 }
 
-// Mock data generator
-const generateMockOrders = (count: number): Order[] => {
-  return Array.from({ length: count }, (_, i) => {
-    // Use deterministic mock data to avoid hydration mismatch
-    const statuses: OrderStatus[] = ["pending", "processing", "shipped", "delivered", "cancelled"]
-    const status = i < 5 ? statuses[0] : statuses[(i % statuses.length)]
-    return {
-      id: `ORD-${1000 + i}`,
-      createdAt: new Date(Date.now() - (i + 1) * 24 * 60 * 60 * 1000).toISOString(),
-      updatedAt: new Date(Date.now() - (i + 1) * 12 * 60 * 60 * 1000).toISOString(),
-      status,
-      total: 100 + i,
-      items: [
-        {
-          productId: `PROD-${1000 + i}`,
-          name: [
-            "Cute Bunny Amigurumi",
-            "Cozy Baby Blanket",
-            "Crochet Plant Hanger",
-            "Crochet Hat",
-            "Crochet Scarf",
-          ][i % 5],
-          price: 20 + i,
-          quantity: 1 + (i % 3),
-        },
-      ],
-      customer: {
-        name: ["John Doe", "Jane Smith", "Alice Johnson", "Bob Brown", "Carol White"][i % 5],
-        email: [
-          "john@example.com",
-          "jane@example.com",
-          "alice@example.com",
-          "bob@example.com",
-          "carol@example.com",
-        ][i % 5],
-      },
-      trackingNumber:
-        status === "shipped" || status === "delivered"
-          ? `TRK${1000000 + i}`
-          : undefined,
-    }
-  })
-}
-
 export default function OrdersDashboard() {
   const { toast } = useToast()
   const [orders, setOrders] = useState<Order[]>([])
@@ -132,54 +88,37 @@ export default function OrdersDashboard() {
   const fetchOrders = async () => {
     setLoading(true)
     try {
-      // In a real app, this would be a fetch to your API
-      // For demo purposes, we'll create some mock data
-      const mockOrders: Order[] = Array.from({ length: 20 }, (_, i) => {
-        const statuses = ["pending", "processing", "shipped", "delivered", "cancelled"]
-        const randomStatus = statuses[Math.floor(Math.random() * (i < 5 ? 2 : statuses.length))]
-
-        return {
-          id: `ORD-${1000 + i}`,
-          createdAt: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - Math.floor(Math.random() * 15) * 24 * 60 * 60 * 1000).toISOString(),
-          status: randomStatus,
-          total: Math.floor(Math.random() * 20000) / 100 + 20,
-          items: [
-            {
-              productId: `PROD-${1000 + i}`,
-              name: [
-                "Cute Bunny Amigurumi",
-                "Cozy Baby Blanket",
-                "Crochet Plant Hanger",
-                "Crochet Hat",
-                "Crochet Scarf",
-              ][Math.floor(Math.random() * 5)],
-              price: Math.floor(Math.random() * 3000) / 100 + 10,
-              quantity: Math.floor(Math.random() * 3) + 1,
+      const res = await fetch("/api/seller/orders")
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && Array.isArray(data.orders)) {
+          setOrders(data.orders.map((o: any) => ({
+            id: o.id,
+            createdAt: o.created_at || o.createdAt,
+            updatedAt: o.updated_at || o.updatedAt || o.created_at || o.createdAt,
+            status: o.status || "pending",
+            total: parseFloat(o.total) || 0,
+            items: Array.isArray(o.items) ? o.items.map((item: any) => ({
+              productId: item.product_id || item.id || "",
+              name: item.name || item.title || "Unknown",
+              price: parseFloat(item.price) || 0,
+              quantity: item.quantity || 1,
+            })) : [],
+            customer: {
+              name: o.customerName || o.customer?.name || "Customer",
+              email: o.customerEmail || o.customer?.email || "",
             },
-          ],
-          customer: {
-            name: ["John Doe", "Jane Smith", "Alice Johnson", "Bob Brown", "Carol White"][
-              Math.floor(Math.random() * 5)
-            ],
-            email: [
-              "john@example.com",
-              "jane@example.com",
-              "alice@example.com",
-              "bob@example.com",
-              "carol@example.com",
-            ][Math.floor(Math.random() * 5)],
-          },
-          trackingNumber:
-            randomStatus === "shipped" || randomStatus === "delivered"
-              ? `TRK${Math.floor(Math.random() * 1000000)}`
-              : undefined,
+            trackingNumber: o.tracking_number || o.trackingNumber,
+          })))
+        } else {
+          setOrders([])
         }
-      })
-
-      setOrders(mockOrders)
+      } else {
+        setOrders([])
+      }
     } catch (error) {
       console.error("Error fetching orders:", error)
+      setOrders([])
     } finally {
       setLoading(false)
     }
@@ -191,22 +130,20 @@ export default function OrdersDashboard() {
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {
-      // In a real app, this would update the order status via API
-      setOrders(
-        orders.map((order) =>
-          order.id === orderId
-            ? {
-                ...order,
-                status: newStatus,
-                updatedAt: new Date().toISOString(),
-                  trackingNumber:
-                    newStatus === "shipped" && !order.trackingNumber
-                      ? `TRK${1000000 + Math.floor(Math.random() * 1000)}`
-                      : order.trackingNumber,
-              }
-            : order,
-        ),
-      )
+      const res = await fetch(`/api/seller/orders/${orderId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (res.ok) {
+        setOrders(
+          orders.map((order) =>
+            order.id === orderId
+              ? { ...order, status: newStatus as OrderStatus, updatedAt: new Date().toISOString() }
+              : order,
+          ),
+        )
+      }
     } catch (error) {
       console.error("Error updating order status:", error)
     }
@@ -216,24 +153,20 @@ export default function OrdersDashboard() {
     if (selectedOrders.length === 0) return
 
     try {
-      // In a real app, this would update multiple orders via API
-      setOrders(
-        orders.map((order) =>
-          selectedOrders.includes(order.id)
-            ? {
-                ...order,
-                status: newStatus,
-                updatedAt: new Date().toISOString(),
-                  trackingNumber:
-                    newStatus === "shipped" && !order.trackingNumber
-                      ? `TRK${1000000 + Math.floor(Math.random() * 1000)}`
-                      : order.trackingNumber,
-              }
-            : order,
-        ),
-      )
-
-      // Clear selection after bulk update
+      const res = await fetch("/api/seller/orders/bulk-status", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderIds: selectedOrders, status: newStatus }),
+      })
+      if (res.ok) {
+        setOrders(
+          orders.map((order) =>
+            selectedOrders.includes(order.id)
+              ? { ...order, status: newStatus as OrderStatus, updatedAt: new Date().toISOString() }
+              : order,
+          ),
+        )
+      }
       setSelectedOrders([])
     } catch (error) {
       console.error("Error updating order statuses:", error)

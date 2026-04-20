@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/mock-db-adapter'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,9 +14,6 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const db = await getDb()
-
-    // Calculate date range based on period
     const now = new Date()
     let startDate: Date
     
@@ -37,29 +34,28 @@ export async function GET(request: NextRequest) {
         startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
     }
 
-    // Get detailed analytics data for export
-    const analyticsQuery = `
-      SELECT 
-        DATE(p.purchased_at) as date,
-        pt.title as pattern_title,
-        pt.category,
-        pt.difficulty_level as difficulty,
-        pt.price,
-        p.amount_paid as sale_amount,
-        p.creator_commission as commission,
-        p.platform_fee,
-        u.name as customer_name,
-        u.email as customer_email,
-        p.payment_method,
-        p.transaction_id
-      FROM purchases p
-      JOIN patterns pt ON p.pattern_id = pt.id
-      JOIN users u ON p.user_id = u.id
-      WHERE pt.creator_id = $1 AND p.purchased_at >= $2
-      ORDER BY p.purchased_at DESC
-    `
+    // Get purchases with pattern and user data
+    const { data: purchases } = await supabaseAdmin
+      .from('purchases')
+      .select('*, patterns!inner(title, category, difficulty_level, price, creator_id), users!purchases_user_id_fkey(full_name, email)')
+      .eq('patterns.creator_id', sellerId)
+      .gte('purchased_at', startDate.toISOString())
+      .order('purchased_at', { ascending: false })
 
-    const analyticsResult = await db.query(analyticsQuery, [sellerId, startDate])
+    const analyticsRows = (purchases || []).map((p: any) => ({
+      date: p.purchased_at,
+      pattern_title: p.patterns?.title || '',
+      category: p.patterns?.category || '',
+      difficulty: p.patterns?.difficulty_level || '',
+      price: p.patterns?.price || 0,
+      sale_amount: p.amount_paid || 0,
+      commission: p.creator_commission || 0,
+      platform_fee: p.platform_fee || 0,
+      customer_name: p.users?.full_name || '',
+      customer_email: p.users?.email || '',
+      payment_method: p.payment_method || '',
+      transaction_id: p.transaction_id || '',
+    }))
 
     // Create CSV content
     const headers = [
@@ -79,7 +75,7 @@ export async function GET(request: NextRequest) {
 
     const csvRows = [
       headers.join(','),
-      ...analyticsResult.rows.map(row => [
+      ...analyticsRows.map(row => [
         new Date(row.date).toISOString().split('T')[0],
         `"${row.pattern_title}"`,
         row.category,

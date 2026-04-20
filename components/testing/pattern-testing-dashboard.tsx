@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import TestingStats from "@/components/testing/testing-stats"
 import AvailablePatterns from "@/components/testing/available-patterns"
@@ -9,7 +9,7 @@ import CompletedTests from "@/components/testing/completed-tests"
 import TesterLeaderboard from "@/components/testing/tester-leaderboard"
 import TesterProfile from "@/components/testing/tester-profile"
 import TestingGuidelines from "@/components/testing/testing-guidelines"
-import PatternTestingApplication from "@/components/testing/pattern-testing-application"
+import PatternTestingApplicationForm from "@/components/pattern-testing-application-form"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
 
@@ -24,6 +24,10 @@ export default function PatternTestingDashboard() {
   const [loading, setLoading] = useState(false)
   const [applicationStatus, setApplicationStatus] = useState<string | null>(null)
   const [application, setApplication] = useState<any | null>(null)
+
+  // Use ref to avoid infinite loop: refreshUser identity changes on every auth context render
+  const refreshUserRef = useRef(refreshUser)
+  useEffect(() => { refreshUserRef.current = refreshUser })
 
   const fetchMyApplication = useCallback(
     async (userId: string) => {
@@ -42,7 +46,7 @@ export default function PatternTestingDashboard() {
         // If approved, refresh the user's authoritative record so client state updates
         if (app && app.status === "approved") {
           try {
-            await refreshUser(userId)
+            await refreshUserRef.current(userId)
           } catch (e) {
             console.warn("Failed to refresh user after approval:", e)
           }
@@ -55,29 +59,28 @@ export default function PatternTestingDashboard() {
         setLoading(false)
       }
     },
-    [refreshUser],
+    [],
   )
 
-  // Simulating fetching tester data (keeps prior behavior)
+  // Update tester stats when user profile data changes
   useEffect(() => {
     if (user) {
-      // Use deterministic values for SSR safety
-      const mockLevel = user?.testerLevel ?? 1
-      const mockXP = user?.testerXP ?? 100
-      const mockNextLevelXP = mockLevel * 100
+      setTesterLevel(user.testerLevel ?? 1)
+      setTesterXP(user.testerXP ?? 100)
+      setNextLevelXP((user.testerLevel ?? 1) * 100)
+    }
+  }, [user?.testerLevel, user?.testerXP])
 
-      setTesterLevel(mockLevel)
-      setTesterXP(mockXP)
-      setNextLevelXP(mockNextLevelXP)
-
-      // Fetch the user's pattern-testing application status
+  // Fetch application status once when user id is available
+  useEffect(() => {
+    if (user?.id) {
       fetchMyApplication(user.id)
     }
-  }, [user, fetchMyApplication])
+  }, [user?.id, fetchMyApplication])
 
   // Poll while application is pending so user sees approval without refreshing
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
     if (applicationStatus !== "pending") return
 
     const interval = setInterval(() => {
@@ -85,7 +88,7 @@ export default function PatternTestingDashboard() {
     }, 8000)
 
     return () => clearInterval(interval)
-  }, [user, applicationStatus, fetchMyApplication])
+  }, [user?.id, applicationStatus, fetchMyApplication])
 
   // Show application form for non-users or when explicitly requested
   if (!user || showApplication) {
@@ -110,7 +113,7 @@ export default function PatternTestingDashboard() {
           </div>
         )}
 
-        <PatternTestingApplication />
+        <PatternTestingApplicationForm />
       </div>
     )
   }
@@ -172,7 +175,7 @@ export default function PatternTestingDashboard() {
           <h3 className="text-lg font-semibold text-rose-800 mb-2">Join Our Pattern Testing Community</h3>
           <p className="text-rose-700 mb-3">Fill out the application below to become a pattern tester.</p>
         </div>
-        <PatternTestingApplication />
+        <PatternTestingApplicationForm />
       </div>
     )
   }

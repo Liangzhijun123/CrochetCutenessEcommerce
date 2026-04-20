@@ -29,7 +29,17 @@ interface UserRow {
   avatar_url: string | null
   role: string
   is_seller: boolean
+  pattern_testing_approved: boolean
+  tester_level: number
   created_at: string
+}
+
+interface ApprovedUser {
+  id: string
+  full_name: string | null
+  email: string
+  approved_at?: string | null
+  created_at?: string | null
 }
 
 interface DashboardStats {
@@ -40,6 +50,8 @@ interface DashboardStats {
   leaderboardUsers: number
   pendingSellerApps: number
   pendingPTApps: number
+  approvedTesters: ApprovedUser[]
+  approvedSellers: ApprovedUser[]
   recentUsers: UserRow[]
   allUsers: UserRow[]
 }
@@ -219,6 +231,91 @@ export default function AdminDashboardOverview() {
         </Card>
       </div>
 
+      {/* Approved Testers & Sellers */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Approved Pattern Testers ({stats.approvedTesters?.length || 0})</CardTitle>
+                <CardDescription>Users approved to test patterns</CardDescription>
+              </div>
+              <CheckCircle className="h-5 w-5 text-green-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {(!stats.approvedTesters || stats.approvedTesters.length === 0) ? (
+              <p className="text-center text-muted-foreground py-4 text-sm">No approved testers yet</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {stats.approvedTesters.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between p-2 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-green-300 to-teal-400 flex items-center justify-center text-white font-bold text-xs">
+                        {(t.full_name || t.email).charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{t.full_name || "No name"}</p>
+                        <p className="text-xs text-muted-foreground">{t.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Badge className="bg-green-100 text-green-800">Approved</Badge>
+                      {t.approved_at && (
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(t.approved_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Approved Sellers ({stats.approvedSellers?.length || 0})</CardTitle>
+                <CardDescription>Users approved to sell on the platform</CardDescription>
+              </div>
+              <Store className="h-5 w-5 text-green-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {(!stats.approvedSellers || stats.approvedSellers.length === 0) ? (
+              <p className="text-center text-muted-foreground py-4 text-sm">No approved sellers yet</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {stats.approvedSellers.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between p-2 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-300 to-purple-400 flex items-center justify-center text-white font-bold text-xs">
+                        {(s.full_name || s.email).charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{s.full_name || "No name"}</p>
+                        <p className="text-xs text-muted-foreground">{s.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Badge className="bg-green-100 text-green-800">Seller</Badge>
+                      {s.created_at && (
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(s.created_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* All Registered Users */}
       <Card>
         <CardHeader>
@@ -249,7 +346,7 @@ export default function AdminDashboardOverview() {
                       <p className="text-xs text-muted-foreground">{u.email}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Badge
                       className={
                         u.role === "admin"
@@ -261,6 +358,12 @@ export default function AdminDashboardOverview() {
                     >
                       {u.role}
                     </Badge>
+                    {u.pattern_testing_approved && (
+                      <Badge className="bg-teal-100 text-teal-800">Pattern Tester</Badge>
+                    )}
+                    {u.is_seller && (
+                      <Badge className="bg-purple-100 text-purple-800">Seller</Badge>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       {u.created_at ? new Date(u.created_at).toLocaleDateString() : "N/A"}
                     </span>

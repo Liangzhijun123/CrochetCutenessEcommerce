@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,10 +17,42 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Star, CheckCircle, XCircle, MessageSquare, Plus, Send } from "lucide-react"
+import { Star, CheckCircle, XCircle, MessageSquare, Plus, Send, Loader2, Package } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useAuth } from "@/context/auth-context"
+
+interface Applicant {
+  id: string
+  userId: string
+  userName: string
+  userEmail: string
+  userAvatar: string | null
+  message: string | null
+  status: string
+  progress: number
+  feedback: string | null
+  rating: number | null
+  approvedAt: string | null
+  completedAt: string | null
+  createdAt: string
+}
+
+interface TestListing {
+  id: string
+  title: string
+  description: string
+  difficulty: string
+  maxTesters: number
+  deadline: string | null
+  requirements: string | null
+  imageUrl: string | null
+  patternFileUrl: string | null
+  status: string
+  createdAt: string
+  applicants: Applicant[]
+}
 
 // Helper component for displaying dates
 function PatternAppDate({ date }: { date: string }) {
@@ -31,74 +63,16 @@ function PatternAppDate({ date }: { date: string }) {
   return <span>Applied on {dateStr || "..."}</span>
 }
 
-// Mock data for pattern testing
-const mockPatterns = [
-  {
-    id: "1",
-    title: "Cute Bunny Amigurumi",
-    status: "testing",
-    applicants: 12,
-    selectedTesters: 3,
-    maxTesters: 5,
-    deadline: "2024-02-15",
-    applications: [
-      {
-        id: "app1",
-        userId: "user1",
-        userName: "Sarah Johnson",
-        userAvatar: "/placeholder.svg?height=40&width=40",
-        userLevel: 5,
-        experience: "I've been crocheting for 8 years and have tested over 20 patterns. I specialize in amigurumi.",
-        status: "pending",
-        appliedAt: "2024-01-20",
-      },
-      {
-        id: "app2",
-        userId: "user2",
-        userName: "Emily Chen",
-        userAvatar: "/placeholder.svg?height=40&width=40",
-        userLevel: 3,
-        experience: "Love making amigurumi! I have experience with similar bunny patterns.",
-        status: "approved",
-        appliedAt: "2024-01-18",
-        progress: 75,
-      },
-    ],
-  },
-  {
-    id: "2",
-    title: "Baby Blanket Pattern",
-    status: "completed",
-    applicants: 8,
-    selectedTesters: 4,
-    maxTesters: 4,
-    deadline: "2024-01-30",
-    applications: [
-      {
-        id: "app3",
-        userId: "user3",
-        userName: "Maria Rodriguez",
-        userAvatar: "/placeholder.svg?height=40&width=40",
-        userLevel: 7,
-        experience: "Experienced with baby items and blanket patterns.",
-        status: "completed",
-        appliedAt: "2024-01-10",
-        progress: 100,
-        feedback: "Great pattern! Very clear instructions. The finished blanket is beautiful.",
-        rating: 5,
-      },
-    ],
-  },
-]
-
 export default function PatternTestingManagement() {
-  const [selectedPattern, setSelectedPattern] = useState(mockPatterns[0])
+  const { user } = useAuth()
+  const [listings, setListings] = useState<TestListing[]>([])
+  const [selectedListing, setSelectedListing] = useState<TestListing | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [feedbackText, setFeedbackText] = useState("")
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
   const { toast } = useToast()
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [isChatModalOpen, setIsChatModalOpen] = useState(false)
-  const [selectedTesterForChat, setSelectedTesterForChat] = useState<any>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [newPatternData, setNewPatternData] = useState({
     title: "",
@@ -109,50 +83,102 @@ export default function PatternTestingManagement() {
     requirements: "",
   })
 
-  const handleApproveApplication = (applicationId: string) => {
-    toast({
-      title: "Application Approved",
-      description: "The tester has been approved and notified.",
-    })
-  }
+  const fetchListings = useCallback(async () => {
+    if (!user?.id) return
+    try {
+      setIsLoading(true)
+      const res = await fetch(`/api/pattern-testing/test-listings/seller?sellerId=${user.id}`)
+      const data = await res.json()
+      if (data.success) {
+        setListings(data.listings)
+        if (data.listings.length > 0 && !selectedListing) {
+          setSelectedListing(data.listings[0])
+        } else if (selectedListing) {
+          // Refresh the selected listing data
+          const updated = data.listings.find((l: TestListing) => l.id === selectedListing.id)
+          if (updated) setSelectedListing(updated)
+        }
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to fetch your test listings", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [user?.id])
 
-  const handleRejectApplication = (applicationId: string) => {
-    toast({
-      title: "Application Rejected",
-      description: "The tester has been notified of the rejection.",
-    })
-  }
+  useEffect(() => {
+    fetchListings()
+  }, [fetchListings])
 
-  const handleSubmitFeedback = async (applicationId: string) => {
-    setIsSubmittingFeedback(true)
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmittingFeedback(false)
-      setFeedbackText("")
-      toast({
-        title: "Feedback Sent",
-        description: "Your feedback has been sent to the tester.",
+  const handleApproveApplication = async (signupId: string) => {
+    try {
+      const res = await fetch("/api/pattern-testing/test-listings/manage", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signupId, sellerId: user?.id, action: "approve" }),
       })
-    }, 1000)
+      const data = await res.json()
+      if (data.success) {
+        toast({ title: "Application Approved", description: "The tester has been approved." })
+        fetchListings()
+      } else {
+        toast({ title: "Error", description: data.error, variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to approve application", variant: "destructive" })
+    }
   }
 
-  const handleAddPattern = () => {
-    // Simulate API call to add pattern for testing
-    toast({
-      title: "Pattern Added for Testing",
-      description: "Your pattern has been submitted for community testing.",
-    })
-    // Reset form data
-    setNewPatternData({
-      title: "",
-      description: "",
-      difficulty: "",
-      maxTesters: "",
-      deadline: "",
-      requirements: "",
-    })
-    // Close modal
-    setIsAddModalOpen(false)
+  const handleRejectApplication = async (signupId: string) => {
+    try {
+      const res = await fetch("/api/pattern-testing/test-listings/manage", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signupId, sellerId: user?.id, action: "reject" }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast({ title: "Application Rejected", description: "The tester has been notified." })
+        fetchListings()
+      } else {
+        toast({ title: "Error", description: data.error, variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to reject application", variant: "destructive" })
+    }
+  }
+
+  const handleAddPattern = async () => {
+    if (!user?.id) return
+    setIsSubmitting(true)
+    try {
+      const res = await fetch("/api/pattern-testing/test-listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sellerId: user.id,
+          title: newPatternData.title,
+          description: newPatternData.description,
+          difficulty: newPatternData.difficulty,
+          maxTesters: parseInt(newPatternData.maxTesters) || 5,
+          deadline: newPatternData.deadline || null,
+          requirements: newPatternData.requirements || null,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast({ title: "Pattern Added for Testing", description: "Your pattern has been submitted for community testing." })
+        setNewPatternData({ title: "", description: "", difficulty: "", maxTesters: "", deadline: "", requirements: "" })
+        setIsAddModalOpen(false)
+        fetchListings()
+      } else {
+        toast({ title: "Error", description: data.error, variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to create listing", variant: "destructive" })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -165,9 +191,21 @@ export default function PatternTestingManagement() {
         return "bg-green-100 text-green-800"
       case "rejected":
         return "bg-red-100 text-red-800"
+      case "open":
+        return "bg-green-100 text-green-800"
+      case "closed":
+        return "bg-gray-100 text-gray-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
+      </div>
+    )
   }
 
   return (
@@ -175,7 +213,7 @@ export default function PatternTestingManagement() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Pattern Testing Management</h2>
-          <p className="text-muted-foreground">Manage your pattern testers and provide feedback</p>
+          <p className="text-muted-foreground">Upload patterns for community testers to try and give feedback</p>
         </div>
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
           <DialogTrigger asChild>
@@ -289,8 +327,9 @@ export default function PatternTestingManagement() {
               <Button
                 onClick={handleAddPattern}
                 className="bg-rose-500 hover:bg-rose-600"
-                disabled={!newPatternData.title || !newPatternData.description || !newPatternData.difficulty}
+                disabled={!newPatternData.title || !newPatternData.description || !newPatternData.difficulty || isSubmitting}
               >
+                {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Submit for Testing
               </Button>
             </DialogFooter>
@@ -298,434 +337,238 @@ export default function PatternTestingManagement() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pattern List */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Patterns</CardTitle>
-              <CardDescription>Select a pattern to manage testers</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {mockPatterns.map((pattern) => (
-                <div
-                  key={pattern.id}
-                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                    selectedPattern.id === pattern.id ? "bg-rose-50 border-rose-200" : "hover:bg-gray-50"
-                  }`}
-                  onClick={() => setSelectedPattern(pattern)}
-                >
-                  <h4 className="font-medium">{pattern.title}</h4>
-                  <div className="flex items-center justify-between mt-2">
-                    <Badge className={getStatusColor(pattern.status)}>{pattern.status}</Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {pattern.selectedTesters}/{pattern.maxTesters} testers
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Pattern Details and Tester Management */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>{selectedPattern.title}</CardTitle>
-              <CardDescription>
-                Deadline: {selectedPattern.deadline} • {selectedPattern.applicants} applications received
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Add Pattern Testing Controls Section */}
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-                <h4 className="font-medium mb-3">Pattern Testing Controls</h4>
-                <div className="flex flex-wrap gap-3">
-                  {selectedPattern.status === "testing" && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-orange-200 text-orange-700 hover:bg-orange-50"
-                        onClick={() => {
-                          toast({
-                            title: "Applications Closed",
-                            description: "No new testers can apply to this pattern.",
-                          })
-                        }}
-                      >
-                        <XCircle className="h-4 w-4 mr-2" />
-                        End Accepting Testers
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-blue-500 hover:bg-blue-600"
-                        onClick={() => {
-                          toast({
-                            title: "Testing Started",
-                            description: "All approved testers have been notified to begin testing.",
-                          })
-                        }}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Start Testing Phase
-                      </Button>
-                    </>
-                  )}
-
-                  {selectedPattern.status === "testing" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-red-200 text-red-700 hover:bg-red-50"
-                      onClick={() => {
-                        toast({
-                          title: "Testing Ended",
-                          description: "Testing phase completed. You can now review all feedback.",
-                        })
-                      }}
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      End Testing
-                    </Button>
-                  )}
-
-                  {selectedPattern.status === "completed" && (
-                    <div className="flex items-center gap-2 text-green-700">
-                      <CheckCircle className="h-4 w-4" />
-                      <span className="text-sm font-medium">Testing Completed</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-3 text-xs text-muted-foreground">
-                  <p>• End accepting testers to stop new applications</p>
-                  <p>• Start testing phase to notify approved testers to begin</p>
-                  <p>• End testing when you want to close the testing period</p>
-                </div>
-              </div>
-
-              <Tabs defaultValue="applications" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="applications">Applications</TabsTrigger>
-                  <TabsTrigger value="active">Active Testers</TabsTrigger>
-                  <TabsTrigger value="completed">Completed</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="applications" className="space-y-4">
-                  {selectedPattern.applications
-                    .filter((app) => app.status === "pending")
-                    .map((application) => (
-                      <Card key={application.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3">
-                              <Avatar>
-                                <AvatarImage src={application.userAvatar || "/placeholder.svg"} />
-                                <AvatarFallback>{application.userName.charAt(0)}</AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <h4 className="font-medium">{application.userName}</h4>
-                                  <Badge variant="outline">Level {application.userLevel}</Badge>
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-1">{application.experience}</p>
-                                <p className="text-xs text-muted-foreground mt-2">
-                                  <PatternAppDate date={application.appliedAt} />
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleRejectApplication(application.id)}
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Reject
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="bg-green-500 hover:bg-green-600"
-                                onClick={() => handleApproveApplication(application.id)}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Approve
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                </TabsContent>
-
-                <TabsContent value="active" className="space-y-4">
-                  {selectedPattern.applications
-                    .filter((app) => app.status === "approved")
-                    .map((application) => (
-                      <Card key={application.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3">
-                              <Avatar>
-                                <AvatarImage src={application.userAvatar || "/placeholder.svg"} />
-                                <AvatarFallback>{application.userName.charAt(0)}</AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <h4 className="font-medium">{application.userName}</h4>
-                                  <Badge variant="outline">Level {application.userLevel}</Badge>
-                                </div>
-                                <div className="mt-2">
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span>Progress</span>
-                                    <span>{application.progress}%</span>
-                                  </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                                    <div
-                                      className="bg-blue-500 h-2 rounded-full"
-                                      style={{ width: `${application.progress}%` }}
-                                    ></div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedTesterForChat(application)
-                                setIsChatModalOpen(true)
-                              }}
-                            >
-                              <MessageSquare className="h-4 w-4 mr-1" />
-                              View Chat & Reply
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                </TabsContent>
-
-                <TabsContent value="completed" className="space-y-4">
-                  {selectedPattern.applications
-                    .filter((app) => app.status === "completed")
-                    .map((application) => (
-                      <Card key={application.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3">
-                              <Avatar>
-                                <AvatarImage src={application.userAvatar || "/placeholder.svg"} />
-                                <AvatarFallback>{application.userName.charAt(0)}</AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <h4 className="font-medium">{application.userName}</h4>
-                                  <Badge variant="outline">Level {application.userLevel}</Badge>
-                                  <Badge className="bg-green-100 text-green-800">Completed</Badge>
-                                </div>
-                                {application.rating && (
-                                  <div className="flex items-center gap-1 mt-1">
-                                    {[...Array(5)].map((_, i) => (
-                                      <Star
-                                        key={i}
-                                        className={`h-4 w-4 ${
-                                          i < application.rating! ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                                        }`}
-                                      />
-                                    ))}
-                                    <span className="text-sm text-muted-foreground ml-1">({application.rating}/5)</span>
-                                  </div>
-                                )}
-                                {application.feedback && (
-                                  <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-                                    <p className="text-sm">{application.feedback}</p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button size="sm" variant="outline">
-                                  <MessageSquare className="h-4 w-4 mr-1" />
-                                  Reply
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Reply to {application.userName}</DialogTitle>
-                                  <DialogDescription>
-                                    Thank them for their feedback or ask follow-up questions.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <div>
-                                    <Label htmlFor="reply">Your Reply</Label>
-                                    <Textarea
-                                      id="reply"
-                                      placeholder="Thank you for testing my pattern..."
-                                      value={feedbackText}
-                                      onChange={(e) => setFeedbackText(e.target.value)}
-                                      rows={4}
-                                    />
-                                  </div>
-                                </div>
-                                <DialogFooter>
-                                  <Button
-                                    onClick={() => handleSubmitFeedback(application.id)}
-                                    disabled={!feedbackText.trim() || isSubmittingFeedback}
-                                    className="bg-rose-500 hover:bg-rose-600"
-                                  >
-                                    <Send className="h-4 w-4 mr-2" />
-                                    {isSubmittingFeedback ? "Sending..." : "Send Reply"}
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-      {/* Chat Modal - place this after the main content, outside the map functions */}
-      <Dialog open={isChatModalOpen} onOpenChange={setIsChatModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>Chat History with {selectedTesterForChat?.userName}</DialogTitle>
-            <DialogDescription>View conversation history and reply to tester questions and concerns.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {/* Chat History Section */}
-            <div className="border rounded-lg p-4 max-h-96 overflow-y-auto bg-gray-50">
-              <h4 className="font-medium mb-3">Conversation History</h4>
-              <div className="space-y-3">
-                {/* Mock chat messages */}
-                <div className="flex justify-start">
-                  <div className="bg-blue-100 text-blue-900 p-3 rounded-lg max-w-xs">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium">Tester</span>
-                      <span className="text-xs text-blue-600">2 hours ago</span>
-                    </div>
-                    <p className="text-sm">
-                      I'm having trouble with step 15. The stitch count doesn't match what's shown in the pattern.
-                    </p>
-                    {/* Sample image attachment */}
-                    <div className="mt-2">
-                      <img
-                        src="/placeholder.svg?height=100&width=150&text=Progress+Photo"
-                        alt="Progress photo"
-                        className="rounded border max-w-full h-auto"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <div className="bg-rose-100 text-rose-900 p-3 rounded-lg max-w-xs">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium">You (Seller)</span>
-                      <span className="text-xs text-rose-600">1 hour ago</span>
-                    </div>
-                    <p className="text-sm">
-                      Thanks for the photo! I can see the issue. Try counting your stitches again - you might have
-                      missed a decrease in step 14.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex justify-start">
-                  <div className="bg-blue-100 text-blue-900 p-3 rounded-lg max-w-xs">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium">Tester</span>
-                      <span className="text-xs text-blue-600">30 minutes ago</span>
-                    </div>
-                    <p className="text-sm">That worked! Thank you so much. The pattern is looking great now.</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Empty state when no messages */}
-              <div className="text-center py-8 text-muted-foreground">
-                <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>No conversation history yet.</p>
-                <p className="text-sm">Messages from this tester will appear here.</p>
-              </div>
-            </div>
-
-            {/* Reply Section */}
-            <div className="space-y-3">
-              <Label htmlFor="seller-reply">Send Reply to {selectedTesterForChat?.userName}</Label>
-              <Textarea
-                id="seller-reply"
-                placeholder="Type your response to help the tester with their questions or concerns..."
-                value={feedbackText}
-                onChange={(e) => setFeedbackText(e.target.value)}
-                rows={4}
-                className="resize-none"
-              />
-
-              {/* Quick Reply Templates */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Quick Reply Templates:</Label>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setFeedbackText("Thanks for the update! Your progress looks great. Keep up the good work!")
-                    }
-                  >
-                    Encouragement
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setFeedbackText(
-                        "Could you please share a photo of your current progress? This will help me assist you better.",
-                      )
-                    }
-                  >
-                    Request Photo
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setFeedbackText("I see the issue in your photo. Let me explain the correct technique...")
-                    }
-                  >
-                    Technical Help
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="flex justify-between">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>💡 Tip: Respond quickly to keep testers engaged</span>
-            </div>
-            <Button
-              onClick={() => handleSubmitFeedback(selectedTesterForChat?.id)}
-              disabled={!feedbackText.trim() || isSubmittingFeedback}
-              className="bg-rose-500 hover:bg-rose-600"
-            >
-              <Send className="h-4 w-4 mr-2" />
-              {isSubmittingFeedback ? "Sending..." : "Send Reply"}
+      {listings.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <Package className="h-16 w-16 text-muted-foreground/50 mb-4" />
+            <h3 className="text-lg font-medium mb-2">No Patterns for Testing Yet</h3>
+            <p className="text-muted-foreground text-center max-w-md mb-6">
+              You haven&apos;t uploaded any patterns for community testing yet. Click the button above to add your first pattern and get feedback from our testers!
+            </p>
+            <Button onClick={() => setIsAddModalOpen(true)} className="bg-rose-500 hover:bg-rose-600">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Your First Pattern
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Listing List */}
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Test Listings</CardTitle>
+                <CardDescription>Select a listing to manage applicants</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {listings.map((listing) => {
+                  const approvedCount = listing.applicants.filter(
+                    (a) => a.status === "approved" || a.status === "in_progress" || a.status === "completed"
+                  ).length
+                  return (
+                    <div
+                      key={listing.id}
+                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedListing?.id === listing.id ? "bg-rose-50 border-rose-200" : "hover:bg-gray-50"
+                      }`}
+                      onClick={() => setSelectedListing(listing)}
+                    >
+                      <h4 className="font-medium">{listing.title}</h4>
+                      <div className="flex items-center justify-between mt-2">
+                        <Badge className={getStatusColor(listing.status)}>{listing.status}</Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {approvedCount}/{listing.maxTesters} testers
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {listing.applicants.length} application{listing.applicants.length !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                  )
+                })}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Listing Details and Applicant Management */}
+          <div className="lg:col-span-2">
+            {selectedListing ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{selectedListing.title}</CardTitle>
+                  <CardDescription>
+                    {selectedListing.difficulty} difficulty
+                    {selectedListing.deadline && ` • Deadline: ${new Date(selectedListing.deadline).toLocaleDateString()}`}
+                    {` • ${selectedListing.applicants.length} applications`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Tabs defaultValue="applications" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="applications">
+                        Pending ({selectedListing.applicants.filter((a) => a.status === "pending").length})
+                      </TabsTrigger>
+                      <TabsTrigger value="active">
+                        Approved ({selectedListing.applicants.filter((a) => a.status === "approved").length})
+                      </TabsTrigger>
+                      <TabsTrigger value="completed">
+                        Completed ({selectedListing.applicants.filter((a) => a.status === "completed").length})
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="applications" className="space-y-4 mt-4">
+                      {selectedListing.applicants.filter((a) => a.status === "pending").length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <p>No pending applications</p>
+                        </div>
+                      ) : (
+                        selectedListing.applicants
+                          .filter((a) => a.status === "pending")
+                          .map((applicant) => (
+                            <Card key={applicant.id}>
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-start gap-3">
+                                    <Avatar>
+                                      <AvatarImage src={applicant.userAvatar || "/placeholder.svg"} />
+                                      <AvatarFallback>{applicant.userName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                      <h4 className="font-medium">{applicant.userName}</h4>
+                                      {applicant.message && (
+                                        <p className="text-sm text-muted-foreground mt-1">{applicant.message}</p>
+                                      )}
+                                      <p className="text-xs text-muted-foreground mt-2">
+                                        <PatternAppDate date={applicant.createdAt} />
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleRejectApplication(applicant.id)}
+                                    >
+                                      <XCircle className="h-4 w-4 mr-1" />
+                                      Reject
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      className="bg-green-500 hover:bg-green-600"
+                                      onClick={() => handleApproveApplication(applicant.id)}
+                                    >
+                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      Approve
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="active" className="space-y-4 mt-4">
+                      {selectedListing.applicants.filter((a) => a.status === "approved").length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <p>No approved testers yet</p>
+                        </div>
+                      ) : (
+                        selectedListing.applicants
+                          .filter((a) => a.status === "approved")
+                          .map((applicant) => (
+                            <Card key={applicant.id}>
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-start gap-3">
+                                    <Avatar>
+                                      <AvatarImage src={applicant.userAvatar || "/placeholder.svg"} />
+                                      <AvatarFallback>{applicant.userName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-medium">{applicant.userName}</h4>
+                                        <Badge className="bg-blue-100 text-blue-800">Approved</Badge>
+                                      </div>
+                                      <div className="mt-2">
+                                        <div className="flex items-center justify-between text-sm">
+                                          <span>Progress</span>
+                                          <span>{applicant.progress}%</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                          <div
+                                            className="bg-blue-500 h-2 rounded-full"
+                                            style={{ width: `${applicant.progress}%` }}
+                                          ></div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="completed" className="space-y-4 mt-4">
+                      {selectedListing.applicants.filter((a) => a.status === "completed").length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <p>No completed tests yet</p>
+                        </div>
+                      ) : (
+                        selectedListing.applicants
+                          .filter((a) => a.status === "completed")
+                          .map((applicant) => (
+                            <Card key={applicant.id}>
+                              <CardContent className="p-4">
+                                <div className="flex items-start gap-3">
+                                  <Avatar>
+                                    <AvatarImage src={applicant.userAvatar || "/placeholder.svg"} />
+                                    <AvatarFallback>{applicant.userName.charAt(0)}</AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-medium">{applicant.userName}</h4>
+                                      <Badge className="bg-green-100 text-green-800">Completed</Badge>
+                                    </div>
+                                    {applicant.rating && (
+                                      <div className="flex items-center gap-1 mt-1">
+                                        {[...Array(5)].map((_, i) => (
+                                          <Star
+                                            key={i}
+                                            className={`h-4 w-4 ${
+                                              i < applicant.rating! ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                                            }`}
+                                          />
+                                        ))}
+                                      </div>
+                                    )}
+                                    {applicant.feedback && (
+                                      <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                                        <p className="text-sm">{applicant.feedback}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  Select a listing to view details
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

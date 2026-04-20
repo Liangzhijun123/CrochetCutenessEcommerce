@@ -50,64 +50,9 @@ export default function SellerNotificationCenter() {
 
   const loadNotifications = async () => {
     if (!user) return
-
-    // Mock notifications - in a real app, this would come from an API
-    const mockNotifications: Notification[] = [
-      {
-        id: "1",
-        type: "application_status",
-        title: "Application Approved!",
-        message: "Congratulations! Your seller application has been approved. You can now start listing your patterns.",
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-        read: false,
-        actionUrl: "/seller-onboarding",
-        actionText: "Complete Setup",
-        priority: "high"
-      },
-      {
-        id: "2",
-        type: "payment",
-        title: "Weekly Payment Processed",
-        message: "Your weekly payment of $127.50 has been processed and will arrive in your account within 2-3 business days.",
-        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-        read: true,
-        priority: "medium"
-      },
-      {
-        id: "3",
-        type: "order",
-        title: "New Pattern Purchase",
-        message: "Your 'Cute Bunny Amigurumi' pattern was purchased by Sarah M. You earned $21.25 from this sale.",
-        timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
-        read: false,
-        actionUrl: "/seller-dashboard/orders",
-        actionText: "View Order",
-        priority: "medium"
-      },
-      {
-        id: "4",
-        type: "review",
-        title: "New 5-Star Review",
-        message: "You received a 5-star review on your 'Cozy Baby Blanket' pattern from Jennifer K.",
-        timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
-        read: false,
-        actionUrl: "/seller-dashboard/reviews",
-        actionText: "View Review",
-        priority: "low"
-      },
-      {
-        id: "5",
-        type: "verification",
-        title: "Verification Level Upgraded",
-        message: "Your account has been upgraded to Verified status. You now have access to premium features.",
-        timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), // 2 days ago
-        read: true,
-        priority: "high"
-      }
-    ]
-
-    setNotifications(mockNotifications)
-    setUnreadCount(mockNotifications.filter(n => !n.read).length)
+    // Notifications will be populated by real events only
+    setNotifications([])
+    setUnreadCount(0)
   }
 
   const markAsRead = (notificationId: string) => {

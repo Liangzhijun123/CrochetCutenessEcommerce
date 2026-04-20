@@ -30,74 +30,8 @@ export default function SellerNotificationsDropdown() {
 
   const loadSellerNotifications = () => {
     if (!user) return
-
-    const mockNotifications: Notification[] = []
-
-    // Application approved notification
-    if (user.sellerApplication?.status === "approved") {
-      mockNotifications.push({
-        id: "app-approved",
-        type: "application",
-        title: "Application Approved!",
-        message: "Congratulations! Your seller application has been approved.",
-        time: "2 hours ago",
-        read: false,
-        link: "/seller-dashboard"
-      })
-    }
-
-    // Sample notifications for active sellers
-    if (user.role === "seller") {
-      mockNotifications.push(
-        {
-          id: "1",
-          type: "order",
-          title: "New Order",
-          message: "You have a new order #1234",
-          time: "5 min ago",
-          read: false,
-          link: "/seller-dashboard?tab=orders"
-        },
-        {
-          id: "2",
-          type: "payment",
-          title: "Payment Received",
-          message: "$45.99 has been added to your balance",
-          time: "1 hour ago",
-          read: false,
-          link: "/seller-dashboard?tab=earnings"
-        },
-        {
-          id: "3",
-          type: "product",
-          title: "Product Uploaded",
-          message: "Your 'Cute Bunny Amigurumi' is now live in the shop",
-          time: "3 hours ago",
-          read: true,
-          link: "/shop"
-        },
-        {
-          id: "4",
-          type: "message",
-          title: "New Message",
-          message: "Customer inquiry about Bunny Pattern",
-          time: "6 hours ago",
-          read: true,
-          link: "/messages"
-        },
-        {
-          id: "5",
-          type: "success",
-          title: "Earnings Milestone",
-          message: "You've earned $500 total! Keep up the great work.",
-          time: "1 day ago",
-          read: true,
-          link: "/seller-dashboard?tab=earnings"
-        }
-      )
-    }
-
-    setNotifications(mockNotifications)
+    // Notifications will be populated by real events (orders, payments, etc.)
+    setNotifications([])
   }
 
   const unreadCount = notifications.filter(n => !n.read).length

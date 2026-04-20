@@ -1,86 +1,112 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { updateUser, getUserById } from "@/lib/local-storage-db"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 import { sendEmail } from "@/lib/email-service"
 
 export async function POST(request: NextRequest) {
-  console.log("🔵 POST /api/seller/onboarding/complete called")
-  
   try {
     const body = await request.json()
-    console.log("📦 Request body:", body)
-    
-    const { userId, onboardingData, user: clientUser } = body
+    const { userId, onboardingData } = body
 
     if (!userId || !onboardingData) {
-      console.error("❌ Missing userId or onboardingData")
       return NextResponse.json({ error: "User ID and onboarding data are required" }, { status: 400 })
     }
 
-    console.log("👤 Getting user:", userId)
-    // Get the current user - try server-side first, then use client-provided user
-    let user = getUserById(userId)
-    
-    if (!user && clientUser) {
-      console.log("⚠️ User not found in server DB, using client-provided user data")
-      user = clientUser
-    }
-    
-    if (!user) {
-      console.error("❌ User not found:", userId)
+    // Fetch user from Supabase
+    const { data: user, error: fetchErr } = await supabaseAdmin
+      .from("users")
+      .select("*")
+      .eq("id", userId)
+      .single()
+
+    if (fetchErr || !user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    console.log("✅ User found:", user.email)
-    console.log("📝 Updating user with onboarding data...")
+    // Mark onboarding as completed in Supabase
+    const { error: updateErr } = await supabaseAdmin
+      .from("users")
+      .update({ seller_onboarding_completed: true })
+      .eq("id", userId)
 
-    // Create updated user object with seller role
-    const updatedUser = {
-      ...user,
-      role: "seller" as const, // Set role to seller
-      sellerProfile: {
-        ...(user.sellerProfile || {}),
-        ...onboardingData,
-        onboardingCompleted: true,
-        onboardingCompletedAt: new Date().toISOString(),
-        status: "active" as const,
+    if (updateErr) {
+      console.error("Error updating onboarding status:", updateErr)
+      return NextResponse.json({ error: "Failed to complete onboarding" }, { status: 500 })
+    }
+
+    // Save/update the seller store profile in the sellers table
+    const sellerId = user.seller_id
+    if (sellerId) {
+      const { error: sellerUpdateErr } = await supabaseAdmin
+        .from("sellers")
+        .update({
+          shop_name: onboardingData.storeName || null,
+          shop_description: onboardingData.storeDescription || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", sellerId)
+
+      if (sellerUpdateErr) {
+        console.error("Error updating seller profile:", sellerUpdateErr)
+      }
+    } else {
+      // Create seller record if it doesn't exist
+      const { data: newSeller, error: sellerCreateErr } = await supabaseAdmin
+        .from("sellers")
+        .insert({
+          user_id: userId,
+          shop_name: onboardingData.storeName || null,
+          shop_description: onboardingData.storeDescription || null,
+        })
+        .select("id")
+        .single()
+
+      if (sellerCreateErr) {
+        console.error("Error creating seller record:", sellerCreateErr)
+      } else if (newSeller) {
+        // Link seller record to user
+        await supabaseAdmin
+          .from("users")
+          .update({ seller_id: newSeller.id })
+          .eq("id", userId)
       }
     }
 
-    // Try to update in server DB if user exists there
-    try {
-      updateUser(userId, {
-        sellerProfile: updatedUser.sellerProfile
-      })
-      console.log("✅ User updated in server DB")
-    } catch (error) {
-      console.log("⚠️ Could not update server DB (user may only exist in browser):", error)
-      // This is okay - user will be updated in browser localStorage
+    // Save store settings (specialties, slogan, target audience, bank info)
+    const storeSettings = {
+      store_slogan: onboardingData.storeSlogan || null,
+      specialties: onboardingData.specialties || null,
+      target_audience: onboardingData.targetAudience || null,
+      bank_info_provided: !!(onboardingData.bankInfo?.accountNumber),
     }
 
-    console.log("✅ User updated successfully")
+    // Store additional settings in the sellers table or a separate table
+    if (sellerId || user.seller_id) {
+      const sid = sellerId || user.seller_id
+      await supabaseAdmin
+        .from("sellers")
+        .update(storeSettings)
+        .eq("id", sid)
+    }
 
-    // Send welcome email
+    // Send welcome email (non-blocking)
     try {
       await sendEmail(user.email, "seller-onboarding-welcome", {
-        name: user.name,
+        name: user.full_name,
         storeName: onboardingData.storeName || "your store",
-        dashboardUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/seller-dashboard`,
-        supportUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/contact`,
-        guideUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/seller-guide`,
+        dashboardUrl: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/seller-dashboard`,
+        supportUrl: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/contact`,
+        guideUrl: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/seller-guide`,
       })
-      console.log("📧 Welcome email sent")
-    } catch (emailError) {
-      console.error("⚠️ Failed to send onboarding welcome email:", emailError)
-      // Don't fail the onboarding if email fails
+    } catch {
+      // Don't fail onboarding if email fails
     }
 
-    console.log("✅ Onboarding completed successfully")
-    return NextResponse.json({ 
-      user: updatedUser,
-      message: "Onboarding completed successfully" 
+    return NextResponse.json({
+      user: { ...user, seller_onboarding_completed: true },
+      message: "Onboarding completed successfully",
     })
   } catch (error) {
-    console.error("❌ Error completing onboarding:", error)
+    console.error("Error completing onboarding:", error)
     return NextResponse.json({ error: "An error occurred while completing onboarding" }, { status: 500 })
   }
 }

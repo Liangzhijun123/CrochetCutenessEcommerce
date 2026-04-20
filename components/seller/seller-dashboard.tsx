@@ -18,8 +18,11 @@ import {
   TrendingUp,
   Download,
   CreditCard,
+  Loader2,
+  Package,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { Badge } from "@/components/ui/badge"
 import PatternTestingManagement from "./pattern-testing-management"
 import BankAccountModal from "./bank-account-modal"
 import SellerAnalyticsDashboard from "./seller-analytics-dashboard"
@@ -47,6 +50,36 @@ export default function SellerDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isBankModalOpen, setIsBankModalOpen] = useState(false)
 
+  // Real-time dashboard data from Supabase
+  const [dashboardData, setDashboardData] = useState<{
+    orders: Array<{ id: string; customerName: string; customerEmail: string; items: any[]; total: number; status: string; createdAt: string }>
+    purchases: Array<{ id: string; customerName: string; patternId: string; amountPaid: number; commission: number; platformFee: number; paymentMethod: string; purchasedAt: string }>
+    earnings: { availableBalance: number; pendingEarnings: number; totalEarned: number }
+    transactions: Array<{ id: string; type: string; description: string; amount: number; created_at: string }>
+    withdrawals: Array<{ id: string; amount: number; method: string; status: string; createdAt: string; processedAt: string | null }>
+    analytics: { totalSales: number; totalRevenue: number; recentRevenue: number; recentSales: number; totalProducts: number; totalViews: number; conversionRate: number }
+    products: any[]
+  } | null>(null)
+  const [dashboardLoading, setDashboardLoading] = useState(false)
+
+  const fetchDashboardData = async () => {
+    if (!user?.id) return
+    setDashboardLoading(true)
+    try {
+      const res = await fetch(`/api/seller/dashboard?sellerId=${user.id}`)
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success) {
+          setDashboardData(result.data)
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching dashboard data:", err)
+    } finally {
+      setDashboardLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (!isAuthenticated) {
       router.push("/auth/login?redirect=/seller-dashboard")
@@ -59,6 +92,13 @@ export default function SellerDashboard() {
       return
     }
 
+    // If admin hasn't generated credentials yet, seller can't proceed
+    if ((user?.role === "seller" || user?.role === "creator") && !user?.sellerProfile?.credentialsGenerated) {
+      // Stay on this page but show waiting state (handled below)
+      setIsLoading(false)
+      return
+    }
+
     // If user is a seller but hasn't completed onboarding, redirect to onboarding
     if ((user?.role === "seller" || user?.role === "creator") && !user?.sellerProfile?.onboardingCompleted) {
       router.push("/seller-onboarding")
@@ -67,6 +107,13 @@ export default function SellerDashboard() {
 
     setIsLoading(false)
   }, [isAuthenticated, user, router])
+
+  // Fetch dashboard data when user is available
+  useEffect(() => {
+    if (user?.id && !isLoading) {
+      fetchDashboardData()
+    }
+  }, [user?.id, isLoading])
 
   // Function to refresh user data from localStorage
   const handleRefreshUserData = async () => {
@@ -145,6 +192,56 @@ export default function SellerDashboard() {
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-rose-500 border-t-transparent"></div>
           <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
         </div>
+      </div>
+    )
+  }
+
+  // If seller is approved but admin hasn't generated credentials yet
+  if ((user?.role === "seller" || user?.role === "creator") && !user?.sellerProfile?.credentialsGenerated) {
+    return (
+      <div className="container mx-auto flex min-h-screen flex-col items-center justify-center px-4 py-8">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+              <Clock className="h-8 w-8 text-blue-600" />
+            </div>
+            <CardTitle className="text-xl">Awaiting Seller Credentials</CardTitle>
+            <CardDescription>
+              Your seller application has been approved! The admin is generating your seller credentials.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">What happens next?</p>
+                  <p className="mt-1">
+                    The admin will generate your seller username and password. Once your credentials are ready,
+                    you'll be able to access the seller dashboard and complete your onboarding.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" className="w-full" asChild>
+                <Link href="/">Return to Homepage</Link>
+              </Button>
+              <Button variant="outline" className="w-full" asChild>
+                <Link href="/profile">View Profile</Link>
+              </Button>
+            </div>
+            <Button
+              variant="outline"
+              className="w-full flex items-center justify-center gap-2"
+              onClick={handleRefreshUserData}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              Refresh Status
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -376,7 +473,13 @@ export default function SellerDashboard() {
         </TabsContent>
 
         <TabsContent value="orders" className="space-y-6">
-          <h2 className="text-2xl font-bold">Recent Orders</h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Recent Orders</h2>
+            <Button variant="outline" size="sm" onClick={fetchDashboardData} disabled={dashboardLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${dashboardLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
 
           <Card>
             <CardContent className="p-0">
@@ -389,47 +492,86 @@ export default function SellerDashboard() {
                       <th className="px-4 py-3 text-left text-sm font-medium">Date</th>
                       <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
                       <th className="px-4 py-3 text-left text-sm font-medium">Total</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b">
-                      <td className="px-4 py-3 text-sm">#1001</td>
-                      <td className="px-4 py-3 text-sm">Jane Doe</td>
-                      <td className="px-4 py-3 text-sm">Jun 15, 2023</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                          Delivered
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">$24.99</td>
-                      <td className="px-4 py-3 text-sm">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href="/seller-dashboard/orders/1001">View</Link>
-                        </Button>
-                      </td>
-                    </tr>
-                    <tr className="border-b">
-                      <td className="px-4 py-3 text-sm">#1002</td>
-                      <td className="px-4 py-3 text-sm">John Smith</td>
-                      <td className="px-4 py-3 text-sm">Jul 10, 2023</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
-                          Processing
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">$18.99</td>
-                      <td className="px-4 py-3 text-sm">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href="/seller-dashboard/orders/1002">View</Link>
-                        </Button>
-                      </td>
-                    </tr>
+                    {dashboardLoading ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                          <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                          Loading orders...
+                        </td>
+                      </tr>
+                    ) : (dashboardData?.orders || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                          <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          No orders yet. Orders will appear here when customers purchase your products.
+                        </td>
+                      </tr>
+                    ) : (
+                      (dashboardData?.orders || []).map((order) => (
+                        <tr key={order.id} className="border-b">
+                          <td className="px-4 py-3 text-sm font-mono">#{order.id.slice(0, 8)}</td>
+                          <td className="px-4 py-3 text-sm">{order.customerName}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <SellerAppDate date={order.createdAt} />
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <Badge variant={
+                              order.status === "delivered" ? "default" :
+                              order.status === "processing" ? "secondary" :
+                              order.status === "shipped" ? "outline" :
+                              "destructive"
+                            }>
+                              {order.status}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium">${order.total.toFixed(2)}</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </CardContent>
           </Card>
+
+          {/* Purchase History (Direct Sales) */}
+          {(dashboardData?.purchases || []).length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Direct Sales</CardTitle>
+                <CardDescription>Individual pattern/product purchases</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="px-4 py-3 text-left text-sm font-medium">Customer</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium">Date</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium">Amount</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium">Your Earnings</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dashboardData?.purchases.map((p) => (
+                        <tr key={p.id} className="border-b">
+                          <td className="px-4 py-3 text-sm">{p.customerName}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <SellerAppDate date={p.purchasedAt} />
+                          </td>
+                          <td className="px-4 py-3 text-sm">${p.amountPaid.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-green-600">${p.commission.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="earnings" className="space-y-6">
@@ -459,7 +601,9 @@ export default function SellerDashboard() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">$342.50</div>
+                <div className="text-2xl font-bold text-green-600">
+                  ${dashboardData?.earnings.availableBalance.toFixed(2) || "0.00"}
+                </div>
                 <p className="text-xs text-muted-foreground">Ready for withdrawal</p>
               </CardContent>
             </Card>
@@ -470,7 +614,9 @@ export default function SellerDashboard() {
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-amber-600">$89.25</div>
+                <div className="text-2xl font-bold text-amber-600">
+                  ${dashboardData?.earnings.pendingEarnings.toFixed(2) || "0.00"}
+                </div>
                 <p className="text-xs text-muted-foreground">Processing orders</p>
               </CardContent>
             </Card>
@@ -481,7 +627,9 @@ export default function SellerDashboard() {
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">$1,247.80</div>
+                <div className="text-2xl font-bold">
+                  ${dashboardData?.earnings.totalEarned.toFixed(2) || "0.00"}
+                </div>
                 <p className="text-xs text-muted-foreground">All time earnings</p>
               </CardContent>
             </Card>
@@ -494,51 +642,51 @@ export default function SellerDashboard() {
               <CardDescription>Your latest earnings and withdrawals</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b pb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                    <div>
-                      <p className="text-sm font-medium">Sale - Cute Bunny Amigurumi</p>
-                      <p className="text-xs text-muted-foreground">Order #1001 • Jan 15, 2024</p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-medium text-green-600">+$24.99</span>
+              {dashboardLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  Loading transactions...
                 </div>
-
-                <div className="flex items-center justify-between border-b pb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                    <div>
-                      <p className="text-sm font-medium">Withdrawal to Bank Account</p>
-                      <p className="text-xs text-muted-foreground">Jan 10, 2024</p>
+              ) : (dashboardData?.transactions || []).length === 0 && (dashboardData?.purchases || []).length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No transactions yet. Earnings will appear here when you make sales.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {/* Show transactions from the transactions table */}
+                  {(dashboardData?.transactions || []).map((tx) => (
+                    <div key={tx.id} className="flex items-center justify-between border-b pb-2">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-2 w-2 rounded-full ${tx.amount >= 0 ? "bg-green-500" : "bg-blue-500"}`}></div>
+                        <div>
+                          <p className="text-sm font-medium">{tx.description || tx.type}</p>
+                          <p className="text-xs text-muted-foreground">
+                            <SellerAppDate date={tx.created_at} />
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`text-sm font-medium ${tx.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {tx.amount >= 0 ? "+" : ""}${Math.abs(tx.amount).toFixed(2)}
+                      </span>
                     </div>
-                  </div>
-                  <span className="text-sm font-medium text-red-600">-$200.00</span>
-                </div>
-
-                <div className="flex items-center justify-between border-b pb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                    <div>
-                      <p className="text-sm font-medium">Sale - Cozy Baby Blanket</p>
-                      <p className="text-xs text-muted-foreground">Order #1002 • Jan 8, 2024</p>
+                  ))}
+                  {/* Show recent purchases as transactions if no explicit transactions */}
+                  {(dashboardData?.transactions || []).length === 0 && (dashboardData?.purchases || []).map((p) => (
+                    <div key={p.id} className="flex items-center justify-between border-b pb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                        <div>
+                          <p className="text-sm font-medium">Sale to {p.customerName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            <SellerAppDate date={p.purchasedAt} />
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-medium text-green-600">+${p.commission.toFixed(2)}</span>
                     </div>
-                  </div>
-                  <span className="text-sm font-medium text-green-600">+$39.99</span>
+                  ))}
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                    <div>
-                      <p className="text-sm font-medium">Sale - Crochet Plant Hanger</p>
-                      <p className="text-xs text-muted-foreground">Order #1003 • Jan 5, 2024</p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-medium text-green-600">+$19.99</span>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
@@ -568,36 +716,32 @@ export default function SellerDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b">
-                      <td className="px-4 py-3 text-sm">Jan 10, 2024</td>
-                      <td className="px-4 py-3 text-sm font-medium">$200.00</td>
-                      <td className="px-4 py-3 text-sm">Bank Transfer</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                          Completed
-                        </span>
-                      </td>
-                    </tr>
-                    <tr className="border-b">
-                      <td className="px-4 py-3 text-sm">Dec 15, 2023</td>
-                      <td className="px-4 py-3 text-sm font-medium">$150.00</td>
-                      <td className="px-4 py-3 text-sm">PayPal</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                          Completed
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-3 text-sm">Nov 20, 2023</td>
-                      <td className="px-4 py-3 text-sm font-medium">$300.00</td>
-                      <td className="px-4 py-3 text-sm">Bank Transfer</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                          Completed
-                        </span>
-                      </td>
-                    </tr>
+                    {(dashboardData?.withdrawals || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                          No withdrawals yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      (dashboardData?.withdrawals || []).map((w) => (
+                        <tr key={w.id} className="border-b">
+                          <td className="px-4 py-3 text-sm">
+                            <SellerAppDate date={w.createdAt} />
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium">${w.amount.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm capitalize">{w.method.replace("_", " ")}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <Badge variant={
+                              w.status === "completed" ? "default" :
+                              w.status === "pending" ? "secondary" :
+                              "destructive"
+                            }>
+                              {w.status}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -609,45 +753,6 @@ export default function SellerDashboard() {
           <PatternTestingManagement />
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-6">
-          <h2 className="text-2xl font-bold">Analytics</h2>
-
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <Card>
-              <CardHeader>
-                <CardTitle>Total Sales</CardTitle>
-                <CardDescription>Last 30 days</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">$157.98</p>
-                <p className="text-sm text-green-600">↑ 12% from last month</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Orders</CardTitle>
-                <CardDescription>Last 30 days</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">5</p>
-                <p className="text-sm text-green-600">↑ 20% from last month</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Conversion Rate</CardTitle>
-                <CardDescription>Last 30 days</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">3.2%</p>
-                <p className="text-sm text-red-600">↓ 0.5% from last month</p>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
         <TabsContent value="settings" className="space-y-6">
           <h2 className="text-2xl font-bold">Seller Settings</h2>
 
@@ -657,7 +762,26 @@ export default function SellerDashboard() {
               <CardDescription>Update your store details and preferences</CardDescription>
             </CardHeader>
             <CardContent>
-              <form className="space-y-4">
+              <form className="space-y-4" onSubmit={async (e) => {
+                e.preventDefault()
+                const form = e.target as HTMLFormElement
+                const storeName = (form.elements.namedItem("store-name") as HTMLInputElement)?.value
+                const storeDescription = (form.elements.namedItem("store-description") as HTMLTextAreaElement)?.value
+                const storePolicies = (form.elements.namedItem("store-policies") as HTMLTextAreaElement)?.value
+                try {
+                  const res = await fetch(`/api/seller/profile`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ sellerId: user?.id, shopName: storeName, shopDescription: storeDescription, policies: storePolicies }),
+                  })
+                  if (res.ok) {
+                    toast({ title: "Settings saved", description: "Your store information has been updated." })
+                    fetchDashboardData()
+                  }
+                } catch {
+                  toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" })
+                }
+              }}>
                 <div>
                   <label htmlFor="store-name" className="block text-sm font-medium">
                     Store Name
@@ -665,8 +789,9 @@ export default function SellerDashboard() {
                   <input
                     type="text"
                     id="store-name"
+                    name="store-name"
                     className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    defaultValue={`${user?.name}'s Crochet Shop`}
+                    defaultValue={dashboardData?.seller?.shop_name || user?.name || ""}
                   />
                 </div>
                 <div>
@@ -675,23 +800,25 @@ export default function SellerDashboard() {
                   </label>
                   <textarea
                     id="store-description"
+                    name="store-description"
                     rows={4}
                     className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    defaultValue="Welcome to my crochet store! I specialize in amigurumi and baby items."
+                    defaultValue={dashboardData?.seller?.shop_description || ""}
                   ></textarea>
                 </div>
                 <div>
                   <label htmlFor="store-policies" className="block text-sm font-medium">
                     Store Policies
-                  </label>l>
+                  </label>
                   <textarea
                     id="store-policies"
+                    name="store-policies"
                     rows={4}
                     className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    defaultValue="Shipping takes 3-5 business days. Returns accepted within 14 days of delivery."
+                    defaultValue=""
                   ></textarea>
                 </div>
-                <Button>Save Changes</Button>
+                <Button type="submit">Save Changes</Button>
               </form>
             </CardContent>
           </Card>

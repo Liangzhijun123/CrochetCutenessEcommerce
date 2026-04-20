@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/mock-db-adapter'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,116 +7,111 @@ export async function GET(request: NextRequest) {
     const sellerId = searchParams.get('sellerId')
 
     if (!sellerId) {
-      return NextResponse.json({
-        success: false,
-        error: 'Seller ID is required'
-      }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Seller ID is required' }, { status: 400 })
     }
 
-    const db = await getDb()
+    // Get patterns
+    const { data: patterns } = await supabaseAdmin
+      .from('patterns')
+      .select('*')
+      .eq('creator_id', sellerId)
+      .order('created_at', { ascending: false })
 
-    // Get inventory items with performance data
-    const inventoryQuery = `
-      SELECT 
-        p.id,
-        p.title,
-        CONCAT('PAT-', p.id) as sku,
-        p.category,
-        p.difficulty_level as difficulty,
-        p.price,
-        CASE 
-          WHEN p.is_archived THEN 'archived'
-          WHEN p.is_draft THEN 'draft'
-          WHEN p.is_active THEN 'active'
-          ELSE 'inactive'
-        END as status,
-        CASE 
-          WHEN COALESCE(sales_data.sales_count, 0) > 0 THEN 'in_stock'
-          WHEN COALESCE(sales_data.sales_count, 0) = 0 AND p.is_active THEN 'in_stock'
-          ELSE 'out_of_stock'
-        END as stock_status,
-        p.thumbnail_url as thumbnail,
-        p.created_at,
-        p.updated_at,
-        COALESCE(sales_data.sales_count, 0) as sales_count,
-        COALESCE(sales_data.revenue, 0) as revenue,
-        COALESCE(p.views, 0) as views,
-        CASE WHEN p.views > 0 THEN (COALESCE(sales_data.sales_count, 0) * 100.0 / p.views) ELSE 0 END as conversion_rate,
-        sales_data.last_sale_date,
-        true as is_digital,
-        COALESCE(sales_data.sales_count, 0) as download_count,
-        COALESCE(review_data.rating, 0) as average_rating,
-        COALESCE(review_data.review_count, 0) as review_count
-      FROM patterns p
-      LEFT JOIN (
-        SELECT 
-          pattern_id,
-          COUNT(*) as sales_count,
-          SUM(amount_paid) as revenue,
-          MAX(purchased_at) as last_sale_date
-        FROM purchases
-        GROUP BY pattern_id
-      ) sales_data ON p.id = sales_data.pattern_id
-      LEFT JOIN (
-        SELECT 
-          pattern_id,
-          AVG(rating) as rating,
-          COUNT(*) as review_count
-        FROM pattern_reviews
-        GROUP BY pattern_id
-      ) review_data ON p.id = review_data.pattern_id
-      WHERE p.creator_id = $1
-      ORDER BY p.created_at DESC
-    `
+    // Get products
+    const { data: products } = await supabaseAdmin
+      .from('products')
+      .select('*')
+      .eq('seller_id', sellerId)
+      .order('created_at', { ascending: false })
 
-    const inventoryResult = await db.query(inventoryQuery, [sellerId])
+    // Get purchases for these items
+    const patternIds = (patterns || []).map(p => p.id)
+    let purchasesByItem: Record<string, { count: number; revenue: number; lastDate: string | null }> = {}
 
-    const inventory = inventoryResult.rows.map(row => ({
-      id: row.id,
-      title: row.title,
-      sku: row.sku,
-      category: row.category,
-      difficulty: row.difficulty,
-      price: parseFloat(row.price),
-      status: row.status,
-      stockStatus: row.stock_status,
-      thumbnail: row.thumbnail,
-      salesCount: parseInt(row.sales_count),
-      revenue: parseFloat(row.revenue),
-      views: parseInt(row.views),
-      conversionRate: parseFloat(row.conversion_rate),
-      lastSaleDate: row.last_sale_date,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      isDigital: row.is_digital,
-      downloadCount: parseInt(row.download_count),
-      averageRating: parseFloat(row.average_rating),
-      reviewCount: parseInt(row.review_count),
-    }))
+    if (patternIds.length > 0) {
+      const { data: purchases } = await supabaseAdmin
+        .from('purchases')
+        .select('pattern_id, amount_paid, purchased_at')
+        .in('pattern_id', patternIds)
 
-    // Calculate stats
+      for (const p of purchases || []) {
+        if (!purchasesByItem[p.pattern_id]) {
+          purchasesByItem[p.pattern_id] = { count: 0, revenue: 0, lastDate: null }
+        }
+        purchasesByItem[p.pattern_id].count++
+        purchasesByItem[p.pattern_id].revenue += parseFloat(p.amount_paid) || 0
+        if (!purchasesByItem[p.pattern_id].lastDate || p.purchased_at > purchasesByItem[p.pattern_id].lastDate!) {
+          purchasesByItem[p.pattern_id].lastDate = p.purchased_at
+        }
+      }
+    }
+
+    const inventory = [
+      ...(patterns || []).map(p => {
+        const sales = purchasesByItem[p.id] || { count: 0, revenue: 0, lastDate: null }
+        const views = p.views || 0
+        return {
+          id: p.id,
+          title: p.title,
+          sku: `PAT-${p.id.slice(0, 8)}`,
+          category: p.category || 'pattern',
+          difficulty: p.difficulty_level,
+          price: parseFloat(p.price) || 0,
+          status: p.is_active ? 'active' : 'inactive',
+          stockStatus: 'in_stock',
+          thumbnail: p.thumbnail_url,
+          salesCount: sales.count,
+          revenue: sales.revenue,
+          views,
+          conversionRate: views > 0 ? (sales.count * 100.0 / views) : 0,
+          lastSaleDate: sales.lastDate,
+          createdAt: p.created_at,
+          updatedAt: p.updated_at,
+          isDigital: true,
+          downloadCount: sales.count,
+          averageRating: 0,
+          reviewCount: 0,
+        }
+      }),
+      ...(products || []).map(p => ({
+        id: p.id,
+        title: p.title,
+        sku: `PRD-${p.id.slice(0, 8)}`,
+        category: p.category || 'product',
+        difficulty: p.difficulty_level,
+        price: parseFloat(p.price) || 0,
+        status: 'active',
+        stockStatus: 'in_stock',
+        thumbnail: p.image_url,
+        salesCount: p.purchases || 0,
+        revenue: (p.purchases || 0) * (parseFloat(p.price) || 0),
+        views: p.views || 0,
+        conversionRate: (p.views || 0) > 0 ? ((p.purchases || 0) * 100.0 / p.views) : 0,
+        lastSaleDate: null,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+        isDigital: !!p.file_url,
+        downloadCount: p.purchases || 0,
+        averageRating: p.rating || 0,
+        reviewCount: 0,
+      })),
+    ]
+
     const stats = {
       totalItems: inventory.length,
       activeItems: inventory.filter(item => item.status === 'active').length,
-      lowStockItems: inventory.filter(item => item.stockStatus === 'low_stock').length,
-      outOfStockItems: inventory.filter(item => item.stockStatus === 'out_of_stock').length,
+      lowStockItems: 0,
+      outOfStockItems: 0,
       totalRevenue: inventory.reduce((sum, item) => sum + item.revenue, 0),
-      topPerformer: inventory.length > 0 
+      topPerformer: inventory.length > 0
         ? inventory.reduce((top, item) => item.revenue > top.revenue ? item : top).title
         : 'No sales yet'
     }
 
-    return NextResponse.json({
-      success: true,
-      inventory,
-      stats,
-    })
+    return NextResponse.json({ success: true, inventory, stats })
 
   } catch (error) {
     console.error('Inventory API error:', error)
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to fetch inventory'
-    }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to fetch inventory' }, { status: 500 })
   }
 }

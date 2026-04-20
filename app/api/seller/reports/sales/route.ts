@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/mock-db-adapter'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,178 +9,139 @@ export async function GET(request: NextRequest) {
     const toDate = searchParams.get('to')
 
     if (!sellerId || !fromDate || !toDate) {
-      return NextResponse.json({
-        success: false,
-        error: 'Seller ID, from date, and to date are required'
-      }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Seller ID, from date, and to date are required' }, { status: 400 })
     }
 
-    const db = await getDb()
-    const startDate = new Date(fromDate)
-    const endDate = new Date(toDate)
+    const startDate = new Date(fromDate).toISOString()
+    const endDate = new Date(toDate).toISOString()
 
-    // Calculate previous period for growth comparison
-    const periodLength = endDate.getTime() - startDate.getTime()
-    const previousStartDate = new Date(startDate.getTime() - periodLength)
-    const previousEndDate = startDate
+    // Get seller's patterns and products
+    const { data: patterns } = await supabaseAdmin
+      .from('patterns')
+      .select('id, title, thumbnail_url')
+      .eq('creator_id', sellerId)
 
-    // Get summary data for current period
-    const summaryQuery = `
-      SELECT 
-        COALESCE(SUM(p.amount_paid), 0) as total_revenue,
-        COUNT(p.id) as total_sales,
-        COUNT(DISTINCT p.user_id) as total_customers,
-        COALESCE(AVG(p.amount_paid), 0) as average_order_value
-      FROM purchases p
-      JOIN patterns pt ON p.pattern_id = pt.id
-      WHERE pt.creator_id = $1 AND p.purchased_at >= $2 AND p.purchased_at <= $3
-    `
+    const { data: products } = await supabaseAdmin
+      .from('products')
+      .select('id, title, image_url')
+      .eq('seller_id', sellerId)
 
-    const summaryResult = await db.query(summaryQuery, [sellerId, startDate, endDate])
-    const summary = summaryResult.rows[0]
+    const patternIds = (patterns || []).map(p => p.id)
+    const productIds = (products || []).map(p => p.id)
+    const allIds = [...patternIds, ...productIds]
 
-    // Get summary data for previous period
-    const previousSummaryResult = await db.query(summaryQuery, [sellerId, previousStartDate, previousEndDate])
-    const previousSummary = previousSummaryResult.rows[0]
+    // Get purchases in date range
+    let purchases: any[] = []
+    if (allIds.length > 0) {
+      const { data } = await supabaseAdmin
+        .from('purchases')
+        .select('id, user_id, pattern_id, amount_paid, purchased_at')
+        .in('pattern_id', allIds)
+        .gte('purchased_at', startDate)
+        .lte('purchased_at', endDate)
+        .order('purchased_at', { ascending: false })
 
-    // Calculate growth rates
-    const revenueGrowth = previousSummary.total_revenue > 0 
-      ? ((summary.total_revenue - previousSummary.total_revenue) / previousSummary.total_revenue) * 100
-      : 0
-
-    const salesGrowth = previousSummary.total_sales > 0
-      ? ((summary.total_sales - previousSummary.total_sales) / previousSummary.total_sales) * 100
-      : 0
-
-    // Get top selling pattern
-    const topPatternQuery = `
-      SELECT pt.title
-      FROM purchases p
-      JOIN patterns pt ON p.pattern_id = pt.id
-      WHERE pt.creator_id = $1 AND p.purchased_at >= $2 AND p.purchased_at <= $3
-      GROUP BY pt.id, pt.title
-      ORDER BY COUNT(p.id) DESC
-      LIMIT 1
-    `
-
-    const topPatternResult = await db.query(topPatternQuery, [sellerId, startDate, endDate])
-    const topSellingPattern = topPatternResult.rows[0]?.title || 'No sales'
-
-    // Get daily sales data
-    const dailySalesQuery = `
-      SELECT 
-        DATE(p.purchased_at) as date,
-        COALESCE(SUM(p.amount_paid), 0) as revenue,
-        COUNT(p.id) as sales,
-        COUNT(DISTINCT p.user_id) as customers
-      FROM purchases p
-      JOIN patterns pt ON p.pattern_id = pt.id
-      WHERE pt.creator_id = $1 AND p.purchased_at >= $2 AND p.purchased_at <= $3
-      GROUP BY DATE(p.purchased_at)
-      ORDER BY DATE(p.purchased_at)
-    `
-
-    const dailySalesResult = await db.query(dailySalesQuery, [sellerId, startDate, endDate])
-
-    // Get top patterns
-    const topPatternsQuery = `
-      SELECT 
-        pt.id,
-        pt.title,
-        pt.thumbnail_url as thumbnail,
-        COUNT(p.id) as sales,
-        COALESCE(SUM(p.amount_paid), 0) as revenue
-      FROM purchases p
-      JOIN patterns pt ON p.pattern_id = pt.id
-      WHERE pt.creator_id = $1 AND p.purchased_at >= $2 AND p.purchased_at <= $3
-      GROUP BY pt.id, pt.title, pt.thumbnail_url
-      ORDER BY revenue DESC
-      LIMIT 10
-    `
-
-    const topPatternsResult = await db.query(topPatternsQuery, [sellerId, startDate, endDate])
-
-    // Get customer segments (mock data for now)
-    const customerSegments = [
-      { segment: 'New Customers', customers: 45, revenue: 1250.00, averageOrderValue: 27.78 },
-      { segment: 'Returning Customers', customers: 23, revenue: 890.50, averageOrderValue: 38.72 },
-      { segment: 'VIP Customers', customers: 8, revenue: 520.25, averageOrderValue: 65.03 },
-    ]
-
-    // Get sales by region (mock data for now)
-    const salesByRegion = [
-      { region: 'North America', sales: 45, revenue: 1250.00, customers: 38 },
-      { region: 'Europe', sales: 23, revenue: 680.50, customers: 21 },
-      { region: 'Asia Pacific', sales: 18, revenue: 520.25, customers: 16 },
-      { region: 'Other', sales: 12, revenue: 340.75, customers: 11 },
-    ]
-
-    // Get recent transactions
-    const recentTransactionsQuery = `
-      SELECT 
-        p.id,
-        u.name as customer_name,
-        u.email as customer_email,
-        pt.title as pattern_title,
-        p.amount_paid as amount,
-        p.purchased_at as date,
-        'completed' as status
-      FROM purchases p
-      JOIN patterns pt ON p.pattern_id = pt.id
-      JOIN users u ON p.user_id = u.id
-      WHERE pt.creator_id = $1 AND p.purchased_at >= $2 AND p.purchased_at <= $3
-      ORDER BY p.purchased_at DESC
-      LIMIT 20
-    `
-
-    const recentTransactionsResult = await db.query(recentTransactionsQuery, [sellerId, startDate, endDate])
-
-    const reportData = {
-      summary: {
-        totalRevenue: parseFloat(summary.total_revenue),
-        totalSales: parseInt(summary.total_sales),
-        totalCustomers: parseInt(summary.total_customers),
-        averageOrderValue: parseFloat(summary.average_order_value),
-        topSellingPattern,
-        revenueGrowth,
-        salesGrowth,
-      },
-      dailySales: dailySalesResult.rows.map(row => ({
-        date: row.date,
-        revenue: parseFloat(row.revenue),
-        sales: parseInt(row.sales),
-        customers: parseInt(row.customers),
-      })),
-      topPatterns: topPatternsResult.rows.map(row => ({
-        id: row.id,
-        title: row.title,
-        thumbnail: row.thumbnail,
-        sales: parseInt(row.sales),
-        revenue: parseFloat(row.revenue),
-      })),
-      customerSegments,
-      salesByRegion,
-      recentTransactions: recentTransactionsResult.rows.map(row => ({
-        id: row.id,
-        customerName: row.customer_name,
-        customerEmail: row.customer_email,
-        patternTitle: row.pattern_title,
-        amount: parseFloat(row.amount),
-        date: row.date,
-        status: row.status,
-      })),
+      purchases = data || []
     }
+
+    // Calculate summary
+    const totalRevenue = purchases.reduce((sum, p) => sum + (parseFloat(p.amount_paid) || 0), 0)
+    const totalSales = purchases.length
+    const uniqueCustomers = new Set(purchases.map(p => p.user_id)).size
+    const averageOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0
+
+    // Top selling pattern
+    const salesByPattern: Record<string, number> = {}
+    for (const p of purchases) {
+      salesByPattern[p.pattern_id] = (salesByPattern[p.pattern_id] || 0) + 1
+    }
+    const topPatternId = Object.entries(salesByPattern).sort((a, b) => b[1] - a[1])[0]?.[0]
+    const allItems = [...(patterns || []), ...(products || [])]
+    const topSellingPattern = allItems.find(p => p.id === topPatternId)?.title || 'No sales'
+
+    // Daily sales
+    const dailyMap: Record<string, { revenue: number; sales: number; customers: Set<string> }> = {}
+    for (const p of purchases) {
+      const date = p.purchased_at.split('T')[0]
+      if (!dailyMap[date]) dailyMap[date] = { revenue: 0, sales: 0, customers: new Set() }
+      dailyMap[date].revenue += parseFloat(p.amount_paid) || 0
+      dailyMap[date].sales++
+      dailyMap[date].customers.add(p.user_id)
+    }
+    const dailySales = Object.entries(dailyMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, d]) => ({ date, revenue: d.revenue, sales: d.sales, customers: d.customers.size }))
+
+    // Top patterns by revenue
+    const revenueByPattern: Record<string, { sales: number; revenue: number }> = {}
+    for (const p of purchases) {
+      if (!revenueByPattern[p.pattern_id]) revenueByPattern[p.pattern_id] = { sales: 0, revenue: 0 }
+      revenueByPattern[p.pattern_id].sales++
+      revenueByPattern[p.pattern_id].revenue += parseFloat(p.amount_paid) || 0
+    }
+    const topPatterns = Object.entries(revenueByPattern)
+      .sort((a, b) => b[1].revenue - a[1].revenue)
+      .slice(0, 10)
+      .map(([id, data]) => {
+        const item = allItems.find(p => p.id === id)
+        return {
+          id,
+          title: item?.title || 'Unknown',
+          thumbnail: item?.thumbnail_url || item?.image_url || null,
+          sales: data.sales,
+          revenue: data.revenue,
+        }
+      })
+
+    // Recent transactions
+    const purchaseUserIds = [...new Set(purchases.map(p => p.user_id))]
+    let userMap: Record<string, { name: string; email: string }> = {}
+    if (purchaseUserIds.length > 0) {
+      const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', purchaseUserIds)
+
+      for (const u of users || []) {
+        userMap[u.id] = { name: u.full_name || 'Customer', email: u.email }
+      }
+    }
+
+    const patternMap: Record<string, string> = {}
+    for (const item of allItems) patternMap[item.id] = item.title
+
+    const recentTransactions = purchases.slice(0, 20).map(p => ({
+      id: p.id,
+      customerName: userMap[p.user_id]?.name || 'Customer',
+      customerEmail: userMap[p.user_id]?.email || '',
+      patternTitle: patternMap[p.pattern_id] || 'Unknown',
+      amount: parseFloat(p.amount_paid) || 0,
+      date: p.purchased_at,
+      status: 'completed',
+    }))
 
     return NextResponse.json({
       success: true,
-      data: reportData,
+      data: {
+        summary: {
+          totalRevenue,
+          totalSales,
+          totalCustomers: uniqueCustomers,
+          averageOrderValue,
+          topSellingPattern,
+          revenueGrowth: 0,
+          salesGrowth: 0,
+        },
+        dailySales,
+        topPatterns,
+        customerSegments: [],
+        salesByRegion: [],
+        recentTransactions,
+      },
     })
 
   } catch (error) {
     console.error('Sales report API error:', error)
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to generate sales report'
-    }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to generate sales report' }, { status: 500 })
   }
 }

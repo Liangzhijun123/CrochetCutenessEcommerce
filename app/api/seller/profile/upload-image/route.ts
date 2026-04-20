@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/mock-db-adapter'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { uploadFile } from '@/lib/file-storage'
 
 export async function POST(request: NextRequest) {
@@ -44,27 +44,19 @@ export async function POST(request: NextRequest) {
     const imageUrl = await uploadFile(file, `profiles/${fileName}`)
 
     // Update database
-    const db = await getDb()
     const columnName = type === 'profile' ? 'profile_image' : 'cover_image'
     
-    const updateQuery = `
-      UPDATE creator_profiles 
-      SET ${columnName} = $1, updated_at = NOW()
-      WHERE user_id = $2
-      RETURNING *
-    `
+    const { data: result, error: updateErr } = await supabaseAdmin
+      .from('creator_profiles')
+      .update({ [columnName]: imageUrl, updated_at: new Date().toISOString() })
+      .eq('user_id', sellerId)
+      .select()
 
-    const result = await db.query(updateQuery, [imageUrl, sellerId])
-
-    if (result.rows.length === 0) {
+    if (updateErr || !result || result.length === 0) {
       // Create profile if it doesn't exist
-      const createQuery = `
-        INSERT INTO creator_profiles (
-          user_id, ${columnName}, created_at, updated_at
-        ) VALUES ($1, $2, NOW(), NOW())
-        RETURNING *
-      `
-      await db.query(createQuery, [sellerId, imageUrl])
+      await supabaseAdmin
+        .from('creator_profiles')
+        .insert({ user_id: sellerId, [columnName]: imageUrl, created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     }
 
     return NextResponse.json({

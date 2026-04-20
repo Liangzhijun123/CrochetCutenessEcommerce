@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/mock-db-adapter'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,98 +7,52 @@ export async function GET(request: NextRequest) {
     const sellerId = searchParams.get('sellerId')
 
     if (!sellerId) {
-      return NextResponse.json({
-        success: false,
-        error: 'Seller ID is required'
-      }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Seller ID is required' }, { status: 400 })
     }
 
-    const db = await getDb()
-
     // Get creator profile
-    const profileQuery = `
-      SELECT 
-        cp.*,
-        u.name as user_name,
-        u.email as user_email
-      FROM creator_profiles cp
-      JOIN users u ON cp.user_id = u.id
-      WHERE cp.user_id = $1
-    `
+    const { data: profile, error } = await supabaseAdmin
+      .from('creator_profiles')
+      .select('*')
+      .eq('user_id', sellerId)
+      .single()
 
-    const profileResult = await db.query(profileQuery, [sellerId])
+    if (error || !profile) {
+      // Create default profile
+      const { data: newProfile, error: createErr } = await supabaseAdmin
+        .from('creator_profiles')
+        .insert({ user_id: sellerId })
+        .select()
+        .single()
 
-    if (profileResult.rows.length === 0) {
-      // Create default profile if none exists
-      const createProfileQuery = `
-        INSERT INTO creator_profiles (
-          user_id, display_name, bio, location, website, social_links,
-          profile_image, cover_image, brand_colors, specialties, experience,
-          achievements, is_public, allow_messages, show_location, show_social_links,
-          created_at, updated_at
-        ) VALUES (
-          $1, '', '', '', '', '{}', '', '', '{"primary": "#f43f5e", "secondary": "#ec4899"}',
-          '[]', '', '[]', true, true, true, true, NOW(), NOW()
-        )
-        RETURNING *
-      `
+      if (createErr) {
+        return NextResponse.json({ success: false, error: 'Failed to create profile' }, { status: 500 })
+      }
 
-      const createResult = await db.query(createProfileQuery, [sellerId])
-      const newProfile = createResult.rows[0]
-
-      // Get stats
-      const stats = await getCreatorStats(db, sellerId)
+      const stats = await getCreatorStats(sellerId)
 
       return NextResponse.json({
         success: true,
         profile: {
-          ...newProfile,
-          socialLinks: JSON.parse(newProfile.social_links || '{}'),
-          brandColors: JSON.parse(newProfile.brand_colors || '{"primary": "#f43f5e", "secondary": "#ec4899"}'),
-          specialties: JSON.parse(newProfile.specialties || '[]'),
-          achievements: JSON.parse(newProfile.achievements || '[]'),
+          ...formatProfile(newProfile),
           stats,
         }
       })
     }
 
-    const profile = profileResult.rows[0]
-
-    // Get stats
-    const stats = await getCreatorStats(db, sellerId)
+    const stats = await getCreatorStats(sellerId)
 
     return NextResponse.json({
       success: true,
       profile: {
-        id: profile.id,
-        userId: profile.user_id,
-        displayName: profile.display_name,
-        bio: profile.bio,
-        location: profile.location,
-        website: profile.website,
-        socialLinks: JSON.parse(profile.social_links || '{}'),
-        profileImage: profile.profile_image,
-        coverImage: profile.cover_image,
-        brandColors: JSON.parse(profile.brand_colors || '{"primary": "#f43f5e", "secondary": "#ec4899"}'),
-        specialties: JSON.parse(profile.specialties || '[]'),
-        experience: profile.experience,
-        achievements: JSON.parse(profile.achievements || '[]'),
-        isPublic: profile.is_public,
-        allowMessages: profile.allow_messages,
-        showLocation: profile.show_location,
-        showSocialLinks: profile.show_social_links,
+        ...formatProfile(profile),
         stats,
-        createdAt: profile.created_at,
-        updatedAt: profile.updated_at,
       }
     })
 
   } catch (error) {
     console.error('Get profile API error:', error)
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to fetch profile'
-    }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to fetch profile' }, { status: 500 })
   }
 }
 
@@ -120,125 +74,140 @@ export async function PUT(request: NextRequest) {
       allowMessages,
       showLocation,
       showSocialLinks,
+      // Also support settings update
+      shopName,
+      shopDescription,
     } = body
 
     if (!sellerId) {
-      return NextResponse.json({
-        success: false,
-        error: 'Seller ID is required'
-      }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Seller ID is required' }, { status: 400 })
     }
 
-    const db = await getDb()
+    // Update seller shop info if provided
+    if (shopName || shopDescription) {
+      const { data: userData } = await supabaseAdmin
+        .from('users')
+        .select('seller_id')
+        .eq('id', sellerId)
+        .single()
 
-    // Update or create profile
-    const upsertQuery = `
-      INSERT INTO creator_profiles (
-        user_id, display_name, bio, location, website, social_links,
-        brand_colors, specialties, experience, achievements, is_public,
-        allow_messages, show_location, show_social_links, created_at, updated_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW()
-      )
-      ON CONFLICT (user_id) DO UPDATE SET
-        display_name = $2,
-        bio = $3,
-        location = $4,
-        website = $5,
-        social_links = $6,
-        brand_colors = $7,
-        specialties = $8,
-        experience = $9,
-        achievements = $10,
-        is_public = $11,
-        allow_messages = $12,
-        show_location = $13,
-        show_social_links = $14,
-        updated_at = NOW()
-      RETURNING *
-    `
+      if (userData?.seller_id) {
+        const updateData: Record<string, any> = { updated_at: new Date().toISOString() }
+        if (shopName) updateData.shop_name = shopName
+        if (shopDescription) updateData.shop_description = shopDescription
 
-    const result = await db.query(upsertQuery, [
-      sellerId,
-      displayName,
-      bio,
-      location,
-      website,
-      JSON.stringify(socialLinks),
-      JSON.stringify(brandColors),
-      JSON.stringify(specialties),
-      experience,
-      JSON.stringify(achievements),
-      isPublic,
-      allowMessages,
-      showLocation,
-      showSocialLinks,
-    ])
+        await supabaseAdmin
+          .from('sellers')
+          .update(updateData)
+          .eq('id', userData.seller_id)
+      }
+    }
 
-    const profile = result.rows[0]
+    // Upsert creator profile
+    const profileData: Record<string, any> = {
+      user_id: sellerId,
+      updated_at: new Date().toISOString(),
+    }
+    if (displayName !== undefined) profileData.display_name = displayName
+    if (bio !== undefined) profileData.bio = bio
+    if (location !== undefined) profileData.location = location
+    if (website !== undefined) profileData.website = website
+    if (socialLinks !== undefined) profileData.social_links = socialLinks
+    if (brandColors !== undefined) profileData.brand_colors = brandColors
+    if (specialties !== undefined) profileData.specialties = specialties
+    if (experience !== undefined) profileData.experience = experience
+    if (achievements !== undefined) profileData.achievements = achievements
+    if (isPublic !== undefined) profileData.is_public = isPublic
+    if (allowMessages !== undefined) profileData.allow_messages = allowMessages
+    if (showLocation !== undefined) profileData.show_location = showLocation
+    if (showSocialLinks !== undefined) profileData.show_social_links = showSocialLinks
 
-    // Get updated stats
-    const stats = await getCreatorStats(db, sellerId)
+    const { data: profile, error } = await supabaseAdmin
+      .from('creator_profiles')
+      .upsert(profileData, { onConflict: 'user_id' })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating profile:', error)
+      return NextResponse.json({ success: false, error: 'Failed to update profile' }, { status: 500 })
+    }
+
+    const stats = await getCreatorStats(sellerId)
 
     return NextResponse.json({
       success: true,
       profile: {
-        id: profile.id,
-        userId: profile.user_id,
-        displayName: profile.display_name,
-        bio: profile.bio,
-        location: profile.location,
-        website: profile.website,
-        socialLinks: JSON.parse(profile.social_links || '{}'),
-        profileImage: profile.profile_image,
-        coverImage: profile.cover_image,
-        brandColors: JSON.parse(profile.brand_colors || '{}'),
-        specialties: JSON.parse(profile.specialties || '[]'),
-        experience: profile.experience,
-        achievements: JSON.parse(profile.achievements || '[]'),
-        isPublic: profile.is_public,
-        allowMessages: profile.allow_messages,
-        showLocation: profile.show_location,
-        showSocialLinks: profile.show_social_links,
+        ...formatProfile(profile),
         stats,
-        createdAt: profile.created_at,
-        updatedAt: profile.updated_at,
       }
     })
 
   } catch (error) {
     console.error('Update profile API error:', error)
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to update profile'
-    }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to update profile' }, { status: 500 })
   }
 }
 
-async function getCreatorStats(db: any, sellerId: string) {
-  const statsQuery = `
-    SELECT 
-      COALESCE(SUM(p.amount_paid), 0) as total_revenue,
-      COUNT(p.id) as total_sales,
-      COALESCE(AVG(pr.rating), 0) as average_rating,
-      COUNT(pr.id) as total_reviews,
-      0 as followers,
-      COUNT(DISTINCT pt.id) as patterns_published
-    FROM patterns pt
-    LEFT JOIN purchases p ON pt.id = p.pattern_id
-    LEFT JOIN pattern_reviews pr ON pt.id = pr.pattern_id
-    WHERE pt.creator_id = $1
-  `
+function formatProfile(profile: any) {
+  return {
+    id: profile.id,
+    userId: profile.user_id,
+    displayName: profile.display_name || '',
+    bio: profile.bio || '',
+    location: profile.location || '',
+    website: profile.website || '',
+    socialLinks: profile.social_links || {},
+    profileImage: profile.profile_image || '',
+    coverImage: profile.cover_image || '',
+    brandColors: profile.brand_colors || { primary: '#f43f5e', secondary: '#ec4899' },
+    specialties: profile.specialties || [],
+    experience: profile.experience || '',
+    achievements: profile.achievements || [],
+    isPublic: profile.is_public ?? true,
+    allowMessages: profile.allow_messages ?? true,
+    showLocation: profile.show_location ?? true,
+    showSocialLinks: profile.show_social_links ?? true,
+    createdAt: profile.created_at,
+    updatedAt: profile.updated_at,
+  }
+}
 
-  const statsResult = await db.query(statsQuery, [sellerId])
-  const stats = statsResult.rows[0]
+async function getCreatorStats(sellerId: string) {
+  const { data: patterns } = await supabaseAdmin
+    .from('patterns')
+    .select('id')
+    .eq('creator_id', sellerId)
+
+  const { data: products } = await supabaseAdmin
+    .from('products')
+    .select('id, views')
+    .eq('seller_id', sellerId)
+
+  const allItemIds = [
+    ...(patterns || []).map(p => p.id),
+    ...(products || []).map(p => p.id),
+  ]
+
+  let totalSales = 0
+  let totalRevenue = 0
+
+  if (allItemIds.length > 0) {
+    const { data: purchases } = await supabaseAdmin
+      .from('purchases')
+      .select('id, amount_paid')
+      .in('pattern_id', allItemIds)
+
+    totalSales = (purchases || []).length
+    totalRevenue = (purchases || []).reduce((sum, p) => sum + (parseFloat(p.amount_paid) || 0), 0)
+  }
 
   return {
-    totalSales: parseInt(stats.total_sales),
-    totalRevenue: parseFloat(stats.total_revenue),
-    averageRating: parseFloat(stats.average_rating),
-    totalReviews: parseInt(stats.total_reviews),
-    followers: parseInt(stats.followers),
-    patternsPublished: parseInt(stats.patterns_published),
+    totalSales,
+    totalRevenue,
+    averageRating: 0,
+    totalReviews: 0,
+    followers: 0,
+    patternsPublished: (patterns || []).length + (products || []).length,
   }
 }

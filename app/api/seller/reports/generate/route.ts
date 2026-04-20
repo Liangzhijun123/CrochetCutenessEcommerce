@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/mock-db-adapter'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,34 +16,32 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const db = await getDb()
-    const startDate = new Date(fromDate)
-    const endDate = new Date(toDate)
+    const startDate = new Date(fromDate).toISOString()
+    const endDate = new Date(toDate).toISOString()
 
-    // Get detailed sales data for export
-    const salesDataQuery = `
-      SELECT 
-        p.id as transaction_id,
-        p.purchased_at as date,
-        u.name as customer_name,
-        u.email as customer_email,
-        pt.title as pattern_title,
-        pt.category,
-        pt.difficulty_level as difficulty,
-        p.amount_paid as amount,
-        p.creator_commission as commission,
-        p.platform_fee,
-        p.payment_method,
-        p.transaction_id as payment_transaction_id
-      FROM purchases p
-      JOIN patterns pt ON p.pattern_id = pt.id
-      JOIN users u ON p.user_id = u.id
-      WHERE pt.creator_id = $1 AND p.purchased_at >= $2 AND p.purchased_at <= $3
-      ORDER BY p.purchased_at DESC
-    `
+    // Get purchases with pattern and user data
+    const { data: purchases } = await supabaseAdmin
+      .from('purchases')
+      .select('*, patterns!inner(title, category, difficulty_level, creator_id), users!purchases_user_id_fkey(full_name, email)')
+      .eq('patterns.creator_id', sellerId)
+      .gte('purchased_at', startDate)
+      .lte('purchased_at', endDate)
+      .order('purchased_at', { ascending: false })
 
-    const salesDataResult = await db.query(salesDataQuery, [sellerId, startDate, endDate])
-    const salesData = salesDataResult.rows
+    const salesData = (purchases || []).map((p: any) => ({
+      transaction_id: p.id,
+      date: p.purchased_at,
+      customer_name: p.users?.full_name || 'Customer',
+      customer_email: p.users?.email || '',
+      pattern_title: p.patterns?.title || '',
+      category: p.patterns?.category || '',
+      difficulty: p.patterns?.difficulty_level || '',
+      amount: p.amount_paid || 0,
+      commission: p.creator_commission || 0,
+      platform_fee: p.platform_fee || 0,
+      payment_method: p.payment_method || '',
+      payment_transaction_id: p.transaction_id || '',
+    }))
 
     if (format === 'csv') {
       // Generate CSV

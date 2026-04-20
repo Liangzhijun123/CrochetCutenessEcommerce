@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/mock-db-adapter'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export async function PUT(
   request: NextRequest,
@@ -17,28 +17,26 @@ export async function PUT(
       }, { status: 400 })
     }
 
-    const db = await getDb()
+    const { data: pattern, error } = await supabaseAdmin
+      .from('patterns')
+      .update({
+        title,
+        description,
+        price,
+        category,
+        difficulty_level: difficulty,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', patternId)
+      .select()
+      .single()
 
-    const updateQuery = `
-      UPDATE patterns 
-      SET title = $1, description = $2, price = $3, category = $4, 
-          difficulty_level = $5, updated_at = NOW()
-      WHERE id = $6
-      RETURNING *
-    `
-
-    const result = await db.query(updateQuery, [
-      title, description, price, category, difficulty, patternId
-    ])
-
-    if (result.rows.length === 0) {
+    if (error || !pattern) {
       return NextResponse.json({
         success: false,
         error: 'Pattern not found'
       }, { status: 404 })
     }
-
-    const pattern = result.rows[0]
 
     return NextResponse.json({
       success: true,
@@ -76,38 +74,27 @@ export async function DELETE(
       }, { status: 400 })
     }
 
-    const db = await getDb()
-
     // Check if pattern has any purchases
-    const purchaseCheckQuery = `
-      SELECT COUNT(*) as purchase_count
-      FROM purchases
-      WHERE pattern_id = $1
-    `
+    const { count } = await supabaseAdmin
+      .from('purchases')
+      .select('*', { count: 'exact', head: true })
+      .eq('pattern_id', patternId)
 
-    const purchaseCheckResult = await db.query(purchaseCheckQuery, [patternId])
-    const purchaseCount = parseInt(purchaseCheckResult.rows[0].purchase_count)
-
-    if (purchaseCount > 0) {
-      // If pattern has purchases, mark as inactive instead of deleting
-      const updateQuery = `
-        UPDATE patterns 
-        SET is_active = false, updated_at = NOW()
-        WHERE id = $1
-      `
-      await db.query(updateQuery, [patternId])
+    if ((count || 0) > 0) {
+      await supabaseAdmin
+        .from('patterns')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('id', patternId)
 
       return NextResponse.json({
         success: true,
         message: 'Pattern deactivated (cannot delete patterns with purchases)'
       })
     } else {
-      // If no purchases, safe to delete
-      const deleteQuery = `
-        DELETE FROM patterns
-        WHERE id = $1
-      `
-      await db.query(deleteQuery, [patternId])
+      await supabaseAdmin
+        .from('patterns')
+        .delete()
+        .eq('id', patternId)
 
       return NextResponse.json({
         success: true,

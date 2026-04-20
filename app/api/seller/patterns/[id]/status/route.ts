@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/mock-db-adapter'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export async function PUT(
   request: NextRequest,
@@ -25,25 +25,22 @@ export async function PUT(
       }, { status: 400 })
     }
 
-    const db = await getDb()
+    const db_is_active = status === 'active'
+    const db_is_draft = status === 'draft'
+    const db_is_archived = status === 'archived'
 
-    // Convert status to database format
-    const isActive = status === 'active'
-    const isDraft = status === 'draft'
-    const isArchived = status === 'archived'
+    const { data: result, error } = await supabaseAdmin
+      .from('patterns')
+      .update({
+        is_active: db_is_active,
+        is_draft: db_is_draft,
+        is_archived: db_is_archived,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', patternId)
+      .select()
 
-    const updateQuery = `
-      UPDATE patterns 
-      SET is_active = $1, is_draft = $2, is_archived = $3, updated_at = NOW()
-      WHERE id = $4
-      RETURNING *
-    `
-
-    const result = await db.query(updateQuery, [
-      isActive, isDraft, isArchived, patternId
-    ])
-
-    if (result.rows.length === 0) {
+    if (error || !result || result.length === 0) {
       return NextResponse.json({
         success: false,
         error: 'Pattern not found'
