@@ -1,9 +1,18 @@
 import Stripe from 'stripe'
 
-// Initialize Stripe with secret key
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
-})
+// Lazy-initialize Stripe to avoid build-time errors when env var is missing
+let _stripe: Stripe | null = null
+function getStripe(): Stripe {
+  if (!_stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('STRIPE_SECRET_KEY environment variable is not set')
+    }
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2024-12-18.acacia',
+    })
+  }
+  return _stripe
+}
 
 export interface PaymentIntentData {
   amount: number // Amount in cents
@@ -26,7 +35,7 @@ export class StripeService {
    */
   static async createPaymentIntent(data: PaymentIntentData): Promise<Stripe.PaymentIntent> {
     try {
-      const paymentIntent = await stripe.paymentIntents.create({
+      const paymentIntent = await getStripe().paymentIntents.create({
         amount: data.amount,
         currency: data.currency,
         metadata: {
@@ -52,7 +61,7 @@ export class StripeService {
    */
   static async confirmPaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
     try {
-      const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId)
+      const paymentIntent = await getStripe().paymentIntents.confirm(paymentIntentId)
       return paymentIntent
     } catch (error) {
       console.error('Error confirming payment intent:', error)
@@ -65,7 +74,7 @@ export class StripeService {
    */
   static async getPaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
     try {
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+      const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId)
       return paymentIntent
     } catch (error) {
       console.error('Error retrieving payment intent:', error)
@@ -78,7 +87,7 @@ export class StripeService {
    */
   static async createRefund(data: RefundData): Promise<Stripe.Refund> {
     try {
-      const refund = await stripe.refunds.create({
+      const refund = await getStripe().refunds.create({
         payment_intent: data.paymentIntentId,
         amount: data.amount,
         reason: data.reason,
@@ -96,7 +105,7 @@ export class StripeService {
    */
   static async listRefunds(paymentIntentId: string): Promise<Stripe.ApiList<Stripe.Refund>> {
     try {
-      const refunds = await stripe.refunds.list({
+      const refunds = await getStripe().refunds.list({
         payment_intent: paymentIntentId,
       })
 
@@ -112,7 +121,7 @@ export class StripeService {
    */
   static async createCustomer(email: string, name: string, userId: string): Promise<Stripe.Customer> {
     try {
-      const customer = await stripe.customers.create({
+      const customer = await getStripe().customers.create({
         email,
         name,
         metadata: {
@@ -132,7 +141,7 @@ export class StripeService {
    */
   static async getCustomer(customerId: string): Promise<Stripe.Customer> {
     try {
-      const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer
+      const customer = await getStripe().customers.retrieve(customerId) as Stripe.Customer
       return customer
     } catch (error) {
       console.error('Error retrieving customer:', error)
@@ -147,7 +156,7 @@ export class StripeService {
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
     try {
-      const event = stripe.webhooks.constructEvent(body, signature, endpointSecret)
+      const event = getStripe().webhooks.constructEvent(body, signature, endpointSecret)
       return event
     } catch (error) {
       console.error('Webhook signature verification failed:', error)
