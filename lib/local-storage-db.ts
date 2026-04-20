@@ -1058,6 +1058,27 @@ const XP_RATES: Record<string, { amount: number; type: PointsTransaction["type"]
   plushie: { amount: 10, type: "plushie", description: "Plushie purchase" },
   pattern_testing: { amount: 2, type: "pattern_testing", description: "Pattern testing task completed" },
   signup_bonus: { amount: 50, type: "signup_bonus", description: "Sign up bonus" },
+  product_upload: { amount: 3, type: "admin_adjustment", description: "Product uploaded for sale" },
+}
+
+export const addXPForProductUpload = (userId: string, productName?: string): PointsTransaction => {
+  const user = getUserById(userId)
+  if (!user) {
+    throw new Error("User not found")
+  }
+
+  const transaction = createPointsTransaction({
+    userId,
+    type: "admin_adjustment",
+    amount: 3,
+    description: productName ? `Product upload: ${productName}` : "Product uploaded for sale",
+  })
+
+  updateUser(userId, {
+    points: (user.points || 0) + 3,
+  })
+
+  return transaction
 }
 
 export const addXPForActivity = (userId: string, activity: keyof typeof XP_RATES, orderId?: string): PointsTransaction => {

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase-admin"
+import { addXPForProductUpload } from "@/lib/local-storage-db"
 
 export async function GET(request: NextRequest) {
   try {
@@ -89,6 +90,13 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error("Error creating product:", error)
       return NextResponse.json({ error: "Failed to create product" }, { status: 500 })
+    }
+
+    // Award 3 XP to seller for uploading a product
+    try {
+      addXPForProductUpload(body.sellerId, body.name)
+    } catch (xpError) {
+      console.warn("Failed to award XP for product upload:", xpError)
     }
 
     return NextResponse.json({ success: true, product })

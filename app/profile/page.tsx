@@ -48,67 +48,20 @@ type ProfileFormValues = z.infer<typeof profileSchema>
 type AddressFormValues = z.infer<typeof addressSchema>
 type PreferencesFormValues = z.infer<typeof preferencesSchema>
 
-// Mock order data
-const orders = [
-  {
-    id: "ORD-1234",
-    date: "2023-05-15",
-    status: "Delivered",
-    total: 45.99,
-    items: [
-      {
-        name: "Bunny Amigurumi",
-        price: 24.99,
-        quantity: 1,
-      },
-      {
-        name: "Crochet Coasters (Set of 4)",
-        price: 16.99,
-        quantity: 1,
-      },
-    ],
-  },
-  {
-    id: "ORD-5678",
-    date: "2023-04-02",
-    status: "Delivered",
-    total: 32.5,
-    items: [
-      {
-        name: "Crochet Plant Hanger",
-        price: 18.5,
-        quantity: 1,
-      },
-      {
-        name: "Bunny Pattern",
-        price: 14.0,
-        quantity: 1,
-      },
-    ],
-  },
-]
+const orders: Array<{
+  id: string
+  date: string
+  status: string
+  total: number
+  items: Array<{ name: string; price: number; quantity: number }>
+}> = []
 
-// Mock wishlist data
-const wishlist = [
-  {
-    id: "1",
-    name: "Bear Amigurumi",
-    price: 29.99,
-    image: "/placeholder.svg?height=100&width=100",
-  },
-  {
-    id: "2",
-    name: "Crochet Wall Hanging",
-    price: 38.99,
-    image: "/placeholder.svg?height=100&width=100",
-  },
-  {
-    id: "3",
-    name: "Baby Blanket Pattern",
-    price: 14.99,
-    image: "/placeholder.svg?height=100&width=100",
-  },
-]
+const wishlist: Array<{
+  id: string
+  name: string
+  price: number
+  image: string
+}> = []
 
 export default function ProfilePage() {
   const { user, profile, isAuthenticated, isLoading, updateUser, updateProfile, signOut } = useAuth()

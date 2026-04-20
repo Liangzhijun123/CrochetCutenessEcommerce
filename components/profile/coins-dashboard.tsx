@@ -161,7 +161,7 @@ export default function CoinsDashboard() {
       {/* Balance and Claim Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Current Balance */}
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 p-6 text-white shadow-xl">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-pink-400 via-pink-500 to-rose-500 p-6 text-white shadow-xl">
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
@@ -193,7 +193,7 @@ export default function CoinsDashboard() {
         </div>
 
         {/* Daily Claim */}
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-green-400 via-green-500 to-green-600 p-6 text-white shadow-xl">
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-fuchsia-400 via-fuchsia-500 to-pink-600 p-6 text-white shadow-xl">
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="relative z-10">
             <div className="text-center">
@@ -265,7 +265,7 @@ export default function CoinsDashboard() {
                   if (isToday) {
                     bgColor = dayData?.claimed 
                       ? "bg-green-100 border-2 border-green-400 text-green-800"
-                      : "bg-blue-100 border-2 border-blue-400 text-blue-800"
+                      : "bg-pink-100 border-2 border-pink-400 text-pink-800"
                     status = dayData?.claimed ? "✓" : "TODAY"
                   } else if (dayData?.claimed) {
                     bgColor = "bg-green-100 text-green-800"
@@ -300,7 +300,7 @@ export default function CoinsDashboard() {
             {/* Legend */}
             <div className="mt-4 flex flex-wrap gap-4 text-xs">
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-blue-100 border border-blue-400 rounded"></div>
+                <div className="w-3 h-3 bg-pink-100 border border-pink-400 rounded"></div>
                 <span>Today</span>
               </div>
               <div className="flex items-center gap-1">

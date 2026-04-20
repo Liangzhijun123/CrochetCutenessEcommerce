@@ -88,16 +88,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const lastSignUpTime = useRef(0);
   const lastSignInTime = useRef(0);
 
+  // Wraps a promise with a hard timeout so Supabase auth calls never hang forever
+  // (e.g. paused project, network black-hole on Vercel edge)
+  function withTimeout<T>(promise: Promise<T>, ms = 15000, msg = 'Request timed out. Please try again.'): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => setTimeout(() => reject(new Error(msg)), ms)),
+    ]);
+  }
+
   // ─── 1. Get session on refresh  2. Listen for auth changes ───
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setSupabaseUser(session.user);
-        setAccessToken(session.access_token);
-        fetchUserProfile(session.user.id);
-      }
-      setIsLoading(false);
-    });
+    withTimeout(supabase.auth.getSession(), 10000)
+      .then(({ data: { session } }) => {
+        if (session?.user) {
+          setSupabaseUser(session.user);
+          setAccessToken(session.access_token);
+          fetchUserProfile(session.user.id);
+        }
+        setIsLoading(false);
+      })
+      .catch(() => {
+        // Timed out or network error — clear loading so the app doesn't freeze
+        setIsLoading(false);
+      });
 
     const {
       data: { subscription },
@@ -184,11 +198,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     lastSignUpTime.current = now;
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: fullName } },
-      });
+      const { data, error } = await withTimeout(
+        supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { full_name: fullName } },
+        }),
+        15000,
+        'Sign-up timed out. Please check your connection and try again.',
+      );
 
       if (error) {
         const msg = error.message?.toLowerCase() || '';
@@ -288,7 +306,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     lastSignInTime.current = now;
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        15000,
+        'Sign-in timed out. Please check your connection and try again.',
+      );
 
       if (error) throw error;
 
