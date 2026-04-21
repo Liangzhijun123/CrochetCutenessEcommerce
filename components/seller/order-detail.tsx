@@ -29,9 +29,10 @@ export function SellerOrderDetail({ orderId }: OrderDetailProps) {
   const fetchOrderDetails = async () => {
     setLoading(true)
     try {
-      // Try fetching from local orders API first (covers checkout-created orders)
-      const res = await fetch(`/api/orders/${orderId}`)
-      if (res.ok) {
+      try {
+        // Try fetching from local orders API first (covers checkout-created orders)
+        const res = await fetch(`/api/orders/${orderId}`)
+        if (res.ok) {
         const data = await res.json()
         // Map order data to the expected shape
         setOrder({
@@ -96,11 +97,10 @@ export function SellerOrderDetail({ orderId }: OrderDetailProps) {
           ],
         })
         return
+        }
+      } catch (fetchErr) {
+        console.error("Could not fetch live order, falling back to mock:", fetchErr)
       }
-    } catch (fetchErr) {
-      console.error("Could not fetch live order, falling back to mock:", fetchErr)
-    }
-
     // Fallback: mock data for demo purposes
     const mockOrder = {
         id: orderId,
