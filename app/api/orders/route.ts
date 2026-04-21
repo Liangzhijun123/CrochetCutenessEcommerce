@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createOrder, getUserById } from "@/lib/local-storage-db"
-import { sendEmail } from "@/lib/email-service"
+import { sendEmail, type EmailTemplate } from "@/lib/email-service"
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       paymentStatus: "paid", // Assume payment is successful for demo
     })
 
-    // Send confirmation email
+    // Send confirmation email to buyer
     const user = getUserById(orderData.userId)
     if (user) {
       await sendEmail(user.email, "order-confirmation", {
@@ -29,6 +29,30 @@ export async function POST(request: NextRequest) {
         items: newOrder.items,
         shippingAddress: newOrder.shippingAddress,
       })
+    }
+
+    // Notify sellers of physical (plushie) orders with buyer shipping info
+    if (newOrder.shippingAddress) {
+      const sellerIds = [...new Set(
+        (newOrder.items as any[])
+          .filter((item) => item.sellerId && (item.productType === "plushie" || item.productType === "both"))
+          .map((item) => item.sellerId)
+      )]
+
+      for (const sellerId of sellerIds) {
+        const seller = getUserById(sellerId as string)
+        if (seller) {
+          const sellerItems = (newOrder.items as any[]).filter((item) => item.sellerId === sellerId)
+          await sendEmail(seller.email, "seller-new-order" as EmailTemplate, {
+            order: newOrder,
+            seller,
+            buyerShippingAddress: newOrder.shippingAddress,
+            items: sellerItems,
+            orderId: newOrder.id,
+            trackingNumber: (newOrder as any).trackingNumber,
+          })
+        }
+      }
     }
 
     return NextResponse.json({

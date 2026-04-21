@@ -39,9 +39,9 @@ const addressSchema = z.object({
 })
 
 const preferencesSchema = z.object({
-  newsletter: z.boolean().default(false),
-  marketing: z.boolean().default(false),
-  notifications: z.boolean().default(true),
+  newsletter: z.boolean(),
+  marketing: z.boolean(),
+  notifications: z.boolean(),
 })
 
 type ProfileFormValues = z.infer<typeof profileSchema>
@@ -258,7 +258,7 @@ export default function ProfilePage() {
           <div className="flex flex-col items-center gap-3 py-4 text-center border-b mb-4">
             <div className="relative h-20 w-20 overflow-hidden rounded-full bg-muted">
               <img
-                src={user?.avatar || "/placeholder.svg?height=80&width=80"}
+                src="/placeholder.svg?height=80&width=80"
                 alt={user?.name || "User avatar"}
                 className="h-full w-full object-cover"
               />

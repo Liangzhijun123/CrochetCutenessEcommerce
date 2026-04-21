@@ -27,6 +27,13 @@ export default function CheckoutPage() {
 
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("shipping")
 
+  // Redirect to home if cart is empty (must be in useEffect, not render)
+  useEffect(() => {
+    if (items.length === 0 && currentStep !== "confirmation") {
+      router.push("/")
+    }
+  }, [items.length, currentStep, router])
+
   // Skip shipping step for digital-only carts once items are loaded
   useEffect(() => {
     if (isDigitalOnly && currentStep === "shipping") {
@@ -34,23 +41,30 @@ export default function CheckoutPage() {
     }
   }, [isDigitalOnly]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [shippingInfo, setShippingInfo] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    address: "",
+  const [shippingAddress, setShippingAddress] = useState({
+    fullName: "",
+    addressLine1: "",
+    addressLine2: "",
     city: "",
     state: "",
     postalCode: "",
     country: "United States",
+    phone: "",
   })
-  const [shippingMethod, setShippingMethod] = useState({
+  const [shippingMethod, setShippingMethod] = useState<{
+    id: string
+    name: string
+    description: string
+    price: number
+    estimatedDeliveryDays: number
+  }>({
     id: "standard",
     name: "Standard Shipping",
+    description: "5-7 business days",
     price: 4.99,
-    estimatedDelivery: "5-7 business days",
+    estimatedDeliveryDays: 7,
   })
+  const [shippingCost, setShippingCost] = useState(4.99)
   const [paymentInfo, setPaymentInfo] = useState({
     cardNumber: "",
     cardName: "",
@@ -58,17 +72,18 @@ export default function CheckoutPage() {
     cvv: "",
   })
 
-  // Redirect to home if cart is empty
   if (items.length === 0 && currentStep !== "confirmation") {
-    if (typeof window !== "undefined") {
-      router.push("/")
-    }
     return null
   }
 
-  const handleShippingSubmit = (data: typeof shippingInfo, method: typeof shippingMethod) => {
-    setShippingInfo(data)
-    setShippingMethod(method)
+  const handleShippingComplete = (data: {
+    address: typeof shippingAddress
+    shippingMethod: typeof shippingMethod
+    shippingCost: number
+  }) => {
+    setShippingAddress(data.address)
+    setShippingMethod(data.shippingMethod)
+    setShippingCost(data.shippingCost)
     setCurrentStep("payment")
     window.scrollTo(0, 0)
   }
@@ -81,7 +96,7 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     try {
-      const shippingCost = isDigitalOnly ? 0 : shippingMethod.price
+      const effectiveShippingCost = isDigitalOnly ? 0 : shippingCost
       const tax = subtotal * 0.08
 
       const orderData = {
@@ -99,25 +114,11 @@ export default function CheckoutPage() {
         ...(isDigitalOnly
           ? {}
           : {
-              shippingAddress: {
-                fullName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
-                addressLine1: shippingInfo.address,
-                city: shippingInfo.city,
-                state: shippingInfo.state,
-                postalCode: shippingInfo.postalCode,
-                country: shippingInfo.country,
-                phone: shippingInfo.phone,
-              },
-              billingAddress: {
-                fullName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
-                addressLine1: shippingInfo.address,
-                city: shippingInfo.city,
-                state: shippingInfo.state,
-                postalCode: shippingInfo.postalCode,
-                country: shippingInfo.country,
-                phone: shippingInfo.phone,
-              },
+              shippingAddress,
+              billingAddress: shippingAddress,
               shippingMethod,
+              // Generate tracking number for physical orders
+              trackingNumber: `TRK${Date.now().toString().slice(-9)}`,
             }),
         paymentMethod: isFreeOrder ? "Free" : "Credit Card",
         paymentDetails: isFreeOrder
@@ -130,8 +131,8 @@ export default function CheckoutPage() {
         paymentStatus: "paid",
         subtotal,
         tax,
-        shipping: shippingCost,
-        total: subtotal + tax + shippingCost,
+        shipping: effectiveShippingCost,
+        total: subtotal + tax + effectiveShippingCost,
         isDigitalOnly,
       }
 
@@ -154,10 +155,10 @@ export default function CheckoutPage() {
         localStorage.setItem(`order_${orderId}`, JSON.stringify({ id: orderId, ...orderData, createdAt: new Date().toISOString() }))
       }
 
-      // Register digital purchases in the digital library
-      if (isDigitalOnly && user?.id) {
+      // Register digital purchases in the digital library (for any order with PDF items)
+      if (user?.id) {
         const pdfProductIds = items
-          .filter((i) => i.productType === "pdf_pattern")
+          .filter((i) => i.productType === "pdf_pattern" || i.productType === "both")
           .map((i) => i.id)
         if (pdfProductIds.length > 0) {
           await fetch("/api/digital-library", {
@@ -176,7 +177,7 @@ export default function CheckoutPage() {
     }
   }
 
-  const shippingCostForSummary = isDigitalOnly ? 0 : shippingMethod.price
+  const shippingCostForSummary = isDigitalOnly ? 0 : shippingCost
 
   return (
     <div className="container py-8">
@@ -201,9 +202,7 @@ export default function CheckoutPage() {
         <div className="lg:col-span-2">
           {currentStep === "shipping" && !isDigitalOnly && (
             <ShippingForm
-              initialValues={shippingInfo}
-              initialShippingMethod={shippingMethod}
-              onSubmit={handleShippingSubmit}
+              onComplete={handleShippingComplete}
             />
           )}
 
@@ -220,11 +219,11 @@ export default function CheckoutPage() {
 
           {currentStep === "review" && (
             <OrderReview
-              shippingInfo={isDigitalOnly ? undefined : shippingInfo}
+              shippingAddress={isDigitalOnly ? undefined : shippingAddress}
               shippingMethod={isDigitalOnly ? undefined : shippingMethod}
               isDigitalOnly={isDigitalOnly}
               isFreeOrder={isFreeOrder}
-              userEmail={user?.email || shippingInfo.email}
+              userEmail={user?.email || ""}
               onBack={() => setCurrentStep("payment")}
               onPlaceOrder={handlePlaceOrder}
             />

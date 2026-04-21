@@ -18,6 +18,7 @@ export type EmailTemplate =
   | "seller-status-reactivated"
   | "seller-verification-upgraded"
   | "seller-monthly-report"
+  | "seller-new-order"
 
 export interface EmailData {
   id: string
@@ -139,6 +140,8 @@ const getEmailSubject = (template: EmailTemplate, data: Record<string, any>): st
       return `Congratulations! Your Verification Level Has Been Upgraded`
     case "seller-monthly-report":
       return `Your Monthly Seller Report - ${data.month || 'This Month'}`
+    case "seller-new-order":
+      return `New Order #${shortOrderId} — Buyer Shipping Details Enclosed`
     default:
       return `Update on Your Order #${shortOrderId}`
   }

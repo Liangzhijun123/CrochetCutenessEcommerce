@@ -160,6 +160,16 @@ export default function LoginPage() {
                   Register
                 </Link>
               </div>
+              <div className="text-xs text-center text-muted-foreground">
+                By signing in, you agree to our{" "}
+                <Link href="/terms" className="text-blue-600 hover:underline">
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy" className="text-blue-600 hover:underline">
+                  Privacy Policy
+                </Link>
+              </div>
             </CardFooter>
           </form>
         </Card>

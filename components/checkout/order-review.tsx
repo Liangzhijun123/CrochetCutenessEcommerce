@@ -5,27 +5,27 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ChevronLeft, CreditCard, Download, FileText, Truck, User } from "lucide-react"
 
-interface ShippingInfo {
-  firstName: string
-  lastName: string
-  email: string
-  phone: string
-  address: string
+interface ShippingAddress {
+  fullName: string
+  addressLine1: string
+  addressLine2?: string
   city: string
   state: string
   postalCode: string
   country: string
+  phone: string
 }
 
 interface ShippingMethod {
   id: string
   name: string
   price: number
-  estimatedDelivery: string
+  description: string
+  estimatedDeliveryDays: number
 }
 
 interface OrderReviewProps {
-  shippingInfo?: ShippingInfo
+  shippingAddress?: ShippingAddress
   shippingMethod?: ShippingMethod
   isDigitalOnly?: boolean
   isFreeOrder?: boolean
@@ -35,7 +35,7 @@ interface OrderReviewProps {
 }
 
 export default function OrderReview({
-  shippingInfo,
+  shippingAddress,
   shippingMethod,
   isDigitalOnly = false,
   isFreeOrder = false,
@@ -92,17 +92,11 @@ export default function OrderReview({
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <p className="text-sm font-medium">Name</p>
-                    <p className="text-sm">
-                      {shippingInfo?.firstName} {shippingInfo?.lastName}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Email</p>
-                    <p className="text-sm">{shippingInfo?.email}</p>
+                    <p className="text-sm">{shippingAddress?.fullName}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium">Phone</p>
-                    <p className="text-sm">{shippingInfo?.phone}</p>
+                    <p className="text-sm">{shippingAddress?.phone}</p>
                   </div>
                 </div>
               </div>
@@ -116,23 +110,26 @@ export default function OrderReview({
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <p className="text-sm font-medium">Address</p>
-                    <p className="text-sm">{shippingInfo?.address}</p>
+                    <p className="text-sm">{shippingAddress?.addressLine1}</p>
+                    {shippingAddress?.addressLine2 && (
+                      <p className="text-sm">{shippingAddress.addressLine2}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm font-medium">City</p>
-                    <p className="text-sm">{shippingInfo?.city}</p>
+                    <p className="text-sm">{shippingAddress?.city}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium">State</p>
-                    <p className="text-sm">{shippingInfo?.state}</p>
+                    <p className="text-sm">{shippingAddress?.state}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium">Postal Code</p>
-                    <p className="text-sm">{shippingInfo?.postalCode}</p>
+                    <p className="text-sm">{shippingAddress?.postalCode}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium">Country</p>
-                    <p className="text-sm">{shippingInfo?.country}</p>
+                    <p className="text-sm">{shippingAddress?.country}</p>
                   </div>
                 </div>
 
@@ -143,7 +140,7 @@ export default function OrderReview({
                       <p>{shippingMethod.name}</p>
                       <p>${shippingMethod.price.toFixed(2)}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">{shippingMethod.estimatedDelivery}</p>
+                    <p className="text-xs text-muted-foreground">{shippingMethod.description}</p>
                   </div>
                 )}
               </div>

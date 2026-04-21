@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, use } from "react"
 import { useRouter } from "next/navigation"
-import { CheckCircle2, Package, Truck, CreditCard } from "lucide-react"
+import { CheckCircle2, Download, Package, Truck, CreditCard } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -12,8 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import OrderConfirmationDetails from "@/components/checkout/order-confirmation-details"
 import { useToast } from "@/hooks/use-toast"
 
-export default function OrderConfirmationPage({ params }: { params: { orderId: string } }) {
-  const { orderId } = params
+export default function OrderConfirmationPage({ params }: { params: Promise<{ orderId: string }> }) {
+  const { orderId } = use(params)
   const router = useRouter()
   const { toast } = useToast()
   const [order, setOrder] = useState<any>(null)
@@ -97,33 +97,71 @@ export default function OrderConfirmationPage({ params }: { params: { orderId: s
       <OrderConfirmationDetails order={order} />
 
       <div className="mt-8 grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-medium flex items-center gap-2">
-              <Truck className="h-5 w-5" />
-              Shipping Information
-            </h3>
-            <Separator className="my-3" />
-            <div className="space-y-2">
-              <p className="font-medium">{order.shippingAddress.fullName}</p>
-              <p>{order.shippingAddress.addressLine1}</p>
-              {order.shippingAddress.addressLine2 && <p>{order.shippingAddress.addressLine2}</p>}
-              <p>
-                {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}
-              </p>
-              <p>{order.shippingAddress.country}</p>
-              <p className="text-sm text-muted-foreground">Phone: {order.shippingAddress.phone}</p>
-            </div>
+        {order.shippingAddress ? (
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-medium flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                Shipping Information
+              </h3>
+              <Separator className="my-3" />
+              <div className="space-y-2">
+                <p className="font-medium">{order.shippingAddress.fullName}</p>
+                <p>{order.shippingAddress.addressLine1}</p>
+                {order.shippingAddress.addressLine2 && <p>{order.shippingAddress.addressLine2}</p>}
+                <p>
+                  {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}
+                </p>
+                <p>{order.shippingAddress.country}</p>
+                <p className="text-sm text-muted-foreground">Phone: {order.shippingAddress.phone}</p>
+              </div>
 
-            <div className="mt-4">
-              <h4 className="font-medium">Shipping Method</h4>
-              <p className="text-sm">{order.shippingMethod?.name || "Standard Shipping"}</p>
-              <p className="text-sm text-muted-foreground">
-                {order.shippingMethod?.description || "Delivery in 5-7 business days"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="mt-4">
+                <h4 className="font-medium">Shipping Method</h4>
+                <p className="text-sm">{order.shippingMethod?.name || "Standard Shipping"}</p>
+                <p className="text-sm text-muted-foreground">
+                  {order.shippingMethod?.description || "Delivery in 5-7 business days"}
+                </p>
+              </div>
+
+              {order.trackingNumber && (
+                <div className="mt-4 rounded-md bg-blue-50 border border-blue-200 p-3">
+                  <p className="text-sm font-semibold text-blue-800">Tracking Number</p>
+                  <p className="text-sm text-blue-700 font-mono">{order.trackingNumber}</p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    You can track your package in{" "}
+                    <Link href="/profile/orders" className="underline">Your Orders</Link>.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-medium flex items-center gap-2">
+                <Download className="h-5 w-5" />
+                Digital Delivery
+              </h3>
+              <Separator className="my-3" />
+              <div className="rounded-md bg-rose-50 border border-rose-200 p-3">
+                <p className="text-sm text-rose-800">
+                  Your PDF pattern(s) are now available in your{" "}
+                  <Link href="/profile" className="font-semibold underline">Profile → Digital Library</Link>.
+                  Use the seller&apos;s password to unlock each PDF.
+                </p>
+              </div>
+              <div className="mt-3">
+                <Button asChild size="sm" className="bg-rose-500 hover:bg-rose-600">
+                  <Link href="/profile">
+                    <Download className="mr-2 h-4 w-4" />
+                    Go to Digital Library
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardContent className="p-6">
@@ -162,8 +200,9 @@ export default function OrderConfirmationPage({ params }: { params: { orderId: s
           <div>
             <p className="font-medium text-rose-700">What happens next?</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Your order will be handmade with care. You'll receive an email confirmation shortly, and we'll notify you
-              when your order ships. Please allow 3-5 business days for your items to be crafted before shipping.
+              {order.isDigitalOnly
+                ? "Your PDF patterns are immediately available in your Digital Library. Check your email for a confirmation and access instructions."
+                : "Your order will be handmade with care. You'll receive an email confirmation shortly, and we'll notify you when your order ships. Please allow 3-5 business days for your items to be crafted before shipping."}
             </p>
           </div>
         </div>

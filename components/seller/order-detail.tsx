@@ -29,9 +29,80 @@ export function SellerOrderDetail({ orderId }: OrderDetailProps) {
   const fetchOrderDetails = async () => {
     setLoading(true)
     try {
-      // In a real app, this would be a fetch to your API
-      // For demo purposes, we'll create some mock data
-      const mockOrder = {
+      // Try fetching from local orders API first (covers checkout-created orders)
+      const res = await fetch(`/api/orders/${orderId}`)
+      if (res.ok) {
+        const data = await res.json()
+        // Map order data to the expected shape
+        setOrder({
+          id: data.id,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt || data.createdAt,
+          status: data.status || "pending",
+          items: (data.items || []).map((item: any) => ({
+            id: item.productId || item.id,
+            productId: item.productId || item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            image: item.image,
+          })),
+          customer: {
+            id: data.userId,
+            name: data.shippingAddress?.fullName || "Customer",
+            email: data.customerEmail || "",
+            phone: data.shippingAddress?.phone || "",
+          },
+          shippingAddress: data.shippingAddress
+            ? {
+                name: data.shippingAddress.fullName,
+                street: data.shippingAddress.addressLine1,
+                street2: data.shippingAddress.addressLine2 || "",
+                city: data.shippingAddress.city,
+                state: data.shippingAddress.state,
+                postalCode: data.shippingAddress.postalCode,
+                country: data.shippingAddress.country,
+                phone: data.shippingAddress.phone,
+              }
+            : null,
+          billingAddress: data.billingAddress
+            ? {
+                name: data.billingAddress.fullName,
+                street: data.billingAddress.addressLine1,
+                street2: data.billingAddress.addressLine2 || "",
+                city: data.billingAddress.city,
+                state: data.billingAddress.state,
+                postalCode: data.billingAddress.postalCode,
+                country: data.billingAddress.country,
+                phone: data.billingAddress.phone,
+              }
+            : null,
+          paymentMethod: data.paymentMethod || "Credit Card",
+          paymentDetails: data.paymentDetails || {},
+          subtotal: data.subtotal || 0,
+          tax: data.tax || 0,
+          shipping: data.shipping || 0,
+          total: data.total || 0,
+          trackingNumber: data.trackingNumber,
+          carrier: data.carrier,
+          notes: data.notes,
+          isDigitalOnly: data.isDigitalOnly,
+          timeline: [
+            {
+              status: "order_placed",
+              timestamp: data.createdAt,
+              message: "Order placed by customer",
+            },
+          ],
+        })
+        return
+      }
+    } catch (fetchErr) {
+      console.error("Could not fetch live order, falling back to mock:", fetchErr)
+    }
+
+    // Fallback: mock data for demo purposes
+    const mockOrder = {
         id: orderId,
         createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
         updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
@@ -294,6 +365,9 @@ export function SellerOrderDetail({ orderId }: OrderDetailProps) {
               <CardTitle>Shipping Information</CardTitle>
             </CardHeader>
             <CardContent>
+              {order.isDigitalOnly || !order.shippingAddress ? (
+                <p className="text-sm text-muted-foreground">This is a digital order — no shipping required.</p>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <h3 className="font-semibold mb-2">Shipping Address</h3>
@@ -332,10 +406,9 @@ export function SellerOrderDetail({ orderId }: OrderDetailProps) {
                   </div>
                 </div>
               </div>
+              )}
             </CardContent>
           </Card>
-
-          {/* Order Notes */}
           <Card>
             <CardHeader>
               <CardTitle>Order Notes</CardTitle>
