@@ -14,15 +14,16 @@ interface SearchParams {
 export default async function ShopPage({
   searchParams,
 }: {
-  searchParams: SearchParams
+  searchParams: Promise<SearchParams>
 }) {
   // Parse search params
-  const query = searchParams.q || ""
-  const category = searchParams.category || ""
-  const minPrice = searchParams.minPrice ? Number.parseFloat(searchParams.minPrice) : 0
-  const maxPrice = searchParams.maxPrice ? Number.parseFloat(searchParams.maxPrice) : 500
-  const difficulty = searchParams.difficulty || ""
-  const isPattern = searchParams.isPattern === "true" ? true : searchParams.isPattern === "false" ? false : null
+  const params = await searchParams
+  const query = params.q || ""
+  const category = params.category || ""
+  const minPrice = params.minPrice ? Number.parseFloat(params.minPrice) : 0
+  const maxPrice = params.maxPrice ? Number.parseFloat(params.maxPrice) : 500
+  const difficulty = params.difficulty || ""
+  const isPattern = params.isPattern === "true" ? true : params.isPattern === "false" ? false : null
 
   // Query Supabase for products
   let dbQuery = supabaseAdmin.from("products").select("*, sellers(id, shop_name, country, state)")

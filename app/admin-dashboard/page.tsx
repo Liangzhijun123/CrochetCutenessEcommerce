@@ -323,29 +323,30 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="overview">
-        <TabsList className="mb-4 flex flex-wrap">
-          <TabsTrigger value="overview">Dashboard</TabsTrigger>
-          <TabsTrigger value="pending">
+      <Tabs defaultValue="overview" className="flex gap-6 items-start">
+        <TabsList className="flex flex-col h-auto w-52 shrink-0 items-stretch gap-1 rounded-lg bg-muted p-2">
+          <TabsTrigger value="overview" className="justify-start px-3 py-2 text-sm">Dashboard</TabsTrigger>
+          <TabsTrigger value="pending" className="justify-start px-3 py-2 text-sm">
             Applications
             {pendingApplications.length > 0 && (
-              <Badge variant="destructive" className="ml-2">
+              <Badge variant="destructive" className="ml-auto">
                 {pendingApplications.length}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="all-applications">All Applications</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="activity">Activity Monitor</TabsTrigger>
-          <TabsTrigger value="content">Content</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="competitions">Competitions</TabsTrigger>
-          <TabsTrigger value="advertisements">Advertisements</TabsTrigger>
-          <TabsTrigger value="advertisers">Advertisers</TabsTrigger>
-          <TabsTrigger value="ad-analytics">Ad Analytics</TabsTrigger>
-          <TabsTrigger value="gamification">Gamification</TabsTrigger>
-          <TabsTrigger value="config">Configuration</TabsTrigger>
+          <TabsTrigger value="all-applications" className="justify-start px-3 py-2 text-sm">All Applications</TabsTrigger>
+          <TabsTrigger value="users" className="justify-start px-3 py-2 text-sm">Users</TabsTrigger>
+          <TabsTrigger value="activity" className="justify-start px-3 py-2 text-sm">Activity Monitor</TabsTrigger>
+          <TabsTrigger value="content" className="justify-start px-3 py-2 text-sm">Content</TabsTrigger>
+          <TabsTrigger value="analytics" className="justify-start px-3 py-2 text-sm">Analytics</TabsTrigger>
+          <TabsTrigger value="competitions" className="justify-start px-3 py-2 text-sm">Competitions</TabsTrigger>
+          <TabsTrigger value="advertisements" className="justify-start px-3 py-2 text-sm">Advertisements</TabsTrigger>
+          <TabsTrigger value="advertisers" className="justify-start px-3 py-2 text-sm">Advertisers</TabsTrigger>
+          <TabsTrigger value="ad-analytics" className="justify-start px-3 py-2 text-sm">Ad Analytics</TabsTrigger>
+          <TabsTrigger value="gamification" className="justify-start px-3 py-2 text-sm">Gamification</TabsTrigger>
+          <TabsTrigger value="config" className="justify-start px-3 py-2 text-sm">Configuration</TabsTrigger>
         </TabsList>
+        <div className="flex-1 min-w-0">
 
         {/* ── Overview Tab ── */}
         <TabsContent value="overview">
@@ -593,6 +594,7 @@ export default function AdminDashboardPage() {
         <TabsContent value="config">
           <SystemConfiguration />
         </TabsContent>
+        </div>
       </Tabs>
 
       {/* Seller Credentials Dialog */}

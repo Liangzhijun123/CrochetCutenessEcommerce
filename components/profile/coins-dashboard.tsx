@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Award, Calendar, Coins, TrendingUp } from "lucide-react"
+import { Calendar, TrendingUp } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
 interface CoinTransaction {
@@ -159,63 +159,45 @@ export default function CoinsDashboard() {
   return (
     <div className="space-y-6">
       {/* Balance and Claim Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Current Balance */}
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-pink-400 via-pink-500 to-rose-500 p-6 text-white shadow-xl">
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="rounded-full bg-white/20 p-3">
-                <Coins className="h-8 w-8 text-white" />
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-medium opacity-90">TOTAL BALANCE</p>
-                <p className="text-3xl font-bold">{coinsData?.balance || 0}</p>
-                <p className="text-sm opacity-75">COINS</p>
-              </div>
+        <div className="rounded-lg border p-6">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Coin Balance</p>
+          <p className="text-4xl font-semibold">{coinsData?.balance || 0}</p>
+          <div className="mt-4 space-y-2">
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>Login streak</span>
+              <span>{coinsData?.loginStreak || 0} days</span>
             </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="opacity-90">Login Streak</span>
-                <span className="font-bold">{coinsData?.loginStreak || 0} days</span>
-              </div>
-              <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-white/40 rounded-full transition-all duration-300"
-                  style={{ width: `${Math.min(((coinsData?.loginStreak || 0) / 7) * 100, 100)}%` }}
-                />
-              </div>
-              <p className="text-xs opacity-75">
-                {(coinsData?.loginStreak || 0) >= 7 ? "Max streak bonus!" : `${7 - (coinsData?.loginStreak || 0)} days to max bonus`}
-              </p>
+            <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-foreground/40 rounded-full transition-all duration-300"
+                style={{ width: `${Math.min(((coinsData?.loginStreak || 0) / 7) * 100, 100)}%` }}
+              />
             </div>
+            <p className="text-xs text-muted-foreground">
+              {(coinsData?.loginStreak || 0) >= 7 ? "Max streak bonus!" : `${7 - (coinsData?.loginStreak || 0)} days to max bonus`}
+            </p>
           </div>
         </div>
 
         {/* Daily Claim */}
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-fuchsia-400 via-fuchsia-500 to-pink-600 p-6 text-white shadow-xl">
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="relative z-10">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 mb-4">
-                <Award className={`h-8 w-8 text-white ${canClaimToday() ? 'animate-pulse' : ''}`} />
-              </div>
-              <h3 className="text-xl font-bold mb-2">DAILY BONUS</h3>
-              <p className="text-sm opacity-90 mb-4">
-                {canClaimToday() ? "Claim your daily reward" : "Come back tomorrow"}
-              </p>
-              <Button 
-                className="w-full bg-white/20 hover:bg-white/30 text-white border border-white/30 font-bold py-3 text-lg backdrop-blur-sm disabled:opacity-50"
-                onClick={claimDailyCoins}
-                disabled={!canClaimToday() || claiming}
-              >
-                {claiming ? "Claiming..." : canClaimToday() ? "🎰 CLAIM COINS" : "Already Claimed"}
-              </Button>
-              <p className="text-xs mt-3 opacity-75">
-                ⏰ Next claim: {getNextClaimTime()}
-              </p>
-            </div>
+        <div className="rounded-lg border p-6 flex flex-col items-center justify-center text-center gap-4">
+          <div>
+            <p className="text-sm font-medium">Daily Bonus</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {canClaimToday() ? "Claim your daily reward" : "Come back tomorrow"}
+            </p>
           </div>
+          <Button
+            className="w-full"
+            variant={canClaimToday() ? "default" : "outline"}
+            onClick={claimDailyCoins}
+            disabled={!canClaimToday() || claiming}
+          >
+            {claiming ? "Claiming..." : canClaimToday() ? "Claim Coins" : "Already Claimed"}
+          </Button>
+          <p className="text-xs text-muted-foreground">Next claim: {getNextClaimTime()}</p>
         </div>
       </div>
 
@@ -265,7 +247,7 @@ export default function CoinsDashboard() {
                   if (isToday) {
                     bgColor = dayData?.claimed 
                       ? "bg-green-100 border-2 border-green-400 text-green-800"
-                      : "bg-pink-100 border-2 border-pink-400 text-pink-800"
+                      : "border-2 border-foreground/40 text-foreground"
                     status = dayData?.claimed ? "✓" : "TODAY"
                   } else if (dayData?.claimed) {
                     bgColor = "bg-green-100 text-green-800"
@@ -300,7 +282,7 @@ export default function CoinsDashboard() {
             {/* Legend */}
             <div className="mt-4 flex flex-wrap gap-4 text-xs">
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-pink-100 border border-pink-400 rounded"></div>
+                <div className="w-3 h-3 border-2 border-foreground/40 rounded"></div>
                 <span>Today</span>
               </div>
               <div className="flex items-center gap-1">

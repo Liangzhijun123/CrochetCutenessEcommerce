@@ -14,6 +14,7 @@ export type CartItem = {
   image: string
   sellerId: string
   color?: string
+  productType?: "plushie" | "pdf_pattern" | "both"
 }
 
 type CartContextType = {

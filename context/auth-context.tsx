@@ -50,6 +50,18 @@ export interface UserProfile {
   pattern_testing_approved?: boolean;
   tester_level?: number;
   tester_xp?: number;
+  phone?: string;
+  address?: {
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+  };
+  preferences?: {
+    newsletter: boolean;
+    marketing: boolean;
+  };
 }
 
 interface AuthContextType {
@@ -72,6 +84,7 @@ interface AuthContextType {
   isPendingSeller: boolean;
   becomeSeller: (shopName: string, description: string) => Promise<void>;
   refreshUserProfile: () => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -140,44 +153,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription?.unsubscribe();
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
     try {
       const profile = await supabaseDB.getUser(userId);
-      setUserProfile(profile as UserProfile);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
+      if (profile) {
+        setUserProfile(profile as UserProfile);
+        return profile as UserProfile;
+      }
+      return null;
+    } catch (error: any) {
+      // PGRST116 = no rows found (profile not created yet) — not a real error
+      const code = error?.code ?? error?.details?.code;
+      const msg: string = error?.message ?? '';
+      const isNotFound = code === 'PGRST116' || msg.includes('No rows') || msg.includes('JSON object requested');
+      if (!isNotFound) {
+        console.error('Error fetching user profile:', error);
+      }
+      return null;
     }
   };
 
   // ─── Map Supabase profile → legacy User shape ───
-  const user: LegacyUser | null = userProfile
-    ? {
-        id: userProfile.id,
-        name: userProfile.full_name || '',
-        email: userProfile.email || '',
-        password: '',
-        role: mapRole(userProfile.role),
-        createdAt: new Date().toISOString(),
-        loyaltyPoints: 0,
-        loyaltyTier: 'bronze' as const,
-        coins: 0,
-        points: 0,
-        loginStreak: 0,
-        isActive: true,
-        sellerProfile: userProfile.is_seller
-          ? {
-              approved: true,
-              bio: '',
-              storeName: userProfile.seller_id || '',
-              onboardingCompleted: userProfile.seller_onboarding_completed || false,
-              credentialsGenerated: !!userProfile.seller_generated_password,
-              sellerUsername: userProfile.seller_username || '',
-            }
-          : undefined,
-        patternTestingApproved: userProfile.pattern_testing_approved || false,
-        testerLevel: userProfile.tester_level || 0,
-        testerXP: userProfile.tester_xp || 0,
-      }
+  // If the DB profile hasn't loaded yet, fall back to supabase auth metadata so the
+  // header always shows logged-in state for an authenticated user.
+  const user: LegacyUser | null = supabaseUser
+    ? userProfile
+      ? {
+          id: userProfile.id,
+          name: userProfile.full_name || '',
+          email: userProfile.email || '',
+          password: '',
+          role: mapRole(userProfile.role),
+          createdAt: new Date().toISOString(),
+          loyaltyPoints: 0,
+          loyaltyTier: 'bronze' as const,
+          coins: 0,
+          points: 0,
+          loginStreak: 0,
+          isActive: true,
+          sellerProfile: userProfile.is_seller
+            ? {
+                approved: true,
+                bio: '',
+                storeName: userProfile.seller_id || '',
+                onboardingCompleted: userProfile.seller_onboarding_completed || false,
+                credentialsGenerated: !!userProfile.seller_generated_password,
+                sellerUsername: userProfile.seller_username || '',
+              }
+            : undefined,
+          patternTestingApproved: userProfile.pattern_testing_approved || false,
+          testerLevel: userProfile.tester_level || 0,
+          testerXP: userProfile.tester_xp || 0,
+        }
+      : {
+          // Fallback: DB profile not yet available — use auth session metadata
+          id: supabaseUser.id,
+          name:
+            supabaseUser.user_metadata?.full_name ||
+            supabaseUser.email?.split('@')[0] ||
+            'User',
+          email: supabaseUser.email || '',
+          password: '',
+          role: 'user' as const,
+          createdAt: supabaseUser.created_at || new Date().toISOString(),
+          loyaltyPoints: 0,
+          loyaltyTier: 'bronze' as const,
+          coins: 0,
+          points: 0,
+          loginStreak: 0,
+          isActive: true,
+          patternTestingApproved: false,
+          testerLevel: 0,
+          testerXP: 0,
+        }
     : null;
 
   const isAuthenticated = !!supabaseUser;
@@ -208,15 +256,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       assertSupabaseConfigured();
-      const { data, error } = await withTimeout(
-        supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { full_name: fullName } },
-        }),
-        15000,
-        'Sign-up timed out. Please check your connection and try again.',
-      );
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName } },
+      });
 
       if (error) {
         const msg = error.message?.toLowerCase() || '';
@@ -262,7 +306,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from('users')
         .select('id')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (existingProfile) {
         await fetchUserProfile(userId);
@@ -317,17 +361,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       assertSupabaseConfigured();
-      const { data, error } = await withTimeout(
-        supabase.auth.signInWithPassword({ email, password }),
-        15000,
-        'Sign-in timed out. Please check your connection and try again.',
-      );
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) throw error;
 
       if (data.user) {
         setSupabaseUser(data.user);
-        await fetchUserProfile(data.user.id);
+        const profile = await fetchUserProfile(data.user.id);
+        // If no profile row exists (e.g. signup completed but profile creation failed),
+        // create one now so the user isn't stuck in a logged-in-but-no-profile loop
+        if (!profile) {
+          createProfileInBackground(
+            data.user.id,
+            data.user.email!,
+            data.user.user_metadata?.full_name || ''
+          );
+        }
       }
     } catch (err) {
       throw err;
@@ -385,6 +434,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateProfile = async (updates: Partial<UserProfile>): Promise<void> => {
+    if (!supabaseUser) throw new Error('Not authenticated');
+    const { error } = await supabase.from('users').update(updates).eq('id', supabaseUser.id);
+    if (error) throw error;
+    await fetchUserProfile(supabaseUser.id);
+  };
+
   const updateUser = async (): Promise<boolean> => false;
   const refreshUser = async (userId?: string): Promise<boolean> => {
     try {
@@ -417,6 +473,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isPendingSeller,
     becomeSeller,
     refreshUserProfile,
+    updateProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

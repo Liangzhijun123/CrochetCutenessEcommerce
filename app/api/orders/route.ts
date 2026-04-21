@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const orderData = await request.json()
 
     // Validate required fields
-    if (!orderData.userId || !orderData.items || !orderData.shippingAddress) {
+    if (!orderData.userId || !orderData.items) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 

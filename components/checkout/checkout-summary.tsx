@@ -5,9 +5,10 @@ interface CheckoutSummaryProps {
   items: CartItem[]
   subtotal: number
   shippingCost: number
+  isDigitalOnly?: boolean
 }
 
-export default function CheckoutSummary({ items, subtotal, shippingCost }: CheckoutSummaryProps) {
+export default function CheckoutSummary({ items, subtotal, shippingCost, isDigitalOnly = false }: CheckoutSummaryProps) {
   const total = subtotal + shippingCost
 
   return (
@@ -34,7 +35,7 @@ export default function CheckoutSummary({ items, subtotal, shippingCost }: Check
                     <span>
                       ${item.price.toFixed(2)} × {item.quantity}
                     </span>
-                    <span className="font-medium">${item.totalPrice.toFixed(2)}</span>
+                    <span className="font-medium">${(item.price * item.quantity).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -43,15 +44,25 @@ export default function CheckoutSummary({ items, subtotal, shippingCost }: Check
 
           <Separator />
 
+          <Separator />
+
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Subtotal</span>
               <span>${subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span>Shipping</span>
-              <span>${shippingCost.toFixed(2)}</span>
-            </div>
+            {!isDigitalOnly && (
+              <div className="flex justify-between text-sm">
+                <span>Shipping</span>
+                <span>${shippingCost.toFixed(2)}</span>
+              </div>
+            )}
+            {isDigitalOnly && (
+              <div className="flex justify-between text-sm">
+                <span>Shipping</span>
+                <span className="text-rose-600 font-medium">Digital — Free</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span>Tax</span>
               <span>Calculated at next step</span>

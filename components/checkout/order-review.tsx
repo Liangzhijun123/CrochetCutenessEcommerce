@@ -3,31 +3,46 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { ChevronLeft, CreditCard, Truck, User } from "lucide-react"
+import { ChevronLeft, CreditCard, Download, FileText, Truck, User } from "lucide-react"
+
+interface ShippingInfo {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  state: string
+  postalCode: string
+  country: string
+}
+
+interface ShippingMethod {
+  id: string
+  name: string
+  price: number
+  estimatedDelivery: string
+}
 
 interface OrderReviewProps {
-  shippingInfo: {
-    firstName: string
-    lastName: string
-    email: string
-    phone: string
-    address: string
-    city: string
-    state: string
-    postalCode: string
-    country: string
-  }
-  shippingMethod: {
-    id: string
-    name: string
-    price: number
-    estimatedDelivery: string
-  }
+  shippingInfo?: ShippingInfo
+  shippingMethod?: ShippingMethod
+  isDigitalOnly?: boolean
+  isFreeOrder?: boolean
+  userEmail?: string
   onBack: () => void
   onPlaceOrder: () => void
 }
 
-export default function OrderReview({ shippingInfo, shippingMethod, onBack, onPlaceOrder }: OrderReviewProps) {
+export default function OrderReview({
+  shippingInfo,
+  shippingMethod,
+  isDigitalOnly = false,
+  isFreeOrder = false,
+  userEmail,
+  onBack,
+  onPlaceOrder,
+}: OrderReviewProps) {
   return (
     <Card>
       <CardContent className="p-6">
@@ -37,68 +52,103 @@ export default function OrderReview({ shippingInfo, shippingMethod, onBack, onPl
         </div>
 
         <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-medium flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Contact Information
-            </h3>
-            <Separator className="my-3" />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {isDigitalOnly ? (
+            <>
               <div>
-                <p className="text-sm font-medium">Name</p>
-                <p className="text-sm">
-                  {shippingInfo.firstName} {shippingInfo.lastName}
-                </p>
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Contact Information
+                </h3>
+                <Separator className="my-3" />
+                <div>
+                  <p className="text-sm font-medium">Email</p>
+                  <p className="text-sm">{userEmail || "—"}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium">Email</p>
-                <p className="text-sm">{shippingInfo.email}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium">Phone</p>
-                <p className="text-sm">{shippingInfo.phone}</p>
-              </div>
-            </div>
-          </div>
 
-          <div>
-            <h3 className="text-lg font-medium flex items-center gap-2">
-              <Truck className="h-5 w-5" />
-              Shipping Information
-            </h3>
-            <Separator className="my-3" />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <p className="text-sm font-medium">Address</p>
-                <p className="text-sm">{shippingInfo.address}</p>
-              </div>
               <div>
-                <p className="text-sm font-medium">City</p>
-                <p className="text-sm">{shippingInfo.city}</p>
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Digital Delivery
+                </h3>
+                <Separator className="my-3" />
+                <div className="rounded-md bg-rose-50 border border-rose-200 p-3">
+                  <p className="text-sm text-rose-800">
+                    Your PDF pattern(s) will be available immediately in your{" "}
+                    <span className="font-semibold">Profile → Digital Library</span>. Use the seller&apos;s password to
+                    unlock each PDF.
+                  </p>
+                </div>
               </div>
+            </>
+          ) : (
+            <>
               <div>
-                <p className="text-sm font-medium">State</p>
-                <p className="text-sm">{shippingInfo.state}</p>
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Contact Information
+                </h3>
+                <Separator className="my-3" />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="text-sm font-medium">Name</p>
+                    <p className="text-sm">
+                      {shippingInfo?.firstName} {shippingInfo?.lastName}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Email</p>
+                    <p className="text-sm">{shippingInfo?.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Phone</p>
+                    <p className="text-sm">{shippingInfo?.phone}</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium">Postal Code</p>
-                <p className="text-sm">{shippingInfo.postalCode}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium">Country</p>
-                <p className="text-sm">{shippingInfo.country}</p>
-              </div>
-            </div>
 
-            <div className="mt-4">
-              <p className="text-sm font-medium">Shipping Method</p>
-              <div className="mt-1 flex justify-between text-sm">
-                <p>{shippingMethod.name}</p>
-                <p>${shippingMethod.price.toFixed(2)}</p>
+              <div>
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <Truck className="h-5 w-5" />
+                  Shipping Information
+                </h3>
+                <Separator className="my-3" />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <p className="text-sm font-medium">Address</p>
+                    <p className="text-sm">{shippingInfo?.address}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">City</p>
+                    <p className="text-sm">{shippingInfo?.city}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">State</p>
+                    <p className="text-sm">{shippingInfo?.state}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Postal Code</p>
+                    <p className="text-sm">{shippingInfo?.postalCode}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Country</p>
+                    <p className="text-sm">{shippingInfo?.country}</p>
+                  </div>
+                </div>
+
+                {shippingMethod && (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium">Shipping Method</p>
+                    <div className="mt-1 flex justify-between text-sm">
+                      <p>{shippingMethod.name}</p>
+                      <p>${shippingMethod.price.toFixed(2)}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{shippingMethod.estimatedDelivery}</p>
+                  </div>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">{shippingMethod.estimatedDelivery}</p>
-            </div>
-          </div>
+            </>
+          )}
 
           <div>
             <h3 className="text-lg font-medium flex items-center gap-2">
@@ -108,12 +158,14 @@ export default function OrderReview({ shippingInfo, shippingMethod, onBack, onPl
             <Separator className="my-3" />
             <div>
               <p className="text-sm font-medium">Payment Method</p>
-              <p className="text-sm">Credit Card (ending in ****)</p>
+              <p className="text-sm">{isFreeOrder ? "Free — no payment required" : "Credit Card (ending in ****)"}</p>
             </div>
-            <div className="mt-2">
-              <p className="text-sm font-medium">Billing Address</p>
-              <p className="text-sm">Same as shipping address</p>
-            </div>
+            {!isDigitalOnly && (
+              <div className="mt-2">
+                <p className="text-sm font-medium">Billing Address</p>
+                <p className="text-sm">Same as shipping address</p>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
@@ -123,7 +175,14 @@ export default function OrderReview({ shippingInfo, shippingMethod, onBack, onPl
           Back to Payment
         </Button>
         <Button onClick={onPlaceOrder} className="w-full sm:w-auto bg-rose-500 hover:bg-rose-600">
-          Place Order
+          {isDigitalOnly ? (
+            <>
+              <Download className="mr-2 h-4 w-4" />
+              {isFreeOrder ? "Confirm Free Access" : "Confirm & Pay"}
+            </>
+          ) : (
+            "Place Order"
+          )}
         </Button>
       </CardFooter>
     </Card>

@@ -34,7 +34,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   )
   const [quantity, setQuantity] = useState(1)
   const { addItem } = useCart()
-  const { addToWishlist, isInWishlist, removeFromWishlist } = useWishlist()
+  const { addItem: addToWishlist, isInWishlist, removeItem: removeFromWishlist } = useWishlist()
 
   // Safely extract values with defaults
   const { id = "", name = "", price = 0, description = "", colors = [], rating = 0, images = [], sellerId, productType: sellerProductType } = product || {}

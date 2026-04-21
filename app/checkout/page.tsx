@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { useCart } from "@/context/cart-context"
+import { useAuth } from "@/context/auth-context"
 import CheckoutSummary from "@/components/checkout/checkout-summary"
 import ShippingForm from "@/components/checkout/shipping-form"
 import PaymentForm from "@/components/checkout/payment-form"
@@ -17,7 +18,22 @@ type CheckoutStep = "shipping" | "payment" | "review" | "confirmation"
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, subtotal, clearCart } = useCart()
+  const { user } = useAuth()
+
+  const isDigitalOnly =
+    items.length > 0 && items.every((i) => i.productType === "pdf_pattern")
+  const hasPhysical = items.some((i) => !i.productType || i.productType === "plushie" || i.productType === "both")
+  const isFreeOrder = isDigitalOnly && subtotal === 0
+
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("shipping")
+
+  // Skip shipping step for digital-only carts once items are loaded
+  useEffect(() => {
+    if (isDigitalOnly && currentStep === "shipping") {
+      setCurrentStep("payment")
+    }
+  }, [isDigitalOnly]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const [shippingInfo, setShippingInfo] = useState({
     firstName: "",
     lastName: "",
@@ -65,8 +81,11 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     try {
-      // Create the order data
+      const shippingCost = isDigitalOnly ? 0 : shippingMethod.price
+      const tax = subtotal * 0.08
+
       const orderData = {
+        userId: user?.id,
         items: items.map((item) => ({
           productId: item.id,
           name: item.name,
@@ -74,38 +93,46 @@ export default function CheckoutPage() {
           quantity: item.quantity,
           image: item.image,
           sellerId: item.sellerId,
+          productType: item.productType,
         })),
         status: "processing",
-        shippingAddress: {
-          fullName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
-          addressLine1: shippingInfo.address,
-          city: shippingInfo.city,
-          state: shippingInfo.state,
-          postalCode: shippingInfo.postalCode,
-          country: shippingInfo.country,
-          phone: shippingInfo.phone,
-        },
-        billingAddress: {
-          fullName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
-          addressLine1: shippingInfo.address,
-          city: shippingInfo.city,
-          state: shippingInfo.state,
-          postalCode: shippingInfo.postalCode,
-          country: shippingInfo.country,
-          phone: shippingInfo.phone,
-        },
-        paymentMethod: "Credit Card",
-        paymentDetails: {
-          cardNumber: paymentInfo.cardNumber,
-          cardName: paymentInfo.cardName,
-          expiryDate: paymentInfo.expiryDate,
-        },
+        ...(isDigitalOnly
+          ? {}
+          : {
+              shippingAddress: {
+                fullName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
+                addressLine1: shippingInfo.address,
+                city: shippingInfo.city,
+                state: shippingInfo.state,
+                postalCode: shippingInfo.postalCode,
+                country: shippingInfo.country,
+                phone: shippingInfo.phone,
+              },
+              billingAddress: {
+                fullName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
+                addressLine1: shippingInfo.address,
+                city: shippingInfo.city,
+                state: shippingInfo.state,
+                postalCode: shippingInfo.postalCode,
+                country: shippingInfo.country,
+                phone: shippingInfo.phone,
+              },
+              shippingMethod,
+            }),
+        paymentMethod: isFreeOrder ? "Free" : "Credit Card",
+        paymentDetails: isFreeOrder
+          ? {}
+          : {
+              cardNumber: paymentInfo.cardNumber,
+              cardName: paymentInfo.cardName,
+              expiryDate: paymentInfo.expiryDate,
+            },
         paymentStatus: "paid",
-        shippingMethod,
         subtotal,
-        tax: subtotal * 0.08,
-        shipping: shippingMethod.price,
-        total: subtotal + subtotal * 0.08 + shippingMethod.price,
+        tax,
+        shipping: shippingCost,
+        total: subtotal + tax + shippingCost,
+        isDigitalOnly,
       }
 
       // Submit the order to the API
@@ -117,41 +144,39 @@ export default function CheckoutPage() {
         body: JSON.stringify(orderData),
       })
 
+      let orderId: string
       if (response.ok) {
         const order = await response.json()
-
-        // Store the order in localStorage as a fallback
-        localStorage.setItem(`order_${order.id}`, JSON.stringify(order))
-
-        // Clear the cart
-        clearCart()
-
-        // Redirect to the confirmation page
-        router.push(`/checkout/confirmation/${order.id}`)
+        orderId = order.id || order.order?.id
+        localStorage.setItem(`order_${orderId}`, JSON.stringify(order))
       } else {
-        // If API fails, create a mock order ID and redirect
-        const mockOrderId = `ORD-${Math.floor(Math.random() * 10000)}-${Date.now().toString().slice(-4)}`
-
-        // Store the order in localStorage
-        const mockOrder = {
-          id: mockOrderId,
-          ...orderData,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }
-        localStorage.setItem(`order_${mockOrderId}`, JSON.stringify(mockOrder))
-
-        // Clear the cart
-        clearCart()
-
-        // Redirect to the confirmation page
-        router.push(`/checkout/confirmation/${mockOrderId}`)
+        orderId = `ORD-${Math.floor(Math.random() * 10000)}-${Date.now().toString().slice(-4)}`
+        localStorage.setItem(`order_${orderId}`, JSON.stringify({ id: orderId, ...orderData, createdAt: new Date().toISOString() }))
       }
+
+      // Register digital purchases in the digital library
+      if (isDigitalOnly && user?.id) {
+        const pdfProductIds = items
+          .filter((i) => i.productType === "pdf_pattern")
+          .map((i) => i.id)
+        if (pdfProductIds.length > 0) {
+          await fetch("/api/digital-library", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: user.id, productIds: pdfProductIds }),
+          })
+        }
+      }
+
+      // Clear the cart and redirect
+      clearCart()
+      router.push(`/checkout/confirmation/${orderId}`)
     } catch (error) {
       console.error("Error creating order:", error)
-      // Handle error (show toast, etc.)
     }
   }
+
+  const shippingCostForSummary = isDigitalOnly ? 0 : shippingMethod.price
 
   return (
     <div className="container py-8">
@@ -167,14 +192,14 @@ export default function CheckoutPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold">Checkout</h1>
             <Separator className="my-4" />
-            <CheckoutSteps currentStep={currentStep} />
+            <CheckoutSteps currentStep={currentStep} showShipping={!isDigitalOnly} />
           </div>
         </>
       )}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          {currentStep === "shipping" && (
+          {currentStep === "shipping" && !isDigitalOnly && (
             <ShippingForm
               initialValues={shippingInfo}
               initialShippingMethod={shippingMethod}
@@ -186,14 +211,20 @@ export default function CheckoutPage() {
             <PaymentForm
               initialValues={paymentInfo}
               onSubmit={handlePaymentSubmit}
-              onBack={() => setCurrentStep("shipping")}
+              onBack={() => (isDigitalOnly ? router.push("/shop") : setCurrentStep("shipping"))}
+              total={subtotal + subtotal * 0.08 + shippingCostForSummary}
+              isFree={isFreeOrder}
+              isDigitalOnly={isDigitalOnly}
             />
           )}
 
           {currentStep === "review" && (
             <OrderReview
-              shippingInfo={shippingInfo}
-              shippingMethod={shippingMethod}
+              shippingInfo={isDigitalOnly ? undefined : shippingInfo}
+              shippingMethod={isDigitalOnly ? undefined : shippingMethod}
+              isDigitalOnly={isDigitalOnly}
+              isFreeOrder={isFreeOrder}
+              userEmail={user?.email || shippingInfo.email}
               onBack={() => setCurrentStep("payment")}
               onPlaceOrder={handlePlaceOrder}
             />
@@ -201,7 +232,12 @@ export default function CheckoutPage() {
         </div>
 
         <div className="lg:col-span-1">
-          <CheckoutSummary items={items} subtotal={subtotal} shippingCost={shippingMethod.price} />
+          <CheckoutSummary
+            items={items}
+            subtotal={subtotal}
+            shippingCost={shippingCostForSummary}
+            isDigitalOnly={isDigitalOnly}
+          />
         </div>
       </div>
     </div>

@@ -2,14 +2,20 @@ import { CheckCircle2 } from "lucide-react"
 
 interface CheckoutStepsProps {
   currentStep: "shipping" | "payment" | "review" | "confirmation"
+  showShipping?: boolean
 }
 
-export default function CheckoutSteps({ currentStep }: CheckoutStepsProps) {
-  const steps = [
-    { id: "shipping", label: "Shipping" },
-    { id: "payment", label: "Payment" },
-    { id: "review", label: "Review" },
-  ]
+export default function CheckoutSteps({ currentStep, showShipping = true }: CheckoutStepsProps) {
+  const steps = showShipping
+    ? [
+        { id: "shipping", label: "Shipping" },
+        { id: "payment", label: "Payment" },
+        { id: "review", label: "Review" },
+      ]
+    : [
+        { id: "payment", label: "Payment" },
+        { id: "review", label: "Review" },
+      ]
 
   const getCurrentStepIndex = () => {
     return steps.findIndex((step) => step.id === currentStep)

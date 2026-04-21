@@ -74,3 +74,32 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "An error occurred" }, { status: 500 })
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { userId, productIds } = body as { userId: string; productIds: string[] }
+
+    if (!userId || !Array.isArray(productIds) || productIds.length === 0) {
+      return NextResponse.json({ error: "userId and productIds are required" }, { status: 400 })
+    }
+
+    const rows = productIds.map((productId) => ({
+      user_id: userId,
+      pattern_id: productId,
+      purchased_at: new Date().toISOString(),
+    }))
+
+    const { error } = await supabaseAdmin.from("purchases").insert(rows)
+
+    if (error) {
+      console.error("Error inserting digital purchases:", error)
+      return NextResponse.json({ error: "Failed to register digital purchases" }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, count: rows.length })
+  } catch (error) {
+    console.error("Error in digital library POST:", error)
+    return NextResponse.json({ error: "An error occurred" }, { status: 500 })
+  }
+}

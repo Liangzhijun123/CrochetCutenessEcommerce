@@ -1,6 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -10,30 +9,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth/login', request.url));
   }
 
-  const cookieStore = await cookies();
+  // Build the response first so we can attach cookies to it
+  const response = NextResponse.redirect(new URL('/', request.url));
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          // Write cookies onto the response so the browser actually receives them
           cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
+            response.cookies.set(name, value, options);
           });
         },
       },
     }
   );
 
-  // ✅ THIS is enough — no extra logic needed
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    console.error(error);
+    console.error('Auth callback error:', error);
     return NextResponse.redirect(new URL('/auth/login?error=auth', request.url));
   }
 
-  return NextResponse.redirect(new URL('/', request.url));
+  return response;
 }

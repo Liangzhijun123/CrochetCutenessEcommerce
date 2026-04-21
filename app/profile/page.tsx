@@ -6,7 +6,7 @@ import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { User, Settings, ShoppingBag, Heart, CreditCard, LogOut, Loader2, Award, FileText } from "lucide-react"
+import { User, ShoppingBag, Heart, CreditCard, LogOut, Loader2, Award, FileText } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -64,7 +64,7 @@ const wishlist: Array<{
 }> = []
 
 export default function ProfilePage() {
-  const { user, profile, isAuthenticated, isLoading, updateUser, updateProfile, signOut } = useAuth()
+  const { user, userProfile: profile, isAuthenticated, isLoading, updateUser, updateProfile, signOut } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loggingOut, setLoggingOut] = useState(false)
@@ -255,25 +255,21 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 gap-8 md:grid-cols-[240px_1fr]">
         {/* Sidebar */}
         <div className="hidden md:block">
-          <div className="flex flex-col items-center space-y-4 rounded-lg border bg-card p-6 text-center">
-            <div className="relative h-24 w-24 overflow-hidden rounded-full bg-rose-100">
+          <div className="flex flex-col items-center gap-3 py-4 text-center border-b mb-4">
+            <div className="relative h-20 w-20 overflow-hidden rounded-full bg-muted">
               <img
-                src={user?.avatar || "/placeholder.svg?height=96&width=96"}
+                src={user?.avatar || "/placeholder.svg?height=80&width=80"}
                 alt={user?.name || "User avatar"}
                 className="h-full w-full object-cover"
               />
             </div>
             <div>
-              <h2 className="text-xl font-semibold">{user?.name}</h2>
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
+              <p className="font-medium">{user?.name}</p>
+              <p className="text-xs text-muted-foreground">{user?.email}</p>
             </div>
-            <Button variant="outline" className="w-full gap-2" onClick={() => setActiveTab("account")}>
-              <Settings className="h-4 w-4" />
-              Edit Profile
-            </Button>
           </div>
 
-          <div className="mt-6 space-y-2">
+          <div className="space-y-1.5">
             <Button
               variant={activeTab === "account" ? "default" : "ghost"}
               className="w-full justify-start gap-2"
@@ -364,7 +360,7 @@ export default function ProfilePage() {
             }}
           >
             <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 pb-1">
-              <TabsList className="grid grid-cols-7 w-max min-w-full [&>*]:whitespace-nowrap">
+              <TabsList className="grid grid-cols-7 w-max min-w-full gap-1 [&>*]:whitespace-nowrap [&>*]:px-3">
                 <TabsTrigger value="account">Account</TabsTrigger>
                 <TabsTrigger value="orders">Orders</TabsTrigger>
                 <TabsTrigger value="wishlist">Wishlist</TabsTrigger>
