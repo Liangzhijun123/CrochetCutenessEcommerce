@@ -24,7 +24,7 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
   const [selectedColor, setSelectedColor] = useState(product?.colors?.[0] || "")
   const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || "")
   const { addItem } = useCart()
-  const { addToWishlist, isInWishlist, removeFromWishlist } = useWishlist()
+  const { addItem: addToWishlist, isInWishlist, removeItem: removeFromWishlist } = useWishlist()
 
   if (!product) return null
 

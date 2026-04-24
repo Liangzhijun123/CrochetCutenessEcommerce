@@ -46,7 +46,7 @@ export default function ProductCard({
   tags,
 }: ProductCardProps) {
   const { addItem } = useCart()
-  const { addToWishlist, isInWishlist, removeFromWishlist } = useWishlist()
+  const { addItem: addToWishlist, isInWishlist, removeItem: removeFromWishlist } = useWishlist()
 
   const productTypeLabel = productType === "pdf_pattern" ? "PDF Pattern" : productType === "both" ? "Plushie & Pattern" : "Plushie"
 

@@ -152,7 +152,7 @@ export default function PatternTestCard({
   const isApplicationValid = applicationNote.length >= 20 && whyThisPattern.length >= 10 && materialsConfirmed
 
   const { addItem } = useCart()
-  const { addToWishlist, isInWishlist, removeFromWishlist } = useWishlist()
+  const { addItem: addToWishlist, isInWishlist, removeItem: removeFromWishlist } = useWishlist()
 
   const handleAddToCart = () => {
     addItem({ id: pattern.id, name: pattern.title, price: pattern.reward || 0, image: pattern.image })
