@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createOrder, getUserById } from "@/lib/local-storage-db"
+import { createOrder, getUserById, initializeDatabase } from "@/lib/local-storage-db"
 import { sendEmail, type EmailTemplate } from "@/lib/email-service"
 
 export async function POST(request: NextRequest) {
   try {
+    initializeDatabase()
     const orderData = await request.json()
 
     // Validate required fields
@@ -68,9 +69,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // This would typically include authentication and authorization
-    // For demo purposes, we'll return all orders
-
+    initializeDatabase()
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("userId")
     const sellerId = searchParams.get("sellerId")

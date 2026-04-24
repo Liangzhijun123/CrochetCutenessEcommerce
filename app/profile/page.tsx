@@ -48,14 +48,6 @@ type ProfileFormValues = z.infer<typeof profileSchema>
 type AddressFormValues = z.infer<typeof addressSchema>
 type PreferencesFormValues = z.infer<typeof preferencesSchema>
 
-const orders: Array<{
-  id: string
-  date: string
-  status: string
-  total: number
-  items: Array<{ name: string; price: number; quantity: number }>
-}> = []
-
 const wishlist: Array<{
   id: string
   name: string
@@ -70,6 +62,8 @@ export default function ProfilePage() {
   const [loggingOut, setLoggingOut] = useState(false)
   const tabParam = searchParams.get("tab")
   const [activeTab, setActiveTab] = useState("account")
+  const [orders, setOrders] = useState<any[]>([])
+  const [ordersLoading, setOrdersLoading] = useState(false)
 
   // Set active tab from URL parameter if available
   useEffect(() => {
@@ -77,6 +71,17 @@ export default function ProfilePage() {
       setActiveTab(tabParam)
     }
   }, [tabParam])
+
+  // Fetch orders when user is available
+  useEffect(() => {
+    if (!user?.id) return
+    setOrdersLoading(true)
+    fetch(`/api/orders?userId=${user.id}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setOrders(Array.isArray(data) ? data : []))
+      .catch(() => setOrders([]))
+      .finally(() => setOrdersLoading(false))
+  }, [user?.id])
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -637,7 +642,11 @@ export default function ProfilePage() {
                   <CardDescription>View and manage your past orders</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {orders.length === 0 ? (
+                  {ordersLoading ? (
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
+                    </div>
+                  ) : orders.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                       <ShoppingBag className="h-12 w-12 text-muted-foreground" />
                       <h3 className="mt-4 text-lg font-medium">No orders yet</h3>
@@ -652,42 +661,38 @@ export default function ProfilePage() {
                         <div key={order.id} className="rounded-lg border">
                           <div className="flex flex-wrap items-center justify-between gap-4 border-b p-4">
                             <div>
-                              <p className="font-medium">Order #{order.id}</p>
+                              <p className="font-medium">Order #{order.id?.slice(0, 8).toUpperCase()}</p>
                               <p className="text-sm text-muted-foreground">
-                                Placed on {new Date(order.date).toLocaleDateString()}
+                                Placed on {new Date(order.createdAt || order.date).toLocaleDateString()}
                               </p>
                             </div>
                             <div className="flex items-center gap-4">
                               <div className="text-right">
-                                <p className="font-medium">${order.total.toFixed(2)}</p>
-                                <p className="text-sm">
-                                  <span
-                                    className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                                      order.status === "Delivered"
-                                        ? "bg-green-100 text-green-700"
-                                        : order.status === "Processing"
-                                          ? "bg-blue-100 text-blue-700"
-                                          : "bg-amber-100 text-amber-700"
-                                    }`}
-                                  >
-                                    {order.status}
-                                  </span>
-                                </p>
+                                <p className="font-medium">${(order.total ?? 0).toFixed(2)}</p>
+                                <span
+                                  className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                                    order.status === "delivered"
+                                      ? "bg-green-100 text-green-700"
+                                      : order.status === "processing" || order.status === "pending"
+                                        ? "bg-blue-100 text-blue-700"
+                                        : "bg-amber-100 text-amber-700"
+                                  }`}
+                                >
+                                  {order.status}
+                                </span>
                               </div>
-                              <Button variant="outline" size="sm">
-                                View Details
+                              <Button variant="outline" size="sm" asChild>
+                                <Link href={`/profile/orders/${order.id}`}>View Details</Link>
                               </Button>
                             </div>
                           </div>
                           <div className="p-4">
                             <h4 className="mb-2 text-sm font-medium">Items</h4>
                             <div className="space-y-2">
-                              {order.items.map((item, index) => (
+                              {(order.items ?? []).map((item: any, index: number) => (
                                 <div key={index} className="flex justify-between text-sm">
-                                  <span>
-                                    {item.quantity} × {item.name}
-                                  </span>
-                                  <span>${item.price.toFixed(2)}</span>
+                                  <span>{item.quantity} × {item.name}</span>
+                                  <span>${(item.price ?? 0).toFixed(2)}</span>
                                 </div>
                               ))}
                             </div>

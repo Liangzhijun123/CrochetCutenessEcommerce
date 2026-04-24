@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getOrderById } from "@/lib/local-storage-db"
+import { getOrderById, initializeDatabase } from "@/lib/local-storage-db"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    initializeDatabase()
     const orderId = params.id
     const order = getOrderById(orderId)
 
