@@ -24,6 +24,7 @@ interface PaymentFormProps {
   total?: number
   isFree?: boolean
   isDigitalOnly?: boolean
+  isLoading?: boolean
 }
 
 export default function PaymentForm({
@@ -33,6 +34,7 @@ export default function PaymentForm({
   total = 0,
   isFree = false,
   isDigitalOnly = false,
+  isLoading = false,
 }: PaymentFormProps) {
   const [paymentMethod, setPaymentMethod] = useState("credit_card")
   const [values, setValues] = useState<PaymentFormValues>(initialValues)
@@ -74,9 +76,9 @@ export default function PaymentForm({
             <ChevronLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <Button onClick={() => onSubmit(values)} className="w-full sm:w-auto bg-rose-500 hover:bg-rose-600">
+          <Button onClick={() => onSubmit(values)} disabled={isLoading} className="w-full sm:w-auto bg-rose-500 hover:bg-rose-600">
             <Download className="mr-2 h-4 w-4" />
-            Confirm &amp; Get Free Access
+            {isLoading ? "Processing…" : "Confirm & Get Free Access"}
           </Button>
         </CardFooter>
       </Card>

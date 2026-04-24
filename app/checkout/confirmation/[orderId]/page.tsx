@@ -25,14 +25,17 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ or
         // Attempt to fetch the order from the API
         const response = await fetch(`/api/orders/${orderId}`)
 
+        // Normalize: API wraps response as { order: ... } or { success, order: ... }
+        const normalize = (data: any) => data?.order ?? data
+
         if (response.ok) {
           const data = await response.json()
-          setOrder(data)
+          setOrder(normalize(data))
         } else {
           // If API fails, check localStorage for order data
           const storedOrder = localStorage.getItem(`order_${orderId}`)
           if (storedOrder) {
-            setOrder(JSON.parse(storedOrder))
+            setOrder(normalize(JSON.parse(storedOrder)))
           } else {
             // If no order found, redirect to home
             toast({

@@ -7,6 +7,7 @@ import { Heart, ShoppingCart, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { useCart } from "@/context/cart-context"
+import type { CartItem } from "@/context/cart-context"
 import { useWishlist } from "@/context/wishlist-context"
 
 interface ProductCardProps {
@@ -52,10 +53,11 @@ export default function ProductCard({
   const handleAddToCart = () => {
     addItem({
       id,
-      name,
+      name: name || title || "",
       price,
       image,
-      sellerId,
+      sellerId: sellerId || "unknown",
+      productType: (productType as CartItem["productType"]) || "plushie",
     })
   }
 

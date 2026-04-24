@@ -1,3 +1,6 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Calendar, ShoppingBag } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -63,7 +66,7 @@ export default function OrderConfirmationDetails({ order }: { order: Order }) {
         <Separator className="my-4" />
 
         <div className="space-y-4">
-          {order.items.map((item) => (
+          {(order.items ?? []).map((item) => (
             <div key={item.productId} className="flex items-start gap-4">
               <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border">
                 <img

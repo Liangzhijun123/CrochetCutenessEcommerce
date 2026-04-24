@@ -57,16 +57,17 @@ export default function CheckoutSummary({ items, subtotal, shippingCost, isDigit
                 <span>${shippingCost.toFixed(2)}</span>
               </div>
             )}
-            {isDigitalOnly && (
+            {isDigitalOnly ? (
               <div className="flex justify-between text-sm">
-                <span>Shipping</span>
-                <span className="text-rose-600 font-medium">Digital — Free</span>
+                <span>Tax</span>
+                <span className="text-muted-foreground">$0.00</span>
+              </div>
+            ) : (
+              <div className="flex justify-between text-sm">
+                <span>Tax</span>
+                <span className="text-muted-foreground">Calculated at next step</span>
               </div>
             )}
-            <div className="flex justify-between text-sm">
-              <span>Tax</span>
-              <span>Calculated at next step</span>
-            </div>
           </div>
 
           <Separator />

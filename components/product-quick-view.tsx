@@ -36,8 +36,7 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
       image: product.images[0],
       sellerId: product.sellerId,
       color: selectedColor,
-      size: selectedSize,
-      quantity: 1,
+      productType: product.productType || "plushie",
     })
   }
 

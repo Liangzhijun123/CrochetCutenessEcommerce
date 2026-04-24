@@ -31,7 +31,7 @@ export default function CartItem({ item }: CartItemProps) {
       <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border">
         <Image
           src={item.image || "/placeholder.svg"}
-          alt={item.name}
+          alt={item.name || "Cart item"}
           width={80}
           height={80}
           className="h-full w-full object-cover"

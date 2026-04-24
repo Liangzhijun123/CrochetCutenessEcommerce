@@ -33,7 +33,7 @@ type SellerUpload = {
 }
 
 export default function DigitalLibrary() {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const [purchases, setPurchases] = useState<DigitalPurchase[]>([])
   const [sellerUploads, setSellerUploads] = useState<SellerUpload[]>([])
   const [loading, setLoading] = useState(true)
@@ -68,7 +68,9 @@ export default function DigitalLibrary() {
 
   const fetchDigitalPurchases = async () => {
     try {
-      const res = await fetch(`/api/digital-library?userId=${user?.id}`)
+      const headers: Record<string, string> = {}
+      if (token) headers["Authorization"] = `Bearer ${token}`
+      const res = await fetch(`/api/digital-library?userId=${user?.id}`, { headers })
       if (!res.ok) throw new Error("Failed to fetch")
       const data = await res.json()
       setPurchases(data.purchases || [])
