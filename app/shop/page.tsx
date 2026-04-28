@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { ShopClientPage } from "./client-page"
 import { supabaseAdmin } from "@/lib/supabase-admin"
 import type { FilterState } from "@/components/product-filters"

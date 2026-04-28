@@ -32,6 +32,7 @@ import InventoryManagementDashboard from "./inventory-management-dashboard"
 import CreatorProfileManagement from "./creator-profile-management"
 import ProductUploadForm from "./product-upload-form"
 import SellerProductList from "./seller-product-list"
+import ChatSystem from "@/components/chat/chat-system"
 
 // Helper component for displaying dates
 function SellerAppDate({ date }: { date: string }) {
@@ -389,6 +390,7 @@ export default function SellerDashboard() {
           <TabsTrigger value="profile">Creator Profile</TabsTrigger>
           <TabsTrigger value="pattern-testing">Pattern Testing</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="messages">Messages</TabsTrigger>
         </TabsList>
         </div>
 
@@ -776,6 +778,12 @@ export default function SellerDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+        <TabsContent value="messages" className="space-y-6">
+          <h2 className="text-2xl font-bold">Messages</h2>
+          <p className="text-muted-foreground">Respond to customer inquiries and chat with admin</p>
+          <ChatSystem />
+        </TabsContent>
 
       <BankAccountModal isOpen={isBankModalOpen} onClose={() => setIsBankModalOpen(false)} />
     </div>

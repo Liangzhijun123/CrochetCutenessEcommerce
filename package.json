@@ -5,6 +5,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
+    "postinstall": "node scripts/fix-pnpm-links.js",
     "lint": "next lint",
     "start": "next start",
     "dev:backend": "nodemon server/src/index.ts",

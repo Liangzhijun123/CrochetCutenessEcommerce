@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { Package } from "lucide-react"
 
+export const dynamic = 'force-dynamic'
+
 import { Button } from "@/components/ui/button"
 import ProductCard from "@/components/product-card"
 import Newsletter from "@/components/newsletter"

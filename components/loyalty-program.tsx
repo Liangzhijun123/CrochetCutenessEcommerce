@@ -55,7 +55,7 @@ export default function LoyaltyProgram() {
   }, [token])
 
   useEffect(() => {
-    if (isAuthenticated && token && activeTab === "account") {
+    if (isAuthenticated && token) {
       fetchRewardsData()
     }
   }, [isAuthenticated, token, activeTab, fetchRewardsData])
@@ -140,7 +140,7 @@ export default function LoyaltyProgram() {
 
         <div className="mt-12">
           <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className={`grid w-full ${isAuthenticated ? 'grid-cols-3' : 'grid-cols-2'} bg-rose-100`}>
+            <TabsList className={`grid w-full ${isAuthenticated ? 'grid-cols-3' : 'grid-cols-2'} bg-rose-100 mb-2`}>
               <TabsTrigger value="overview" className="data-[state=active]:bg-rose-500 data-[state=active]:text-white">
                 Program Overview
               </TabsTrigger>
@@ -154,7 +154,7 @@ export default function LoyaltyProgram() {
               )}
             </TabsList>
 
-            <TabsContent value="overview" className="mt-6">
+            <TabsContent value="overview" className="mt-6 px-1">
               <div className="grid gap-8 md:grid-cols-3">
                 <Card className="overflow-hidden">
                   <div className="h-2 w-full bg-rose-500" />
@@ -234,7 +234,7 @@ export default function LoyaltyProgram() {
               </div>
             </TabsContent>
 
-            <TabsContent value="tiers" className="mt-6">
+            <TabsContent value="tiers" className="mt-6 px-1">
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 {tiers.map((tier) => (
                   <Card key={tier.name} className="overflow-hidden transition-all hover:shadow-md">
@@ -272,21 +272,21 @@ export default function LoyaltyProgram() {
             </TabsContent>
 
             {isAuthenticated && (
-              <TabsContent value="account" className="mt-6">
+              <TabsContent value="account" className="mt-6 px-1">
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="pb-4">
                     <CardTitle>Your Rewards</CardTitle>
                     <CardDescription>
                       Current tier: <span className={`font-bold ${tierColors[userTierInfo.tier]}`}>{userTierInfo.tier}</span>
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-6 px-6 pb-6">
                     {loadingRewards ? (
                       <div className="py-8 text-center text-muted-foreground">Loading your rewards...</div>
                     ) : (
                       <>
                         {/* XP Progress Bar */}
-                        <div className="mb-6">
+                        <div>
                           <div className="mb-3 flex items-center justify-between">
                             <span className="text-sm font-medium">
                               {(xpBalance?.totalXP ?? 0).toLocaleString()} XP
@@ -311,7 +311,7 @@ export default function LoyaltyProgram() {
                         </div>
 
                         {/* All Tier XP Bars */}
-                        <div className="mb-6 space-y-3">
+                        <div className="space-y-3">
                           <h3 className="text-sm font-medium text-muted-foreground">Tier Progress</h3>
                           {tiers.map((tier) => {
                             const currentXP = xpBalance?.totalXP ?? 0
@@ -341,7 +341,7 @@ export default function LoyaltyProgram() {
                           })}
                         </div>
 
-                        <div className="mb-6">
+                        <div>
                           <h3 className="mb-3 text-lg font-medium">How to Earn XP</h3>
                           <div className="grid gap-3 sm:grid-cols-2">
                             <Card className="bg-muted/50">

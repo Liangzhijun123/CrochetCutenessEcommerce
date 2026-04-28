@@ -13,13 +13,13 @@ const poolConfig: PoolConfig = {
   database: process.env['DB_NAME'] || 'crochet_community',
   user: process.env['DB_USER'] || 'postgres',
   password: process.env['DB_PASSWORD'] || 'password',
-  ssl: process.env['DB_SSL'] === 'true' ? { rejectUnauthorized: false } : false,
+  ssl: process.env['DB_SSL'] === 'false' ? false : { rejectUnauthorized: false },
   
   // Connection pool settings
   min: 2, // Minimum number of connections in pool
   max: 20, // Maximum number of connections in pool
   idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
-  connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection could not be established
+  connectionTimeoutMillis: 10000, // Return error after 10 seconds if connection could not be established
   maxUses: 7500, // Close connection after 7500 uses (optional)
 };
 

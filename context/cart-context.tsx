@@ -53,7 +53,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const { user, updateUser } = useAuth()
+  const { user, updateUser, token } = useAuth()
 
   // Load cart from localStorage on initial render
   useEffect(() => {
@@ -171,6 +171,32 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         if (!response.ok) {
           throw new Error("Failed to create order")
         }
+      }
+
+      // Award XP for each purchased item based on product type
+      if (token) {
+        const xpPromises = items.flatMap((item) => {
+          const activities: string[] = []
+          if (item.productType === "pdf_pattern") activities.push("pattern_pdf")
+          else if (item.productType === "plushie") activities.push("plushie")
+          else if (item.productType === "both") {
+            activities.push("pattern_pdf")
+            activities.push("plushie")
+          }
+          return Array.from({ length: item.quantity }, () =>
+            activities.map((activity) =>
+              fetch("/api/xp/earn", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ activity }),
+              }).catch((err) => console.error("XP award failed:", err))
+            )
+          ).flat()
+        })
+        await Promise.allSettled(xpPromises)
       }
 
       // Calculate loyalty points (1 point per dollar spent)
